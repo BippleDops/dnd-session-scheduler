@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Session Recaps — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="page-header"><h2>Session Recaps</h2></div>
+    <div class="toolbar"><select id="filter-campaign" onchange="loadRecaps()"><option value="">All Campaigns</option></select></div>
+    <div id="recaps-list"></div>
+    <div id="no-recaps" class="card hidden" style="text-align:center;padding:40px;"><p style="color:var(--color-text-muted);">No session recaps yet.</p></div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    (function() {
+      fetch('/api/campaigns').then(function(r){return r.json();}).then(function(list) {
+        var sel = document.getElementById('filter-campaign');
+        (list || []).forEach(function(c) { var opt = document.createElement('option'); opt.value = c; opt.textContent = c; sel.appendChild(opt); });
+      });
+      loadRecaps();
+    })();
+    function loadRecaps() {
+      var campaign = document.getElementById('filter-campaign').value;
+      showLoading();
+      fetch('/api/recaps' + (campaign ? '?campaign=' + encodeURIComponent(campaign) : '')).then(function(r){return r.json();}).then(function(recaps) {
+        hideLoading();
+        var el = document.getElementById('recaps-list');
+        var noEl = document.getElementById('no-recaps');
+        if (!recaps || recaps.length === 0) { el.innerHTML = ''; noEl.classList.remove('hidden'); return; }
+        noEl.classList.add('hidden');
+        el.innerHTML = recaps.map(function(r) {
+          return '<div class="card ' + campaignClass(r.campaign) + '" style="margin-bottom:16px;"><div class="card-header"><div><div class="card-title">' + escHtml(r.campaign) + '</div><div class="card-meta">' + formatDate(r.date) + ' · ' + r.attendeeCount + ' adventurers</div></div><span class="' + campaignBadgeClass(r.campaign) + '">' + escHtml(r.campaign) + '</span></div><div style="margin-top:12px;font-size:0.95rem;line-height:1.7;white-space:pre-wrap;">' + escHtml(r.recap) + '</div>' + (r.attendees ? '<div style="margin-top:12px;font-size:0.8rem;color:var(--color-text-muted);">Adventurers: ' + escHtml(r.attendees) + '</div>' : '') + '</div>';
+        }).join('');
+      }).catch(function() { hideLoading(); showToast('Error loading recaps', 'error'); });
+    }
+  </script>
+</body>
+</html>
+

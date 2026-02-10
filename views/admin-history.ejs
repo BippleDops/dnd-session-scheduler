@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Session History — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="page-header"><h2>Session History</h2></div>
+    <div class="toolbar">
+      <input type="date" id="filter-from" onchange="loadHistory()">
+      <span style="color:var(--color-text-muted);">to</span>
+      <input type="date" id="filter-to" onchange="loadHistory()">
+      <select id="filter-campaign" onchange="loadHistory()"><option value="">All Campaigns</option></select>
+      <select id="filter-recap" onchange="loadHistory()"><option value="">All</option><option value="pending">Recap Pending</option></select>
+      <button class="btn btn-secondary btn-sm" onclick="doExport()">Export CSV</button>
+    </div>
+    <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Campaign</th><th>Attendees</th><th>Count</th><th>Recap</th><th>Info Sheet</th><th>Actions</th></tr></thead><tbody id="history-tbody"></tbody></table></div>
+    <div id="history-detail" class="detail-panel" style="display:none;">
+      <h3 id="detail-session-title"></h3>
+      <div id="detail-attendees"></div>
+      <div class="form-group" style="margin-top:16px;"><label class="form-label">DM Post-Session Notes</label><textarea id="detail-notes" class="form-textarea" rows="4" maxlength="5000"></textarea><button class="btn btn-sm btn-primary" style="margin-top:8px;" onclick="saveNotes()">Save Notes</button></div>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    var allHistory = [];
+    var selectedSessionId = null;
+    (function() {
+      fetch('/api/campaigns').then(function(r){return r.json();}).then(function(list) {
+        var sel = document.getElementById('filter-campaign');
+        (list||[]).forEach(function(c) { var opt = document.createElement('option'); opt.value = c; opt.textContent = c; sel.appendChild(opt); });
+      });
+      loadHistory();
+    })();
+
+    function loadHistory() {
+      var params = new URLSearchParams();
+      var from = document.getElementById('filter-from').value; if (from) params.set('dateFrom', from);
+      var to = document.getElementById('filter-to').value; if (to) params.set('dateTo', to);
+      var camp = document.getElementById('filter-campaign').value; if (camp) params.set('campaign', camp);
+      var recap = document.getElementById('filter-recap').value; if (recap === 'pending') params.set('recapPending', 'true');
+      showLoading();
+      fetch('/api/admin/history?' + params).then(function(r){return r.json();}).then(function(history) {
+        hideLoading(); allHistory = history || []; renderHistory();
+      }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); });
+    }
+
+    function renderHistory() {
+      var tbody = document.getElementById('history-tbody');
+      if (allHistory.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--color-text-muted);">No completed sessions found.</td></tr>'; return; }
+      tbody.innerHTML = allHistory.map(function(h) {
+        var recapBadge = h.recapDrafted ? '<span class="badge badge-scheduled">Done</span>' : '<span class="badge badge-cancelled">Pending</span>';
+        var infoBadge = h.infoSheetDrafted ? '<span class="badge badge-scheduled">Done</span>' : '<span class="badge badge-cancelled">Pending</span>';
+        return '<tr onclick="showHistoryDetail(\'' + h.sessionId + '\')" style="cursor:pointer;"><td>' + formatDate(h.sessionDate) + '</td><td><span class="' + campaignBadgeClass(h.campaign) + '">' + escHtml(h.campaign) + '</span></td><td>' + escHtml(h.attendeeCharNames || '—') + '</td><td>' + h.attendeeCount + '</td><td>' + recapBadge + '</td><td>' + infoBadge + '</td><td><button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();doDraftRecap(\'' + h.sessionId + '\')">Recap</button> <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();doDraftInfo(\'' + h.sessionId + '\')">Info</button></td></tr>';
+      }).join('');
+    }
+
+    function showHistoryDetail(sessionId) {
+      selectedSessionId = sessionId;
+      var h = allHistory.find(function(x){return x.sessionId === sessionId;});
+      if (!h) return;
+      document.getElementById('detail-session-title').textContent = h.campaign + ' — ' + formatDate(h.sessionDate);
+      document.getElementById('detail-attendees').innerHTML = '<p><strong>Attendees (' + h.attendeeCount + '):</strong> ' + escHtml(h.attendeeCharNames || 'None recorded') + '</p>';
+      document.getElementById('detail-notes').value = h.dmPostNotes || '';
+      document.getElementById('history-detail').style.display = '';
+    }
+    function saveNotes() {
+      if (!selectedSessionId) return;
+      showLoading();
+      fetch('/api/admin/history/' + selectedSessionId + '/notes', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: document.getElementById('detail-notes').value }) }).then(function(r){return r.json();}).then(function(r) { hideLoading(); if (r.success) showToast('Notes saved!', 'success'); else showToast(r.error, 'error'); }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); });
+    }
+    function doDraftRecap(id) { showLoading(); fetch('/api/admin/sessions/' + id + '/draft-recap', { method: 'POST' }).then(function(){hideLoading();showToast('Recap drafted!','success');loadHistory();}).catch(function(e){hideLoading();showToast(e.message,'error');}); }
+    function doDraftInfo(id) { showLoading(); fetch('/api/admin/sessions/' + id + '/draft-info', { method: 'POST' }).then(function(){hideLoading();showToast('Info sheet drafted!','success');loadHistory();}).catch(function(e){hideLoading();showToast(e.message,'error');}); }
+    function doExport() { window.location.href = '/api/admin/export/history'; }
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Audit Log — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="page-header"><h2>Audit Log</h2></div>
+    <div class="toolbar">
+      <select id="filter-type" onchange="loadLogs(1)">
+        <option value="">All Actions</option>
+        <option value="SESSION_CREATED">Session Created</option><option value="SESSION_UPDATED">Session Updated</option>
+        <option value="SESSION_CANCELLED">Session Cancelled</option><option value="SESSION_COMPLETED">Session Completed</option>
+        <option value="REGISTRATION_CREATED">Registration Created</option><option value="REGISTRATION_CANCELLED">Registration Cancelled</option>
+        <option value="ATTENDANCE_MARKED">Attendance Marked</option><option value="REMINDER_DRAFTED">Reminder Drafted</option>
+        <option value="BACKUP_COMPLETED">Backup Completed</option><option value="CONFIG_UPDATED">Config Updated</option>
+      </select>
+      <span id="log-info" style="color:var(--color-text-muted);font-size:0.85rem;"></span>
+    </div>
+    <div class="table-wrap"><table class="data-table"><thead><tr><th>Time</th><th>Action</th><th>Details</th><th>By</th></tr></thead><tbody id="logs-tbody"></tbody></table></div>
+    <div id="pagination" style="display:flex;gap:8px;justify-content:center;margin-top:16px;"></div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    var currentPage = 1;
+    (function() { loadLogs(1); })();
+    function loadLogs(page) {
+      currentPage = page || 1;
+      var actionType = document.getElementById('filter-type').value;
+      var params = new URLSearchParams({ page: currentPage, perPage: 50 });
+      if (actionType) params.set('actionType', actionType);
+      showLoading();
+      fetch('/api/admin/logs?' + params).then(function(r){return r.json();}).then(function(data) {
+        hideLoading();
+        document.getElementById('log-info').textContent = 'Showing page ' + data.page + ' of ' + data.totalPages + ' (' + data.total + ' entries)';
+        var tbody = document.getElementById('logs-tbody');
+        if (!data.logs || data.logs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No log entries found</td></tr>'; return; }
+        tbody.innerHTML = data.logs.map(function(l) { return '<tr><td style="white-space:nowrap;">' + formatTimestamp(l.Timestamp) + '</td><td><code style="font-size:0.8rem;">' + escHtml(l.ActionType) + '</code></td><td style="font-size:0.85rem;">' + escHtml(l.Details) + '</td><td style="font-size:0.85rem;">' + escHtml(l.TriggeredBy) + '</td></tr>'; }).join('');
+        var pag = document.getElementById('pagination'); var btns = '';
+        if (data.page > 1) btns += '<button class="btn btn-sm btn-secondary" onclick="loadLogs(' + (data.page-1) + ')">Prev</button>';
+        btns += '<span style="padding:6px 12px;font-size:0.85rem;">' + data.page + ' / ' + data.totalPages + '</span>';
+        if (data.page < data.totalPages) btns += '<button class="btn btn-sm btn-secondary" onclick="loadLogs(' + (data.page+1) + ')">Next</button>';
+        pag.innerHTML = btns;
+      }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); });
+    }
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Session Management — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div id="list-view">
+      <div class="page-header"><h2>Session Management</h2></div>
+      <div class="toolbar">
+        <a href="/admin-sessions?action=create" class="btn btn-primary">+ Create Session</a>
+        <select id="filter-status" onchange="loadSessions()"><option value="">All Statuses</option><option value="Scheduled">Scheduled</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option></select>
+        <select id="filter-campaign" onchange="loadSessions()"><option value="">All Campaigns</option></select>
+      </div>
+      <div class="table-wrap"><table class="data-table" id="sessions-table"><thead><tr><th>Date</th><th>Time</th><th>Campaign</th><th>Title</th><th>Players</th><th>Status</th><th>Actions</th></tr></thead><tbody id="sessions-tbody"></tbody></table></div>
+    </div>
+    <div id="form-view" style="display:none;">
+      <div class="page-header"><h2 id="form-title">Create Session</h2></div>
+      <form id="session-form" class="card" style="max-width:600px;">
+        <input type="hidden" id="edit-session-id">
+        <div class="form-group"><label class="form-label">Date <span class="required">*</span></label><input type="date" id="form-date" class="form-input" required><div class="form-hint" id="day-type-hint"></div></div>
+        <div class="form-group"><label class="form-label">Start Time <span class="required">*</span></label><select id="form-time" class="form-select"><option value="">— Select date first —</option></select></div>
+        <div class="form-group"><label class="form-label">Campaign <span class="required">*</span></label><select id="form-campaign" class="form-select" required><option value="">— Select —</option></select></div>
+        <div class="form-group"><label class="form-label">Title</label><input type="text" id="form-title-input" class="form-input" maxlength="200"></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea id="form-desc" class="form-textarea" maxlength="2000" rows="3"></textarea></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group"><label class="form-label">Max Players</label><input type="number" id="form-max" class="form-input" value="6" min="1" max="20"></div>
+          <div class="form-group"><label class="form-label">Duration (hours)</label><input type="number" id="form-duration" class="form-input" value="4" min="1" max="12"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Location</label><input type="text" id="form-location" class="form-input" maxlength="200"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group"><label class="form-label">Difficulty</label><select id="form-difficulty" class="form-select"><option value="">—</option><option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option><option value="Deadly">Deadly</option></select></div>
+          <div class="form-group"><label class="form-label">Signup Deadline</label><input type="datetime-local" id="form-deadline" class="form-input"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Tags</label><input type="text" id="form-tags" class="form-input" maxlength="200" placeholder="combat-heavy, roleplay, new-player-friendly"></div>
+        <div class="form-group"><label class="form-label">Co-DM Email</label><input type="email" id="form-codm" class="form-input" maxlength="254"></div>
+        <div class="form-group"><label class="form-label">DM Notes (private)</label><textarea id="form-notes" class="form-textarea" maxlength="2000" rows="3"></textarea></div>
+        <div class="btn-group"><button type="submit" class="btn btn-primary" id="form-submit-btn">Create Session</button><a href="/admin-sessions" class="btn btn-secondary">Cancel</a></div>
+      </form>
+    </div>
+    <div id="detail-view" style="display:none;">
+      <div class="page-header"><h2 id="detail-title"></h2><a href="/admin-sessions" style="font-size:0.9rem;">&larr; Back to list</a></div>
+      <div class="card" id="detail-info"></div>
+      <h3 style="color:var(--color-primary);margin:20px 0 12px;">Registrations</h3>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Player</th><th>Email</th><th>Character</th><th>Class</th><th>Lv</th><th>Status</th><th>Attended</th><th>Actions</th></tr></thead><tbody id="detail-regs"></tbody></table></div>
+      <div class="btn-group" id="detail-actions" style="margin-top:16px;"></div>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    var currentAction = '<%= action %>';
+    var currentSessionId = '<%= sessionId %>';
+    (function() {
+      fetch('/api/campaigns').then(function(r){return r.json();}).then(function(list) {
+        ['filter-campaign','form-campaign'].forEach(function(id) {
+          var sel = document.getElementById(id);
+          (list||[]).forEach(function(c) { var opt = document.createElement('option'); opt.value = c; opt.textContent = c; sel.appendChild(opt); });
+        });
+      });
+      if (currentAction === 'create') showCreateForm();
+      else if (currentSessionId) showDetail(currentSessionId);
+      else loadSessions();
+
+      document.getElementById('form-date').addEventListener('change', function() {
+        var val = this.value; var timeSel = document.getElementById('form-time'); var hint = document.getElementById('day-type-hint'); timeSel.innerHTML = '';
+        if (!val) return;
+        var parts = val.split('-'); var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2])); var day = d.getDay(); var isWeekend = (day===0||day===6);
+        hint.textContent = isWeekend ? 'Weekend' : 'Weeknight';
+        if (isWeekend) timeSel.innerHTML = '<option value="12:00">12:00 PM</option><option value="17:00">5:00 PM</option>';
+        else timeSel.innerHTML = '<option value="18:00">6:00 PM</option>';
+      });
+
+      document.getElementById('session-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var editId = document.getElementById('edit-session-id').value;
+        var data = { date: document.getElementById('form-date').value, startTime: document.getElementById('form-time').value, campaign: document.getElementById('form-campaign').value, title: document.getElementById('form-title-input').value, description: document.getElementById('form-desc').value, maxPlayers: parseInt(document.getElementById('form-max').value, 10), duration: parseInt(document.getElementById('form-duration').value, 10) || 4, location: document.getElementById('form-location').value, difficulty: document.getElementById('form-difficulty').value, signupDeadline: document.getElementById('form-deadline').value, tags: document.getElementById('form-tags').value, coDM: document.getElementById('form-codm').value, dmNotes: document.getElementById('form-notes').value };
+        showLoading();
+        if (editId) {
+          fetch('/api/admin/sessions/' + editId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(function(r){return r.json();}).then(function(r) { hideLoading(); if (r.success) { showToast('Session updated!', 'success'); showDetail(editId); } else showToast(r.error || 'Update failed', 'error'); }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); });
+        } else {
+          if (!confirm('Create session?\n\n' + data.campaign + ' on ' + data.date)) return;
+          fetch('/api/admin/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(function(r){return r.json();}).then(function(r) { hideLoading(); if (r.success) { showToast('Session created!', 'success'); window.location.href = '/admin-sessions?sessionId=' + r.sessionId; } else showToast(JSON.stringify(r.errors || r.error), 'error'); }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); });
+        }
+      });
+    })();
+
+    function loadSessions() {
+      document.getElementById('list-view').style.display = ''; document.getElementById('form-view').style.display = 'none'; document.getElementById('detail-view').style.display = 'none';
+      var params = new URLSearchParams(); var s = document.getElementById('filter-status').value; if (s) params.set('status', s); var c = document.getElementById('filter-campaign').value; if (c) params.set('campaign', c);
+      showLoading();
+      fetch('/api/admin/sessions?' + params).then(function(r){return r.json();}).then(function(sessions) {
+        hideLoading();
+        var tbody = document.getElementById('sessions-tbody');
+        if (!sessions || sessions.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No sessions found</td></tr>'; return; }
+        tbody.innerHTML = sessions.map(function(s) {
+          var statusClass = s.status === 'Scheduled' ? 'badge-scheduled' : (s.status === 'Cancelled' ? 'badge-cancelled' : 'badge-completed');
+          return '<tr onclick="showDetail(\'' + s.sessionId + '\')" style="cursor:pointer;"><td>' + formatDate(s.date) + '</td><td>' + formatTime(s.startTime) + '</td><td><span class="' + campaignBadgeClass(s.campaign) + '">' + escHtml(s.campaign) + '</span></td><td>' + escHtml(s.title) + '</td><td>' + s.registeredCount + '/' + s.maxPlayers + '</td><td><span class="badge ' + statusClass + '">' + s.status + '</span></td><td><button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();showDetail(\'' + s.sessionId + '\')">View</button></td></tr>';
+        }).join('');
+      }).catch(function(e) { hideLoading(); showToast('Failed to load sessions', 'error'); });
+    }
+
+    function showCreateForm() { document.getElementById('list-view').style.display = 'none'; document.getElementById('form-view').style.display = ''; document.getElementById('detail-view').style.display = 'none'; document.getElementById('form-title').textContent = 'Create Session'; document.getElementById('form-submit-btn').textContent = 'Create Session'; document.getElementById('edit-session-id').value = ''; }
+
+    function showDetail(sessionId) {
+      currentSessionId = sessionId;
+      document.getElementById('list-view').style.display = 'none'; document.getElementById('form-view').style.display = 'none'; document.getElementById('detail-view').style.display = '';
+      showLoading();
+      fetch('/api/admin/sessions/' + sessionId).then(function(r){return r.json();}).then(function(s) {
+        hideLoading();
+        if (!s) { showToast('Session not found', 'error'); loadSessions(); return; }
+        document.getElementById('detail-title').textContent = s.title || s.campaign;
+        document.getElementById('detail-info').innerHTML = '<div class="detail-grid"><div class="detail-label">Date</div><div>' + formatDate(s.date) + '</div><div class="detail-label">Time</div><div>' + formatTime(s.startTime) + ' — ' + formatTime(s.endTime) + '</div><div class="detail-label">Campaign</div><div><span class="' + campaignBadgeClass(s.campaign) + '">' + escHtml(s.campaign) + '</span></div><div class="detail-label">Status</div><div>' + s.status + '</div><div class="detail-label">Players</div><div>' + s.registeredCount + ' / ' + s.maxPlayers + '</div>' + (s.dmNotes ? '<div class="detail-label">DM Notes</div><div>' + escHtml(s.dmNotes) + '</div>' : '') + '</div>';
+        var regsBody = document.getElementById('detail-regs');
+        if (s.registrations && s.registrations.length > 0) {
+          regsBody.innerHTML = s.registrations.map(function(r) { return '<tr><td>' + escHtml(r.playerName) + '</td><td>' + escHtml(r.playerEmail) + '</td><td>' + escHtml(r.characterName) + '</td><td>' + escHtml(r.characterClass) + '</td><td>' + r.characterLevel + '</td><td>' + r.status + '</td><td><input type="checkbox" ' + (r.attendanceConfirmed ? 'checked' : '') + ' onchange="toggleAttendance(\'' + r.registrationId + '\', this.checked)"></td><td>' + (r.status === 'Confirmed' ? '<button class="btn btn-sm btn-secondary" onclick="cancelReg(\'' + r.registrationId + '\')">Cancel</button>' : '') + '</td></tr>'; }).join('');
+        } else { regsBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No registrations</td></tr>'; }
+        var actions = document.getElementById('detail-actions'); var btns = '';
+        if (s.status === 'Scheduled') { btns += '<button class="btn btn-secondary" onclick="editSession(\'' + s.sessionId + '\')">Edit</button><button class="btn btn-danger" onclick="doCancelSession(\'' + s.sessionId + '\')">Cancel Session</button><button class="btn btn-success" onclick="doCompleteSession(\'' + s.sessionId + '\')">Mark Completed</button>'; }
+        btns += '<button class="btn btn-secondary" onclick="doCopyLink(\'' + s.sessionId + '\')">Copy Sign-Up Link</button><button class="btn btn-secondary" onclick="doDraftInfo(\'' + s.sessionId + '\')">Draft Info Sheet</button><button class="btn btn-secondary" onclick="doDraftRecap(\'' + s.sessionId + '\')">Draft Recap</button><button class="btn btn-secondary" onclick="doExportRoster(\'' + s.sessionId + '\')">Export Roster</button>';
+        actions.innerHTML = btns;
+      }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); });
+    }
+
+    function editSession(id) { showLoading(); fetch('/api/admin/sessions/' + id).then(function(r){return r.json();}).then(function(s) { hideLoading(); document.getElementById('list-view').style.display = 'none'; document.getElementById('form-view').style.display = ''; document.getElementById('detail-view').style.display = 'none'; document.getElementById('form-title').textContent = 'Edit Session'; document.getElementById('form-submit-btn').textContent = 'Save Changes'; document.getElementById('edit-session-id').value = s.sessionId; document.getElementById('form-date').value = s.date; document.getElementById('form-date').dispatchEvent(new Event('change')); setTimeout(function() { document.getElementById('form-time').value = s.startTime; }, 50); document.getElementById('form-campaign').value = s.campaign; document.getElementById('form-title-input').value = s.title || ''; document.getElementById('form-desc').value = s.description || ''; document.getElementById('form-max').value = s.maxPlayers; document.getElementById('form-notes').value = s.dmNotes || ''; }); }
+    function toggleAttendance(regId, attended) { fetch('/api/admin/registrations/' + regId + '/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attended: attended }) }).then(function(){showToast('Attendance updated', 'success');}); }
+    function cancelReg(regId) { if (!confirm('Cancel this registration?')) return; fetch('/api/admin/registrations/' + regId + '/cancel', { method: 'POST' }).then(function(){showToast('Registration cancelled', 'success'); showDetail(currentSessionId);}); }
+    function doCancelSession(id) { if (!confirm('Cancel this session?')) return; showLoading(); fetch('/api/admin/sessions/' + id + '/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notify: true }) }).then(function(r){return r.json();}).then(function() { hideLoading(); showToast('Session cancelled', 'success'); loadSessions(); }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); }); }
+    function doCompleteSession(id) { if (!confirm('Mark as completed?')) return; showLoading(); fetch('/api/admin/sessions/' + id + '/complete', { method: 'POST' }).then(function(r){return r.json();}).then(function() { hideLoading(); showToast('Session completed!', 'success'); showDetail(id); }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); }); }
+    function doDraftInfo(id) { showLoading(); fetch('/api/admin/sessions/' + id + '/draft-info', { method: 'POST' }).then(function(r){return r.json();}).then(function() { hideLoading(); showToast('Info sheet drafted!', 'success'); }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); }); }
+    function doDraftRecap(id) { showLoading(); fetch('/api/admin/sessions/' + id + '/draft-recap', { method: 'POST' }).then(function(r){return r.json();}).then(function() { hideLoading(); showToast('Recap drafted!', 'success'); }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); }); }
+    function doCopyLink(sessionId) { var url = window.location.origin + '/signup?sessionId=' + sessionId; navigator.clipboard.writeText(url).then(function(){showToast('Link copied!','success');}).catch(function(){showToast('Copy failed','error');}); }
+    function doExportRoster(id) { window.location.href = '/api/admin/sessions/' + id + '/roster-csv'; }
+  </script>
+</body>
+</html>
+

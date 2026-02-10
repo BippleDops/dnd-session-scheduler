@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Error — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="card" style="text-align:center;padding:40px;">
+      <h2 style="color:var(--color-error);margin-bottom:12px;">Something Went Wrong</h2>
+      <p><%= typeof message !== 'undefined' ? message : 'An unexpected error occurred.' %></p>
+      <a href="/" class="btn btn-primary" style="margin-top:16px;">Back to Calendar</a>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+</body>
+</html>
+

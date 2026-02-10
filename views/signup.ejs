@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Sign Up — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div id="session-summary" class="card" style="display:none;"></div>
+    <div id="signup-form-container" style="display:none;">
+      <form id="signup-form" novalidate>
+        <input type="hidden" id="csrf-token" name="csrfToken">
+        <input type="hidden" id="session-id" name="sessionId" value="<%= sessionId %>">
+        <fieldset>
+          <legend>About You <span class="privacy-badge privacy-private">Private</span></legend>
+          <div class="form-group"><label class="form-label" for="name">Name <span class="required">*</span></label><input type="text" id="name" name="name" class="form-input" required maxlength="100"><div class="form-error" id="name-error"></div></div>
+          <div class="form-group"><label class="form-label" for="email">Email <span class="required">*</span></label><input type="email" id="email" name="email" class="form-input" required maxlength="254"><div class="form-error" id="email-error"></div></div>
+        </fieldset>
+        <div id="character-picker" class="card hidden" style="margin-bottom:20px;border-left-color:var(--color-accent);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><strong>Your Characters</strong><button type="button" class="btn btn-sm btn-secondary" onclick="clearCharacterForm()">New Character</button></div>
+          <div id="character-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+        </div>
+        <fieldset>
+          <legend>Your Character <span class="privacy-badge privacy-public">Shared</span></legend>
+          <div class="form-group"><label class="form-label" for="characterName">Character Name <span class="required">*</span></label><input type="text" id="characterName" name="characterName" class="form-input" required maxlength="50"><div class="form-error" id="characterName-error"></div></div>
+          <div class="form-group"><label class="form-label">Character Class <span class="required">*</span></label><div class="checkbox-grid" id="class-grid"></div><div class="form-error" id="characterClass-error"></div></div>
+          <div class="form-group"><label class="form-label" for="characterRace">Race / Ancestry <span class="required">*</span></label><select id="characterRace" name="characterRace" class="form-select"><option value="">— Select —</option></select><input type="text" id="characterRaceOther" name="characterRaceOther" class="form-input" placeholder="Specify race/ancestry" style="margin-top:6px;display:none;" maxlength="50"><div class="form-error" id="characterRace-error"></div></div>
+          <div class="form-group"><label class="form-label" for="characterLevel">Character Level <span class="required">*</span></label><input type="number" id="characterLevel" name="characterLevel" class="form-input" min="1" max="20" required style="max-width:120px;"><div class="form-error" id="characterLevel-error"></div></div>
+        </fieldset>
+        <fieldset>
+          <legend>For the DM <span class="privacy-badge privacy-private">Private — Optional</span></legend>
+          <div class="form-group"><label class="form-label" for="preferredCampaign">Preferred Campaign Setting</label><select id="preferredCampaign" name="preferredCampaign" class="form-select"><option value="">No Preference</option></select></div>
+          <div class="form-group"><label class="form-label" for="accessibilityNeeds">Accessibility needs?</label><textarea id="accessibilityNeeds" name="accessibilityNeeds" class="form-textarea" maxlength="1000" rows="2"></textarea></div>
+          <div class="form-group"><label class="form-label" for="dmNotes">Anything the DM should know?</label><textarea id="dmNotes" name="dmNotes" class="form-textarea" maxlength="1000" rows="2"></textarea></div>
+          <div class="form-group"><label class="form-label">Played with this group before?</label><div style="display:flex;gap:16px;"><label class="checkbox-item"><input type="radio" name="playedBefore" value="Yes"> Yes</label><label class="checkbox-item"><input type="radio" name="playedBefore" value="No"> No</label><label class="checkbox-item"><input type="radio" name="playedBefore" value="First Time"> First Time</label></div></div>
+        </fieldset>
+        <button type="submit" class="btn btn-primary" id="submit-btn">Sign Up for This Session</button>
+      </form>
+    </div>
+    <div id="confirmation" class="card hidden" style="text-align:center;padding:40px;">
+      <h2 style="color:var(--color-success);margin-bottom:12px;">You're Registered!</h2>
+      <p id="confirm-message"></p>
+      <div class="btn-group" style="justify-content:center;margin-top:20px;">
+        <a href="/" class="btn btn-primary">Back to Calendar</a>
+        <a href="/sessions" class="btn btn-secondary">View All Sessions</a>
+      </div>
+    </div>
+    <div id="session-full" class="card hidden" style="text-align:center;padding:40px;"><h2 style="color:var(--color-warning);margin-bottom:12px;">Session Full</h2><p>Sorry, this session is at capacity.</p><a href="/" class="btn btn-primary" style="margin-top:16px;">View Other Sessions</a></div>
+    <div id="session-error" class="card hidden" style="text-align:center;padding:40px;"><h2 style="color:var(--color-error);margin-bottom:12px;">Session Not Found</h2><p>This session doesn't exist or is no longer available.</p><a href="/" class="btn btn-primary" style="margin-top:16px;">Back to Calendar</a></div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    var CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter','Other'];
+    var RACES = ['Human','Elf','Half-Elf','Dwarf','Halfling','Gnome','Half-Orc','Tiefling','Dragonborn','Goliath','Aasimar','Genasi','Tabaxi','Kenku','Firbolg','Tortle','Warforged','Changeling','Kalashtar','Shifter','Harengon','Owlin','Other'];
+
+    (function() {
+      var grid = document.getElementById('class-grid');
+      grid.innerHTML = CLASSES.map(function(c) { return '<label class="checkbox-item"><input type="checkbox" name="characterClass" value="' + c + '"> ' + c + '</label>'; }).join('');
+      var raceSelect = document.getElementById('characterRace');
+      RACES.forEach(function(r) { var opt = document.createElement('option'); opt.value = r; opt.textContent = r; raceSelect.appendChild(opt); });
+      raceSelect.addEventListener('change', function() { document.getElementById('characterRaceOther').style.display = this.value === 'Other' ? '' : 'none'; });
+
+      fetch('/api/campaigns').then(function(r){return r.json();}).then(function(list) {
+        var sel = document.getElementById('preferredCampaign');
+        (list || []).forEach(function(c) { var opt = document.createElement('option'); opt.value = c; opt.textContent = c; sel.appendChild(opt); });
+      });
+
+      fetch('/api/me/role').then(function(r){return r.json();}).then(function(role) {
+        if (role && role.email) { document.getElementById('email').value = role.email; if (role.name) document.getElementById('name').value = role.name; loadExistingCharacters(role.email); }
+      });
+
+      fetch('/api/csrf-token').then(function(r){return r.json();}).then(function(d) { document.getElementById('csrf-token').value = d.token; });
+
+      var sessionId = '<%= sessionId %>';
+      if (!sessionId) { document.getElementById('session-error').classList.remove('hidden'); return; }
+      showLoading();
+      fetch('/api/sessions/' + sessionId).then(function(r){return r.json();}).then(function(session) {
+        hideLoading();
+        if (!session) { document.getElementById('session-error').classList.remove('hidden'); return; }
+        if (session.spotsRemaining <= 0) { document.getElementById('session-full').classList.remove('hidden'); return; }
+        var summary = document.getElementById('session-summary');
+        summary.innerHTML = '<div class="card-header"><div><div class="card-title">' + escHtml(session.title || session.campaign) + '</div><div class="card-meta">' + formatDate(session.date) + ' &bull; ' + formatTime(session.startTime) + ' — ' + formatTime(session.endTime) + '</div></div><span class="' + campaignBadgeClass(session.campaign) + '">' + escHtml(session.campaign) + '</span></div><p class="spots-text">' + session.spotsRemaining + ' spot' + (session.spotsRemaining !== 1 ? 's' : '') + ' remaining</p>';
+        summary.style.display = '';
+        document.getElementById('signup-form-container').style.display = '';
+      }).catch(function() { hideLoading(); document.getElementById('session-error').classList.remove('hidden'); });
+
+      document.getElementById('signup-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!validateForm()) return;
+        var formData = { csrfToken: document.getElementById('csrf-token').value, sessionId: document.getElementById('session-id').value, name: document.getElementById('name').value.trim(), email: document.getElementById('email').value.trim(), characterName: document.getElementById('characterName').value.trim(), characterClass: getSelectedClasses().join(', '), characterLevel: parseInt(document.getElementById('characterLevel').value, 10), characterRace: getSelectedRace(), preferredCampaign: document.getElementById('preferredCampaign').value, accessibilityNeeds: document.getElementById('accessibilityNeeds').value.trim(), dmNotes: document.getElementById('dmNotes').value.trim(), playedBefore: getRadioValue('playedBefore') };
+        var btn = document.getElementById('submit-btn'); btn.disabled = true; btn.textContent = 'Submitting...'; showLoading();
+        fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) }).then(function(r){return r.json();}).then(function(result) {
+          hideLoading();
+          if (result.success) { document.getElementById('signup-form-container').style.display = 'none'; document.getElementById('session-summary').style.display = 'none'; document.getElementById('confirm-message').textContent = result.message; document.getElementById('confirmation').classList.remove('hidden'); }
+          else { btn.disabled = false; btn.textContent = 'Sign Up for This Session'; showToast(result.message, 'error'); if (result.errors) { Object.keys(result.errors).forEach(function(field) { var errEl = document.getElementById(field + '-error'); if (errEl) errEl.textContent = result.errors[field]; }); } }
+        }).catch(function() { hideLoading(); btn.disabled = false; btn.textContent = 'Sign Up for This Session'; showToast('An error occurred. Please try again.', 'error'); });
+      });
+    })();
+
+    function validateForm() { var valid = true; document.querySelectorAll('.form-error').forEach(function(el){el.textContent='';}); if (!document.getElementById('name').value.trim()) { setErr('name','Name is required.'); valid = false; } if (!document.getElementById('email').value.trim()) { setErr('email','Email is required.'); valid = false; } if (!document.getElementById('characterName').value.trim()) { setErr('characterName','Character name is required.'); valid = false; } if (getSelectedClasses().length===0) { setErr('characterClass','Select at least one class.'); valid = false; } if (!getSelectedRace()) { setErr('characterRace','Race/ancestry is required.'); valid = false; } var lvl = parseInt(document.getElementById('characterLevel').value, 10); if (isNaN(lvl)||lvl<1||lvl>20) { setErr('characterLevel','Level must be 1-20.'); valid = false; } return valid; }
+    function setErr(field, msg) { var el = document.getElementById(field + '-error'); if (el) el.textContent = msg; }
+    function getSelectedClasses() { var checked = document.querySelectorAll('input[name="characterClass"]:checked'); return Array.prototype.map.call(checked, function(cb){return cb.value;}); }
+    function getSelectedRace() { var val = document.getElementById('characterRace').value; if (val === 'Other') return document.getElementById('characterRaceOther').value.trim() || ''; return val; }
+    function getRadioValue(name) { var checked = document.querySelector('input[name="'+name+'"]:checked'); return checked ? checked.value : ''; }
+
+    var _existingCharacters = [];
+    function loadExistingCharacters(email) {
+      fetch('/api/me/characters?email=' + encodeURIComponent(email)).then(function(r){return r.json();}).then(function(chars) {
+        _existingCharacters = chars || [];
+        if (_existingCharacters.length === 0) return;
+        var picker = document.getElementById('character-picker');
+        document.getElementById('character-list').innerHTML = _existingCharacters.map(function(c, idx) { return '<button type="button" class="btn btn-sm btn-secondary" onclick="fillCharacter('+idx+')" style="white-space:nowrap;">' + escHtml(c.characterName) + ' <span style="opacity:0.6;">(' + escHtml(c.characterClass) + ' Lv' + c.characterLevel + ')</span></button>'; }).join('');
+        picker.classList.remove('hidden');
+      });
+    }
+    function fillCharacter(idx) { var c = _existingCharacters[idx]; if (!c) return; document.getElementById('characterName').value = c.characterName || ''; document.getElementById('characterLevel').value = c.characterLevel || ''; var raceSelect = document.getElementById('characterRace'); if (c.characterRace) { var found = false; for (var i=0;i<raceSelect.options.length;i++) { if (raceSelect.options[i].value === c.characterRace) { raceSelect.value = c.characterRace; found = true; break; }} if (!found) { raceSelect.value = 'Other'; document.getElementById('characterRaceOther').value = c.characterRace; document.getElementById('characterRaceOther').style.display = ''; } else { document.getElementById('characterRaceOther').style.display = 'none'; }} var classNames = (c.characterClass||'').split(',').map(function(s){return s.trim();}); document.querySelectorAll('input[name="characterClass"]').forEach(function(cb){cb.checked = classNames.indexOf(cb.value) !== -1;}); }
+    function clearCharacterForm() { document.getElementById('characterName').value=''; document.getElementById('characterLevel').value=''; document.getElementById('characterRace').value=''; document.getElementById('characterRaceOther').value=''; document.getElementById('characterRaceOther').style.display='none'; document.querySelectorAll('input[name="characterClass"]').forEach(function(cb){cb.checked=false;}); }
+  </script>
+</body>
+</html>
+

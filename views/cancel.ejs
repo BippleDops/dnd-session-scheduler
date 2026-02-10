@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Cancel Registration — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div id="cancel-loading" class="card" style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 16px;"></div><p>Processing your cancellation...</p></div>
+    <div id="cancel-result" class="card hidden" style="text-align:center;padding:40px;">
+      <h2 id="cancel-title" style="margin-bottom:12px;"></h2>
+      <p id="cancel-message"></p>
+      <a href="/" class="btn btn-primary" style="margin-top:16px;">Back to Calendar</a>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    (function() {
+      var token = '<%= token %>';
+      if (!token) { showResult('error', 'Invalid Link', 'This cancel link is missing or malformed.'); return; }
+      fetch('/api/cancel-by-token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token }) })
+        .then(function(r){return r.json();}).then(function(r) {
+          if (r.success) showResult('success', 'Registration Cancelled', r.message);
+          else showResult('error', 'Cannot Cancel', r.message);
+        }).catch(function(e) { showResult('error', 'Error', 'Something went wrong.'); });
+    })();
+    function showResult(type, title, msg) {
+      document.getElementById('cancel-loading').classList.add('hidden');
+      document.getElementById('cancel-result').classList.remove('hidden');
+      var titleEl = document.getElementById('cancel-title');
+      titleEl.textContent = title;
+      titleEl.style.color = type === 'success' ? 'var(--color-success)' : 'var(--color-error)';
+      document.getElementById('cancel-message').textContent = msg;
+    }
+  </script>
+</body>
+</html>
+

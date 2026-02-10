@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>D&D Session Scheduler</title>
+  <style>
+    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .cal-header h3 { margin: 0; font-size: 1.25rem; min-width: 200px; text-align: center; }
+    .cal-nav { background: none; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 6px 14px; cursor: pointer; font-size: 1rem; color: var(--color-text); }
+    .cal-nav:hover { background: var(--color-surface-alt); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 24px; }
+    .cal-day-label { text-align: center; font-size: 0.75rem; font-weight: 600; color: var(--color-text-muted); padding: 6px 0; text-transform: uppercase; }
+    .cal-cell { min-height: 70px; padding: 4px 6px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: default; position: relative; transition: background .15s; }
+    .cal-cell.other-month { background: var(--color-bg); opacity: 0.4; }
+    .cal-cell.today { border-color: var(--color-primary); border-width: 2px; }
+    .cal-cell.has-session { cursor: pointer; }
+    .cal-cell.has-session:hover { background: var(--color-surface-alt); }
+    .cal-cell.selected { background: var(--color-surface-alt); border-color: var(--color-primary); }
+    .cal-date { font-size: 0.8rem; font-weight: 600; color: var(--color-text-muted); }
+    .cal-cell.today .cal-date { color: var(--color-primary); }
+    .cal-dots { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 4px; }
+    .cal-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .cal-dot.aethermoor { background: var(--campaign-aethermoor); }
+    .cal-dot.aquabyssos { background: var(--campaign-aquabyssos); }
+    .cal-dot.terravor { background: var(--campaign-terravor); }
+    .cal-dot.two-cities { background: var(--campaign-two-cities); }
+    .cal-session-count { font-size: 0.7rem; color: var(--color-text-muted); margin-top: 2px; }
+    .cal-cell.past-date { opacity: 0.35; }
+    .cal-dot.full-session { opacity: 0.4; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.3); }
+    .cal-dot-wrap { position: relative; display: inline-block; }
+    .cal-dot-wrap .cal-tooltip { display: none; position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: var(--color-text); color: var(--color-bg); padding: 6px 10px; border-radius: 6px; font-size: 0.72rem; white-space: nowrap; z-index: 10; }
+    .cal-dot-wrap:hover .cal-tooltip { display: block; }
+    .cal-legend { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 8px; font-size: 0.78rem; color: var(--color-text-muted); }
+    .cal-legend-item { display: flex; align-items: center; gap: 5px; }
+    .cal-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .day-sessions { margin-top: 20px; }
+    .day-sessions h3 { color: var(--color-primary); margin-bottom: 12px; }
+    @media (max-width: 600px) { .cal-cell { min-height: 48px; padding: 2px 3px; } .cal-date { font-size: 0.7rem; } .cal-dot { width: 6px; height: 6px; } }
+  </style>
+</head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="page-header"><h2>Session Calendar</h2></div>
+    <div id="error-alert" class="alert alert-error hidden"></div>
+    <div class="card" style="padding: 20px;">
+      <div class="cal-header">
+        <button class="cal-nav" onclick="changeMonth(-1)">&larr; Prev</button>
+        <h3 id="cal-month-label"></h3>
+        <button class="cal-nav" onclick="changeMonth(1)">Next &rarr;</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-legend">
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--campaign-aethermoor);"></div> Aethermoor</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--campaign-aquabyssos);"></div> Aquabyssos</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--campaign-terravor);"></div> Terravor</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--campaign-two-cities);"></div> Two Cities</div>
+      </div>
+    </div>
+    <div id="day-sessions" class="day-sessions hidden"><h3 id="day-label"></h3><div id="day-cards"></div></div>
+    <div id="no-sessions" class="card hidden" style="text-align:center;padding:40px;">
+      <p style="font-size:1.1rem;">No upcoming sessions scheduled yet.</p>
+      <p style="color:var(--color-text-muted);">Check back soon!</p>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    var allSessions = [];
+    var currentYear, currentMonth, selectedDate = null;
+
+    (function() {
+      var now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth();
+      showLoading();
+      fetch('/api/sessions').then(function(r){return r.json();}).then(function(sessions) {
+        hideLoading();
+        allSessions = sessions || [];
+        if (allSessions.length === 0) document.getElementById('no-sessions').classList.remove('hidden');
+        renderCalendar();
+      }).catch(function() { hideLoading(); showToast('Failed to load sessions', 'error'); renderCalendar(); });
+    })();
+
+    function changeMonth(delta) {
+      currentMonth += delta;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      selectedDate = null;
+      document.getElementById('day-sessions').classList.add('hidden');
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      document.getElementById('cal-month-label').textContent = months[currentMonth] + ' ' + currentYear;
+      var grid = document.getElementById('cal-grid');
+      var html = '';
+      var dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      for (var d = 0; d < 7; d++) html += '<div class="cal-day-label">' + dayLabels[d] + '</div>';
+      var firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      var daysInPrev = new Date(currentYear, currentMonth, 0).getDate();
+      var today = new Date();
+      var todayStr = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+      var sessionsByDate = {};
+      for (var i = 0; i < allSessions.length; i++) {
+        var s = allSessions[i];
+        if (!sessionsByDate[s.date]) sessionsByDate[s.date] = [];
+        sessionsByDate[s.date].push(s);
+      }
+      for (var p = firstDay - 1; p >= 0; p--) html += '<div class="cal-cell other-month"><span class="cal-date">' + (daysInPrev - p) + '</span></div>';
+      for (var day = 1; day <= daysInMonth; day++) {
+        var dateStr = currentYear + '-' + pad(currentMonth + 1) + '-' + pad(day);
+        var isToday = dateStr === todayStr;
+        var daySessions = sessionsByDate[dateStr] || [];
+        var hasSession = daySessions.length > 0;
+        var isPast = dateStr < todayStr;
+        var classes = 'cal-cell';
+        if (isToday) classes += ' today';
+        if (isPast) classes += ' past-date';
+        if (hasSession && !isPast) classes += ' has-session';
+        if (dateStr === selectedDate) classes += ' selected';
+        var dots = '';
+        if (hasSession) {
+          dots = '<div class="cal-dots">';
+          for (var j = 0; j < daySessions.length; j++) {
+            var ds = daySessions[j];
+            var slug = ds.campaign.toLowerCase().replace(/\s+/g, '-');
+            var isFull = ds.spotsRemaining <= 0;
+            var tipText = escHtml(ds.title || ds.campaign) + ' · ' + formatTime(ds.startTime) + ' · ' + (isFull ? 'FULL' : ds.spotsRemaining + ' spot' + (ds.spotsRemaining !== 1 ? 's' : '') + ' open');
+            dots += '<span class="cal-dot-wrap"><div class="cal-dot ' + slug + (isFull ? ' full-session' : '') + '"></div><span class="cal-tooltip">' + tipText + '</span></span>';
+          }
+          dots += '</div>';
+          if (daySessions.length > 1) dots += '<div class="cal-session-count">' + daySessions.length + ' sessions</div>';
+        }
+        var onclick = (hasSession && !isPast) ? ' onclick="selectDate(\'' + dateStr + '\')"' : '';
+        html += '<div class="' + classes + '"' + onclick + '><span class="cal-date">' + day + '</span>' + dots + '</div>';
+      }
+      var totalCells = firstDay + daysInMonth;
+      var trailing = (totalCells % 7 === 0) ? 0 : 7 - (totalCells % 7);
+      for (var n = 1; n <= trailing; n++) html += '<div class="cal-cell other-month"><span class="cal-date">' + n + '</span></div>';
+      grid.innerHTML = html;
+    }
+
+    function selectDate(dateStr) {
+      selectedDate = dateStr;
+      renderCalendar();
+      var sessionsByDate = {};
+      for (var i = 0; i < allSessions.length; i++) {
+        if (!sessionsByDate[allSessions[i].date]) sessionsByDate[allSessions[i].date] = [];
+        sessionsByDate[allSessions[i].date].push(allSessions[i]);
+      }
+      var daySessions = sessionsByDate[dateStr] || [];
+      var container = document.getElementById('day-sessions');
+      if (daySessions.length === 0) { container.classList.add('hidden'); return; }
+      document.getElementById('day-label').textContent = formatDate(dateStr);
+      document.getElementById('day-cards').innerHTML = daySessions.map(renderSessionCard).join('');
+      container.classList.remove('hidden');
+    }
+
+    function renderSessionCard(s) {
+      var pct = s.maxPlayers > 0 ? Math.round((s.registeredCount / s.maxPlayers) * 100) : 0;
+      var isFull = s.spotsRemaining <= 0;
+      var rosterHtml = '';
+      if (s.roster && s.roster.length > 0) {
+        rosterHtml = '<div class="roster">' + s.roster.map(function(r) {
+          return '<div class="roster-row"><span class="roster-char">' + escHtml(r.characterName) + '</span><span class="roster-class">' + escHtml(r.characterClass) + '</span><span class="roster-level">Lv ' + r.characterLevel + '</span></div>';
+        }).join('') + '</div>';
+      }
+      return '<div class="card ' + campaignClass(s.campaign) + '">' +
+        '<div class="card-header"><div><div class="card-title">' + escHtml(s.title || s.campaign) + '</div>' +
+        '<div class="card-meta">' + formatTime(s.startTime) + ' — ' + formatTime(s.endTime) + '</div></div>' +
+        '<span class="' + campaignBadgeClass(s.campaign) + '">' + escHtml(s.campaign) + '</span></div>' +
+        (s.description ? '<p style="margin-bottom:12px;font-size:0.9rem;">' + escHtml(s.description) + '</p>' : '') +
+        rosterHtml +
+        '<div class="progress"><div class="progress-bar" style="width:' + pct + '%"></div></div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">' +
+        '<span class="spots-text">' + s.registeredCount + ' / ' + s.maxPlayers + ' spots filled</span>' +
+        (isFull ? '<span class="badge badge-cancelled">Full</span>' :
+          '<a href="/signup?sessionId=' + s.sessionId + '" class="btn btn-primary btn-sm">Sign Up</a>') +
+        '</div></div>';
+    }
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  </script>
+</body>
+</html>
+

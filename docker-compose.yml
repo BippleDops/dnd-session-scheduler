@@ -1,0 +1,38 @@
+services:
+  dnd-scheduler:
+    build: .
+    container_name: dnd-scheduler
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  sqlitebrowser:
+    image: lscr.io/linuxserver/sqlitebrowser:latest
+    container_name: sqlite-viewer
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - ./data:/databases
+    shm_size: "1gb"
+
+networks:
+  n8n-network:
+    external: true
+    name: n8n_n8n-network
+

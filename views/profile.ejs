@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>My Profile — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="page-header"><h2>My Profile</h2></div>
+    <div id="not-found" class="card hidden" style="text-align:center;padding:40px;">
+      <p>No profile found. <a href="/sessions">Sign up for a session</a> to create your profile.</p>
+    </div>
+    <div id="profile-content" style="display:none;">
+      <form id="profile-form" class="card" style="max-width:600px;">
+        <div class="form-group"><label class="form-label">Name</label><input type="text" id="p-name" class="form-input" maxlength="100"></div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" id="p-email" class="form-input" disabled></div>
+        <div class="form-group"><label class="form-label">Preferred Campaign</label><select id="p-campaign" class="form-select"><option value="">No Preference</option></select></div>
+        <div class="form-group"><label class="form-label">Accessibility Needs</label><textarea id="p-accessibility" class="form-textarea" rows="2" maxlength="1000"></textarea></div>
+        <div class="form-group"><label class="form-label">Anything the DM Should Know</label><textarea id="p-dmNotes" class="form-textarea" rows="2" maxlength="1000"></textarea></div>
+        <button type="submit" class="btn btn-primary">Save Profile</button>
+      </form>
+      <h3 style="color:var(--color-primary);margin:24px 0 12px;">My Characters</h3>
+      <div id="char-list"></div>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    (function() {
+      showLoading();
+      Promise.all([
+        fetch('/api/me/profile').then(function(r){return r.json();}),
+        fetch('/api/campaigns').then(function(r){return r.json();})
+      ]).then(function(results) {
+        hideLoading();
+        var profile = results[0], campaigns = results[1] || [];
+        var sel = document.getElementById('p-campaign');
+        campaigns.forEach(function(c) { var opt = document.createElement('option'); opt.value = c; opt.textContent = c; sel.appendChild(opt); });
+        if (!profile) { document.getElementById('not-found').classList.remove('hidden'); return; }
+        document.getElementById('profile-content').style.display = '';
+        document.getElementById('p-name').value = profile.name || '';
+        document.getElementById('p-email').value = profile.email || '';
+        document.getElementById('p-campaign').value = profile.preferredCampaign || '';
+        document.getElementById('p-accessibility').value = profile.accessibilityNeeds || '';
+        document.getElementById('p-dmNotes').value = profile.dmNotes || '';
+        var charEl = document.getElementById('char-list');
+        if (profile.characters && profile.characters.length > 0) {
+          charEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">' + profile.characters.map(function(c) { return '<div class="card" style="padding:14px;"><div style="font-weight:700;color:var(--color-primary);">' + escHtml(c.characterName) + '</div><div style="font-size:0.85rem;color:var(--color-text-muted);">' + escHtml(c.characterClass) + ' · Level ' + c.characterLevel + '</div></div>'; }).join('') + '</div>';
+        } else { charEl.innerHTML = '<p style="color:var(--color-text-muted);">No characters yet.</p>'; }
+      }).catch(function(e) { hideLoading(); showToast('Error loading profile', 'error'); });
+      document.getElementById('profile-form').addEventListener('submit', function(e) {
+        e.preventDefault(); showLoading();
+        fetch('/api/me/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('p-name').value.trim(), preferredCampaign: document.getElementById('p-campaign').value, accessibilityNeeds: document.getElementById('p-accessibility').value.trim(), dmNotes: document.getElementById('p-dmNotes').value.trim() }) }).then(function(r){return r.json();}).then(function(r) { hideLoading(); if (r.success) showToast('Profile saved!', 'success'); else showToast(r.message, 'error'); }).catch(function(e) { hideLoading(); showToast('Error saving profile', 'error'); });
+      });
+    })();
+  </script>
+</body>
+</html>
+

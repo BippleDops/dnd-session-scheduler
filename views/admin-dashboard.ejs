@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Admin Dashboard — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="page-header"><h2>Admin Dashboard</h2></div>
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="stat-value" id="stat-upcoming">—</div><div class="stat-label">Upcoming</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-players">—</div><div class="stat-label">Active Players</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-week">—</div><div class="stat-label">This Week</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-month">—</div><div class="stat-label">This Month</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-backup" style="font-size:0.9rem;">—</div><div class="stat-label">Last Backup</div></div>
+    </div>
+    <div class="btn-group" style="margin-bottom:24px;">
+      <a href="/admin-sessions?action=create" class="btn btn-primary">+ Create Session</a>
+      <a href="/admin-players" class="btn btn-secondary">View Players</a>
+      <a href="/admin-history" class="btn btn-secondary">View History</a>
+      <button class="btn btn-secondary" onclick="runReminders()">Run Reminders</button>
+      <button class="btn btn-secondary" onclick="runBackup()">Run Backup</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div><h3 style="color:var(--color-primary);margin-bottom:12px;">This Week's Sessions</h3><div id="this-week"></div></div>
+      <div><h3 style="color:var(--color-primary);margin-bottom:12px;">Recent Activity</h3><div id="recent-logs" style="max-height:400px;overflow-y:auto;"></div></div>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    (function() {
+      showLoading();
+      fetch('/api/admin/dashboard').then(function(r){return r.json();}).then(function(d) {
+        hideLoading();
+        if (!d) { showToast('No dashboard data', 'error'); return; }
+        document.getElementById('stat-upcoming').textContent = d.upcomingCount;
+        document.getElementById('stat-players').textContent = d.activePlayerCount;
+        document.getElementById('stat-week').textContent = d.sessionsThisWeek;
+        document.getElementById('stat-month').textContent = d.sessionsThisMonth;
+        document.getElementById('stat-backup').textContent = d.lastBackup ? formatTimestamp(d.lastBackup) : 'Never';
+        var weekEl = document.getElementById('this-week');
+        if (d.thisWeekSessions && d.thisWeekSessions.length > 0) {
+          weekEl.innerHTML = d.thisWeekSessions.map(function(s) { return '<div class="card ' + campaignClass(s.campaign) + '" style="padding:14px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>' + escHtml(s.title || s.campaign) + '</strong><br><span class="card-meta">' + formatDate(s.date) + ' &bull; ' + formatTime(s.startTime) + '</span></div><span class="spots-text">' + s.registeredCount + '/' + s.maxPlayers + '</span></div></div>'; }).join('');
+        } else { weekEl.innerHTML = '<div class="card" style="text-align:center;padding:20px;color:var(--color-text-muted);">No sessions this week</div>'; }
+        var logsEl = document.getElementById('recent-logs');
+        if (d.recentLogs && d.recentLogs.length > 0) {
+          logsEl.innerHTML = d.recentLogs.map(function(l) { return '<div style="padding:8px 0;border-bottom:1px solid var(--color-border);font-size:0.85rem;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">' + escHtml(l.ActionType) + '</span><span style="color:var(--color-text-muted);">' + formatTimestamp(l.Timestamp) + '</span></div><div style="color:var(--color-text-muted);">' + escHtml(l.Details) + '</div></div>'; }).join('');
+        } else { logsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--color-text-muted);">No activity yet</div>'; }
+      }).catch(function(err) { hideLoading(); showToast('Dashboard error: ' + err.message, 'error'); });
+    })();
+    function runReminders() { if (!confirm('Run daily reminders now?')) return; showLoading(); fetch('/api/admin/trigger-reminders', { method: 'POST' }).then(function(r){return r.json();}).then(function() { hideLoading(); showToast('Reminder check done!', 'success'); }).catch(function(e) { hideLoading(); showToast('Error: ' + e.message, 'error'); }); }
+    function runBackup() { if (!confirm('Run backup now?')) return; showLoading(); fetch('/api/admin/trigger-backup', { method: 'POST' }).then(function(r){return r.json();}).then(function() { hideLoading(); showToast('Backup started!', 'success'); }).catch(function(e) { hideLoading(); showToast('Error: ' + e.message, 'error'); }); }
+  </script>
+  <style>@media (max-width: 768px) { div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; } }</style>
+</body>
+</html>
+

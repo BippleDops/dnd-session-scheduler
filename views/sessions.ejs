@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>Sessions — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="page-header"><h2>Upcoming Sessions</h2></div>
+    <div id="sessions-list"></div>
+    <div id="no-sessions" class="card hidden" style="text-align:center;padding:40px;">
+      <p style="font-size:1.1rem;">No sessions on the schedule right now.</p>
+      <p style="color:var(--color-text-muted);">Check back soon!</p>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    (function() {
+      showLoading();
+      fetch('/api/sessions').then(function(r){return r.json();}).then(function(sessions) {
+        hideLoading();
+        var container = document.getElementById('sessions-list');
+        if (!sessions || sessions.length === 0) { document.getElementById('no-sessions').classList.remove('hidden'); return; }
+        container.innerHTML = sessions.map(function(s) {
+          var rosterRows = '';
+          if (s.roster && s.roster.length > 0) {
+            rosterRows = s.roster.map(function(r) {
+              return '<tr><td>' + escHtml(r.characterName) + '</td><td>' + escHtml(r.characterClass) + '</td><td style="text-align:center;">' + r.characterLevel + '</td></tr>';
+            }).join('');
+          } else {
+            rosterRows = '<tr><td colspan="3" style="text-align:center;color:var(--color-text-muted);padding:20px;">No players signed up yet — be the first!</td></tr>';
+          }
+          return '<div class="card ' + campaignClass(s.campaign) + '">' +
+            '<div class="card-header"><div><div class="card-title">' + escHtml(s.title || s.campaign) + '</div>' +
+            '<div class="card-meta">' + formatDate(s.date) + ' &bull; ' + formatTime(s.startTime) + ' — ' + formatTime(s.endTime) + '</div></div>' +
+            '<span class="' + campaignBadgeClass(s.campaign) + '">' + escHtml(s.campaign) + '</span></div>' +
+            (s.description ? '<p style="margin:12px 0;font-size:0.9rem;color:var(--color-text-muted);">' + escHtml(s.description) + '</p>' : '') +
+            '<div class="table-wrap"><table class="data-table"><thead><tr><th>Character</th><th>Class</th><th style="text-align:center;">Level</th></tr></thead><tbody>' + rosterRows + '</tbody></table></div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">' +
+            '<span class="spots-text">' + s.spotsRemaining + ' spot' + (s.spotsRemaining !== 1 ? 's' : '') + ' open</span>' +
+            '<button class="btn btn-sm btn-secondary" onclick="downloadIcs(\'' + s.sessionId + '\')" style="margin-right:4px;">📅 Add to Cal</button>' +
+            (s.spotsRemaining > 0 ? '<a href="/signup?sessionId=' + s.sessionId + '" class="btn btn-primary btn-sm">Sign Up</a>' : '<span class="badge badge-cancelled">Full</span>') +
+            '</div></div>';
+        }).join('');
+      }).catch(function() { hideLoading(); showToast('Couldn\'t load sessions.', 'error'); });
+    })();
+  </script>
+</body>
+</html>
+

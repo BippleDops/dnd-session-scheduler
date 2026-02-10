@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('partials/head') %><title>My Sessions — D&D Session Scheduler</title></head>
+<body>
+  <%- include('partials/header') %>
+  <main class="container">
+    <div class="page-header"><h2>My Sessions</h2></div>
+    <div id="not-logged-in" class="card hidden" style="text-align:center;padding:40px;">
+      <p style="font-size:1.1rem;">Sign in with your Google account to see your sessions.</p>
+      <p style="color:var(--color-text-muted);">Your registrations will appear here once you've signed up for a session.</p>
+      <a href="/auth/google" class="btn btn-primary" style="margin-top:12px;">Sign In with Google</a>
+    </div>
+    <div id="my-content" style="display:none;">
+      <h3 style="color:var(--color-primary);margin-bottom:12px;">Upcoming Sessions</h3>
+      <div id="upcoming-list"></div>
+      <h3 style="color:var(--color-primary);margin:24px 0 12px;">Past Sessions</h3>
+      <div id="past-list"></div>
+      <h3 style="color:var(--color-primary);margin:24px 0 12px;">My Characters</h3>
+      <div id="char-list"></div>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script>
+    (function() {
+      showLoading();
+      fetch('/api/me/registrations').then(function(r){return r.json();}).then(function(data) {
+        hideLoading();
+        if (!data || (!data.upcoming.length && !data.past.length && !data.characters.length)) { document.getElementById('not-logged-in').classList.remove('hidden'); return; }
+        document.getElementById('my-content').style.display = '';
+        renderUpcoming(data.upcoming); renderPast(data.past); renderCharacters(data.characters);
+      }).catch(function() { hideLoading(); document.getElementById('not-logged-in').classList.remove('hidden'); });
+    })();
+
+    function renderUpcoming(list) {
+      var el = document.getElementById('upcoming-list');
+      if (!list || list.length === 0) { el.innerHTML = '<div class="card" style="text-align:center;padding:24px;color:var(--color-text-muted);">No upcoming sessions. <a href="/sessions">Browse sessions</a> to sign up!</div>'; return; }
+      el.innerHTML = list.map(function(r) {
+        return '<div class="card ' + campaignClass(r.campaign) + '" style="padding:16px;"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;"><div><div class="card-title">' + escHtml(r.title || r.campaign) + '</div><div class="card-meta">' + formatDate(r.date) + ' &bull; ' + formatTime(r.startTime) + ' — ' + formatTime(r.endTime) + '</div><div style="margin-top:6px;font-size:0.9rem;">Playing as <strong>' + escHtml(r.characterName) + '</strong> (' + escHtml(r.characterClass) + ' Lv.' + r.characterLevel + ')</div></div><div style="display:flex;gap:8px;align-items:center;"><span class="' + campaignBadgeClass(r.campaign) + '">' + escHtml(r.campaign) + '</span><button class="btn btn-sm btn-danger" onclick="cancelReg(\'' + r.registrationId + '\')">Cancel</button></div></div></div>';
+      }).join('');
+    }
+    function renderPast(list) {
+      var el = document.getElementById('past-list');
+      if (!list || list.length === 0) { el.innerHTML = '<div class="card" style="text-align:center;padding:24px;color:var(--color-text-muted);">No past sessions yet.</div>'; return; }
+      el.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Campaign</th><th>Character</th><th>Class</th><th>Lv</th><th>Status</th></tr></thead><tbody>' + list.map(function(r) { return '<tr><td>' + formatDate(r.date) + '</td><td><span class="' + campaignBadgeClass(r.campaign) + '">' + escHtml(r.campaign) + '</span></td><td>' + escHtml(r.characterName) + '</td><td>' + escHtml(r.characterClass) + '</td><td>' + r.characterLevel + '</td><td><span class="badge badge-scheduled">' + (r.attended ? 'Attended' : r.status) + '</span></td></tr>'; }).join('') + '</tbody></table></div>';
+    }
+    function renderCharacters(list) {
+      var el = document.getElementById('char-list');
+      if (!list || list.length === 0) { el.innerHTML = '<div class="card" style="text-align:center;padding:24px;color:var(--color-text-muted);">No characters yet.</div>'; return; }
+      el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">' + list.map(function(c) { return '<div class="card" style="padding:14px;"><div style="font-weight:700;color:var(--color-primary);">' + escHtml(c.characterName) + '</div><div style="font-size:0.85rem;color:var(--color-text-muted);">' + escHtml(c.characterClass) + ' · Level ' + c.characterLevel + (c.characterRace ? ' · ' + escHtml(c.characterRace) : '') + '</div></div>'; }).join('') + '</div>';
+    }
+    function cancelReg(regId) {
+      if (!confirm('Cancel this registration?')) return;
+      showLoading();
+      fetch('/api/me/registrations/' + regId, { method: 'DELETE' }).then(function(r){return r.json();}).then(function(r) {
+        hideLoading();
+        if (r.success) { showToast(r.message, 'success'); location.reload(); } else { showToast(r.message, 'error'); }
+      }).catch(function(e) { hideLoading(); showToast('Error cancelling', 'error'); });
+    }
+  </script>
+</body>
+</html>
+

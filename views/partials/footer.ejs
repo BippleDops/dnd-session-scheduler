@@ -1,0 +1,205 @@
+<footer class="footer">
+  D&D Session Scheduler &mdash; Self-Hosted
+</footer>
+<div class="loading-overlay hidden" id="loading-overlay"><div class="spinner"></div></div>
+<div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:2000;"></div>
+
+<script>
+  // ============================================================
+  // SHARED UTILITIES — ported from GAS footer.html
+  // google.script.run replaced with fetch('/api/...')
+  // ============================================================
+
+  var _baseUrl = '<%= baseUrl || "" %>';
+
+  /** Promise wrapper for API calls (replaces google.script.run) */
+  function serverCall(endpoint, options) {
+    var url = '/api/' + endpoint;
+    var opts = Object.assign({ headers: { 'Content-Type': 'application/json' } }, options || {});
+    return fetch(url, opts).then(function(r) {
+      if (!r.ok) throw new Error('Server error: ' + r.status);
+      return r.json();
+    });
+  }
+
+  function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden'); }
+  function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
+
+  function showToast(message, type) {
+    type = type || 'info';
+    var colors = { success: '#2e7d32', error: '#c62828', warning: '#f57f17', info: '#1565c0' };
+    var container = document.getElementById('toast-container');
+    var toast = document.createElement('div');
+    toast.style.cssText = 'background:' + (colors[type] || colors.info) + ';color:#fff;padding:12px 20px;border-radius:8px;margin-bottom:8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);font-size:0.9rem;max-width:400px;animation:slideIn .3s ease;';
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() { toast.style.opacity = '0'; toast.style.transition = 'opacity .3s'; }, 3000);
+    setTimeout(function() { if (toast.parentNode) container.removeChild(toast); }, 3500);
+  }
+
+  function toggleTheme() {
+    var body = document.body;
+    var isDark = body.getAttribute('data-theme') === 'dark';
+    body.setAttribute('data-theme', isDark ? '' : 'dark');
+    var btns = document.querySelectorAll('.theme-toggle');
+    for (var i = 0; i < btns.length; i++) {
+      if (btns[i].textContent === 'Dark' || btns[i].textContent === 'Light')
+        btns[i].textContent = isDark ? 'Dark' : 'Light';
+    }
+    try { localStorage.setItem('dnd-theme', isDark ? '' : 'dark'); } catch(e) {}
+  }
+
+  // Restore theme
+  (function() {
+    try {
+      var saved = localStorage.getItem('dnd-theme');
+      if (saved === 'dark') {
+        document.body.setAttribute('data-theme', 'dark');
+        var btns = document.querySelectorAll('.theme-toggle');
+        for (var i = 0; i < btns.length; i++) {
+          if (btns[i].textContent === 'Dark') btns[i].textContent = 'Light';
+        }
+      }
+    } catch(e) {}
+  })();
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+      var parts = String(dateStr).split('-');
+      if (parts.length === 3) {
+        var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate();
+      }
+    } catch(e) {}
+    return String(dateStr);
+  }
+
+  function formatTime(timeStr) {
+    if (!timeStr) return '';
+    var str = String(timeStr);
+    var parts = str.split(':');
+    if (parts.length < 2) return str;
+    var h = parseInt(parts[0], 10);
+    var m = parts[1] || '00';
+    if (isNaN(h)) return str;
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    var dh = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+    return dh + ':' + m + ' ' + ampm;
+  }
+
+  function formatTimestamp(ts) {
+    if (!ts) return '';
+    var d = new Date(String(ts));
+    if (isNaN(d.getTime())) return String(ts).substring(0, 16);
+    var now = new Date();
+    var diffMs = now - d;
+    var diffMin = Math.floor(diffMs / 60000);
+    var diffHr = Math.floor(diffMs / 3600000);
+    var diffDay = Math.floor(diffMs / 86400000);
+    var hh = d.getHours(), mm = d.getMinutes();
+    var ampm = hh >= 12 ? 'PM' : 'AM';
+    var dh = hh > 12 ? hh - 12 : (hh === 0 ? 12 : hh);
+    var timeStr = dh + ':' + (mm < 10 ? '0' : '') + mm + ' ' + ampm;
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return diffMin + ' min ago';
+    if (diffHr < 24) return diffHr + ' hour' + (diffHr > 1 ? 's' : '') + ' ago';
+    if (diffDay === 1) return 'Yesterday at ' + timeStr;
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    if (diffDay < 7) return diffDay + ' days ago';
+    return months[d.getMonth()] + ' ' + d.getDate() + ' at ' + timeStr;
+  }
+
+  function campaignClass(campaign) {
+    if (!campaign) return '';
+    return 'campaign-' + campaign.toLowerCase().replace(/\s+/g, '-');
+  }
+
+  function campaignBadgeClass(campaign) {
+    if (!campaign) return 'badge';
+    return 'badge badge-' + campaign.toLowerCase().replace(/\s+/g, '-');
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+  }
+
+  function makeLink(page, extraParams) {
+    var url = '/' + (page || '');
+    if (extraParams) {
+      var sep = '?';
+      for (var k in extraParams) {
+        url += sep + encodeURIComponent(k) + '=' + encodeURIComponent(extraParams[k]);
+        sep = '&';
+      }
+    }
+    return url;
+  }
+
+  function navigateTo(page, extra) {
+    var url = makeLink(page);
+    if (extra) url += (url.indexOf('?') !== -1 ? '&' : '?') + extra;
+    window.location.href = url;
+    return false;
+  }
+
+  function debounce(fn, ms) {
+    var timer;
+    return function() {
+      var args = arguments, ctx = this;
+      clearTimeout(timer);
+      timer = setTimeout(function() { fn.apply(ctx, args); }, ms || 200);
+    };
+  }
+
+  function showModal(title, body, onConfirm, confirmText) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:3000;display:flex;align-items:center;justify-content:center;';
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--color-surface);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
+    modal.innerHTML = '<h3 style="color:var(--color-primary);margin-bottom:12px;">' + title + '</h3>' +
+      '<div style="margin-bottom:20px;font-size:0.95rem;">' + body + '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+      '<button class="btn btn-secondary btn-sm" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-primary btn-sm" id="modal-confirm">' + (confirmText || 'Confirm') + '</button></div>';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    document.getElementById('modal-cancel').onclick = function() { document.body.removeChild(overlay); };
+    document.getElementById('modal-confirm').onclick = function() { document.body.removeChild(overlay); if (onConfirm) onConfirm(); };
+    overlay.onclick = function(e) { if (e.target === overlay) document.body.removeChild(overlay); };
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.key === '/' || e.key === 's') {
+      e.preventDefault();
+      var search = document.querySelector('.search-input');
+      if (search) search.focus();
+    }
+    if (e.key === 'Escape') {
+      var panels = document.querySelectorAll('.detail-panel');
+      for (var i = 0; i < panels.length; i++) panels[i].style.display = 'none';
+    }
+  });
+
+  function downloadIcs(sessionId) {
+    window.location.href = '/api/sessions/' + sessionId + '/ics';
+  }
+
+  function downloadCsv(csvString, filename) {
+    var blob = new Blob([csvString], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename || 'export.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+</script>
+<style>
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+

@@ -1,0 +1,27 @@
+{
+  "name": "dnd-session-scheduler",
+  "version": "1.0.0",
+  "description": "D&D Session Scheduler — self-hosted",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node src/migrate-from-sheets.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "connect-sqlite3": "^0.9.15",
+    "dotenv": "^16.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.1",
+    "googleapis": "^144.0.0",
+    "helmet": "^8.0.0",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0"
+  }
+}
+

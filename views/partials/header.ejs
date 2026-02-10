@@ -1,0 +1,37 @@
+<% var _p = typeof currentPage !== 'undefined' ? currentPage : ''; %>
+<nav class="navbar" role="navigation" aria-label="Main navigation">
+  <div class="nav-brand"><a href="/" style="color:#fff;text-decoration:none;font-weight:700;">D&D Session Scheduler</a></div>
+  <button class="nav-hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <div class="nav-links" id="nav-links">
+    <a href="/" class="nav-link<%= _p === '' ? ' active' : '' %>" data-page="">Calendar</a>
+    <a href="/sessions" class="nav-link<%= _p === 'sessions' ? ' active' : '' %>" data-page="sessions">Sessions</a>
+    <a href="/my-sessions" class="nav-link<%= _p === 'my-sessions' ? ' active' : '' %>" data-page="my-sessions">My Sessions</a>
+    <a href="/profile" class="nav-link<%= _p === 'profile' ? ' active' : '' %>" data-page="profile">Profile</a>
+    <a href="/recaps" class="nav-link<%= _p === 'recaps' ? ' active' : '' %>" data-page="recaps">Recaps</a>
+    <span class="nav-divider admin-only" style="display:none;"></span>
+    <a href="/admin" class="nav-link admin-only<%= _p === 'admin' ? ' active' : '' %>" data-page="admin" style="display:none;">Dashboard</a>
+    <a href="/admin-sessions" class="nav-link admin-only<%= _p === 'admin-sessions' ? ' active' : '' %>" data-page="admin-sessions" style="display:none;">Manage</a>
+    <a href="/admin-players" class="nav-link admin-only<%= _p === 'admin-players' ? ' active' : '' %>" data-page="admin-players" style="display:none;">Players</a>
+    <a href="/admin-history" class="nav-link admin-only<%= _p === 'admin-history' ? ' active' : '' %>" data-page="admin-history" style="display:none;">History</a>
+    <a href="/admin-config" class="nav-link admin-only<%= _p === 'admin-config' ? ' active' : '' %>" data-page="admin-config" style="display:none;">Config</a>
+  </div>
+  <div class="nav-actions">
+    <% if (typeof user !== 'undefined' && user) { %>
+      <span style="color:rgba(255,255,255,0.7);font-size:0.8rem;"><%= user.name || user.email %></span>
+      <a href="/auth/logout" class="theme-toggle" style="text-decoration:none;">Logout</a>
+    <% } else { %>
+      <a href="/auth/google" class="theme-toggle" style="text-decoration:none;">Sign In</a>
+    <% } %>
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">Dark</button>
+  </div>
+</nav>
+<script>
+  (function() {
+    fetch('/api/me/role').then(r => r.json()).then(function(role) {
+      if (role && role.isAdmin) {
+        var els = document.querySelectorAll('.admin-only');
+        for (var i = 0; i < els.length; i++) els[i].style.display = '';
+      }
+    }).catch(function(){});
+  })();
+</script>
