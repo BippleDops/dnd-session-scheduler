@@ -3,6 +3,7 @@ services:
     build: .
     container_name: dnd-scheduler
     restart: unless-stopped
+    init: true
     ports:
       - "3001:3000"
     env_file:
@@ -11,6 +12,15 @@ services:
       - ./data:/app/data
     networks:
       - n8n-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
       interval: 30s
@@ -32,6 +42,17 @@ services:
     volumes:
       - ./data:/databases:ro
     shm_size: "1gb"
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3003:3001"
+    volumes:
+      - ./data/uptime-kuma:/app/data
+    networks:
+      - n8n-network
 
 networks:
   n8n-network:

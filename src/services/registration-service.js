@@ -4,6 +4,7 @@
  */
 const { getDb, generateUuid, nowTimestamp, normalizeDate, normalizeTime, logAction, getConfigValue } = require('../db');
 const { upsertPlayer, getPlayerByEmail } = require('./player-service');
+const { getTierRange, getTierLabel } = require('./session-service');
 const { checkRateLimit } = require('../middleware/rate-limit');
 const { validateCsrfToken } = require('../middleware/csrf');
 
@@ -68,6 +69,15 @@ function processSignup(formData) {
     const deadline = new Date(session.signup_deadline);
     if (!isNaN(deadline.getTime()) && new Date() > deadline) {
       return { success: false, message: 'The sign-up deadline for this session has passed.' };
+    }
+  }
+
+  // Tier-based level restriction
+  const tier = session.level_tier || 'any';
+  if (tier !== 'any') {
+    const [minLv, maxLv] = getTierRange(tier);
+    if (level < minLv || level > maxLv) {
+      return { success: false, message: `This session requires ${getTierLabel(tier)}. Your character is level ${level}.` };
     }
   }
 

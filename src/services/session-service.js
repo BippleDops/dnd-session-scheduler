@@ -3,6 +3,7 @@
  * Ported from SessionService.gs + parts of Code.gs.
  */
 const { getDb, generateUuid, nowTimestamp, normalizeDate, normalizeTime, logAction, getConfigValue } = require('../db');
+const { postToDiscord } = require('./reminder-service');
 
 const ACTION_TYPES = {
   SESSION_CREATED: 'SESSION_CREATED',
@@ -45,6 +46,9 @@ function getUpcomingSessions() {
       spotsRemaining: Math.max(0, maxPlayers - registeredCount),
       roster: regs,
       status: s.status,
+      levelTier: s.level_tier || 'any',
+      levelTierLabel: getTierLabel(s.level_tier || 'any'),
+      location: s.location || '',
     };
   });
 }
@@ -121,22 +125,27 @@ function createSessionRecord(data, adminEmail) {
   const dayOfWeek = new Date(data.date + 'T12:00:00').getDay();
   const dayType = (dayOfWeek === 0 || dayOfWeek === 6) ? 'Weekend' : 'Weeknight';
 
+  const levelTier = ['any','tier1','tier2','tier3','tier4'].includes(data.levelTier) ? data.levelTier : 'any';
+
   db.prepare(`
     INSERT INTO sessions (session_id, date, day_type, start_time, duration, end_time,
       status, max_players, campaign, title, description, dm_notes,
-      signup_deadline, location, tags, difficulty, co_dm, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      signup_deadline, location, tags, difficulty, level_tier, co_dm, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `).run(
     id, data.date, dayType, data.startTime, duration, endTime,
     parseInt(data.maxPlayers, 10) || 6,
     data.campaign || '', data.title || '', data.description || '', data.dmNotes || '',
     data.signupDeadline || null, data.location || '',
-    data.tags || '', data.difficulty || '', data.coDM || ''
+    data.tags || '', data.difficulty || '', levelTier, data.coDM || ''
   );
 
   logAction(ACTION_TYPES.SESSION_CREATED,
     `${data.campaign} session created for ${data.date}`,
     adminEmail, id);
+
+  // Discord notification
+  try { postToDiscord(`**New D&D Session!** ${data.campaign} on ${data.date} at ${data.startTime}${data.title ? ' — ' + data.title : ''}${levelTier !== 'any' ? ' [' + getTierLabel(levelTier) + ']' : ''} (${parseInt(data.maxPlayers,10)||6} spots)\nSign up: ${process.env.BASE_URL || ''}/signup?sessionId=${id}`); } catch (e) {}
 
   return { success: true, sessionId: id };
 }
@@ -303,6 +312,25 @@ function autoCompletePastSessions() {
   return { success: true, count };
 }
 
+const TIER_RANGES = {
+  any: [1, 20],
+  tier1: [1, 4],
+  tier2: [5, 10],
+  tier3: [11, 16],
+  tier4: [17, 20],
+};
+
+const TIER_LABELS = {
+  any: 'Any Level',
+  tier1: 'Tier 1: Lv 1-4',
+  tier2: 'Tier 2: Lv 5-10',
+  tier3: 'Tier 3: Lv 11-16',
+  tier4: 'Tier 4: Lv 17-20',
+};
+
+function getTierRange(tier) { return TIER_RANGES[tier] || TIER_RANGES.any; }
+function getTierLabel(tier) { return TIER_LABELS[tier] || ''; }
+
 function getCampaignList() {
   return getConfigValue('CAMPAIGN_LIST', 'Aethermoor,Aquabyssos,Terravor,Two Cities')
     .split(',').map(c => c.trim());
@@ -322,5 +350,9 @@ module.exports = {
   autoCompletePastSessions,
   getCampaignList,
   ACTION_TYPES,
+  TIER_RANGES,
+  TIER_LABELS,
+  getTierRange,
+  getTierLabel,
 };
 

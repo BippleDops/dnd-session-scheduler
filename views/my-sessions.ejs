@@ -11,6 +11,7 @@
       <a href="/auth/google" class="btn btn-primary" style="margin-top:12px;">Sign In with Google</a>
     </div>
     <div id="my-content" style="display:none;">
+      <div class="toolbar"><button class="btn btn-sm btn-secondary" onclick="subscribeMyCalendar()">📅 Subscribe My Sessions to Calendar</button></div>
       <h3 style="color:var(--color-primary);margin-bottom:12px;">Upcoming Sessions</h3>
       <div id="upcoming-list"></div>
       <h3 style="color:var(--color-primary);margin:24px 0 12px;">Past Sessions</h3>
@@ -47,6 +48,17 @@
       var el = document.getElementById('char-list');
       if (!list || list.length === 0) { el.innerHTML = '<div class="card" style="text-align:center;padding:24px;color:var(--color-text-muted);">No characters yet.</div>'; return; }
       el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">' + list.map(function(c) { return '<div class="card" style="padding:14px;"><div style="font-weight:700;color:var(--color-primary);">' + escHtml(c.characterName) + '</div><div style="font-size:0.85rem;color:var(--color-text-muted);">' + escHtml(c.characterClass) + ' · Level ' + c.characterLevel + (c.characterRace ? ' · ' + escHtml(c.characterRace) : '') + '</div></div>'; }).join('') + '</div>';
+    }
+    function subscribeMyCalendar() {
+      fetch('/api/me/feed-token').then(function(r){return r.json();}).then(function(d) {
+        if (!d.token) { showToast('Sign up for a session first', 'warning'); return; }
+        var feedUrl = d.url;
+        var webcalUrl = feedUrl.replace('https://', 'webcal://').replace('http://', 'webcal://');
+        showModal('Subscribe My Sessions', '<p>This feed only shows sessions you\'re registered for:</p><input type="text" class="form-input" value="' + feedUrl + '" id="my-feed-url" readonly style="margin:8px 0;"><p style="font-size:0.85rem;color:var(--color-text-muted);">Or <a href="' + webcalUrl + '">click here to open in your calendar app</a>.</p>', function() {
+          var input = document.getElementById('my-feed-url');
+          if (input) { input.select(); navigator.clipboard.writeText(input.value).then(function(){showToast('URL copied!','success');}); }
+        }, 'Copy URL');
+      });
     }
     function cancelReg(regId) {
       if (!confirm('Cancel this registration?')) return;

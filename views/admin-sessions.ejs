@@ -31,6 +31,14 @@
           <div class="form-group"><label class="form-label">Difficulty</label><select id="form-difficulty" class="form-select"><option value="">—</option><option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option><option value="Deadly">Deadly</option></select></div>
           <div class="form-group"><label class="form-label">Signup Deadline</label><input type="datetime-local" id="form-deadline" class="form-input"></div>
         </div>
+        <div class="form-group"><label class="form-label">Level Restriction</label>
+          <select id="form-tier" class="form-select">
+            <option value="any">Any Level (1-20)</option>
+            <option value="tier1">Tier 1: Levels 1-4 (Local Heroes)</option>
+            <option value="tier2">Tier 2: Levels 5-10 (Heroes of the Realm)</option>
+            <option value="tier3">Tier 3: Levels 11-16 (Masters of the Realm)</option>
+            <option value="tier4">Tier 4: Levels 17-20 (Masters of the World)</option>
+          </select></div>
         <div class="form-group"><label class="form-label">Tags</label><input type="text" id="form-tags" class="form-input" maxlength="200" placeholder="combat-heavy, roleplay, new-player-friendly"></div>
         <div class="form-group"><label class="form-label">Co-DM Email</label><input type="email" id="form-codm" class="form-input" maxlength="254"></div>
         <div class="form-group"><label class="form-label">DM Notes (private)</label><textarea id="form-notes" class="form-textarea" maxlength="2000" rows="3"></textarea></div>
@@ -72,7 +80,7 @@
       document.getElementById('session-form').addEventListener('submit', function(e) {
         e.preventDefault();
         var editId = document.getElementById('edit-session-id').value;
-        var data = { date: document.getElementById('form-date').value, startTime: document.getElementById('form-time').value, campaign: document.getElementById('form-campaign').value, title: document.getElementById('form-title-input').value, description: document.getElementById('form-desc').value, maxPlayers: parseInt(document.getElementById('form-max').value, 10), duration: parseInt(document.getElementById('form-duration').value, 10) || 4, location: document.getElementById('form-location').value, difficulty: document.getElementById('form-difficulty').value, signupDeadline: document.getElementById('form-deadline').value, tags: document.getElementById('form-tags').value, coDM: document.getElementById('form-codm').value, dmNotes: document.getElementById('form-notes').value };
+        var data = { date: document.getElementById('form-date').value, startTime: document.getElementById('form-time').value, campaign: document.getElementById('form-campaign').value, title: document.getElementById('form-title-input').value, description: document.getElementById('form-desc').value, maxPlayers: parseInt(document.getElementById('form-max').value, 10), duration: parseInt(document.getElementById('form-duration').value, 10) || 4, location: document.getElementById('form-location').value, difficulty: document.getElementById('form-difficulty').value, levelTier: document.getElementById('form-tier').value, signupDeadline: document.getElementById('form-deadline').value, tags: document.getElementById('form-tags').value, coDM: document.getElementById('form-codm').value, dmNotes: document.getElementById('form-notes').value };
         showLoading();
         if (editId) {
           fetch('/api/admin/sessions/' + editId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(function(r){return r.json();}).then(function(r) { hideLoading(); if (r.success) { showToast('Session updated!', 'success'); showDetail(editId); } else showToast(r.error || 'Update failed', 'error'); }).catch(function(e) { hideLoading(); showToast(e.message, 'error'); });

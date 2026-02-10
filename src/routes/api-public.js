@@ -37,6 +37,70 @@ router.get('/sessions/:id/ics', (req, res) => {
   res.send(ics);
 });
 
+// ── Calendar Feeds ──
+
+/** Subscribable iCal feed — all upcoming sessions. Paste URL into any calendar app. */
+router.get('/calendar/feed.ics', (req, res) => {
+  const sessions = getUpcomingSessions();
+  const events = sessions.map(s => {
+    const dateStr = String(s.date).replace(/-/g, '');
+    const startTime = String(s.startTime).replace(':', '') + '00';
+    const endTime = String(s.endTime).replace(':', '') + '00';
+    const spots = s.spotsRemaining > 0 ? `${s.spotsRemaining} spots open` : 'FULL';
+    const tierInfo = s.levelTier && s.levelTier !== 'any' ? ` [${tierLabel(s.levelTier)}]` : '';
+    return `BEGIN:VEVENT\r\nUID:${s.sessionId}@dndsignup.get-suss.com\r\nDTSTART;TZID=America/Chicago:${dateStr}T${startTime}\r\nDTEND;TZID=America/Chicago:${dateStr}T${endTime}\r\nSUMMARY:${(s.title || s.campaign)}${tierInfo}\r\nDESCRIPTION:${s.campaign} — ${spots}${s.description ? '\\n' + s.description : ''}\\nSign up: ${process.env.BASE_URL || ''}/signup?sessionId=${s.sessionId}\r\nLOCATION:${s.location || ''}\r\nEND:VEVENT`;
+  }).join('\r\n');
+  const cal = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//DnD Session Scheduler//EN\r\nX-WR-CALNAME:D&D Sessions\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\nREFRESH-INTERVAL;VALUE=DURATION:PT1H\r\nX-PUBLISHED-TTL:PT1H\r\n${events}\r\nEND:VCALENDAR`;
+  res.set('Content-Type', 'text/calendar; charset=utf-8');
+  res.set('Cache-Control', 'no-cache, max-age=3600');
+  res.send(cal);
+});
+
+/** Personal iCal feed — only sessions the user is registered for. Uses token auth. */
+router.get('/calendar/my-feed.ics', (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.status(401).send('Token required');
+  const db = getDb();
+  const player = db.prepare('SELECT * FROM players WHERE feed_token = ?').get(token);
+  if (!player) return res.status(401).send('Invalid token');
+
+  const regs = db.prepare(`
+    SELECT r.*, s.date, s.start_time, s.end_time, s.campaign, s.title, s.location, s.description
+    FROM registrations r JOIN sessions s ON r.session_id = s.session_id
+    WHERE r.player_id = ? AND r.status IN ('Confirmed','Attended','Waitlisted') AND s.status = 'Scheduled'
+    ORDER BY s.date
+  `).all(player.player_id);
+
+  const events = regs.map(r => {
+    const dateStr = String(r.date).replace(/-/g, '');
+    const startTime = String(r.start_time).replace(':', '') + '00';
+    const endTime = String(r.end_time).replace(':', '') + '00';
+    return `BEGIN:VEVENT\r\nUID:${r.registration_id}@dndsignup.get-suss.com\r\nDTSTART;TZID=America/Chicago:${dateStr}T${startTime}\r\nDTEND;TZID=America/Chicago:${dateStr}T${endTime}\r\nSUMMARY:D&D: ${r.title || r.campaign} (${r.char_name_snapshot})\r\nDESCRIPTION:Playing ${r.char_name_snapshot} — ${r.campaign}\r\nLOCATION:${r.location || ''}\r\nSTATUS:${r.status === 'Waitlisted' ? 'TENTATIVE' : 'CONFIRMED'}\r\nEND:VEVENT`;
+  }).join('\r\n');
+  const cal = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//DnD Session Scheduler//EN\r\nX-WR-CALNAME:My D&D Sessions\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\nREFRESH-INTERVAL;VALUE=DURATION:PT1H\r\nX-PUBLISHED-TTL:PT1H\r\n${events}\r\nEND:VCALENDAR`;
+  res.set('Content-Type', 'text/calendar; charset=utf-8');
+  res.send(cal);
+});
+
+/** Generate/return a personal feed token for the authenticated user. */
+router.get('/me/feed-token', (req, res) => {
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  const db = getDb();
+  const player = db.prepare('SELECT player_id, feed_token FROM players WHERE email = ?').get(req.user.email.toLowerCase());
+  if (!player) return res.json({ token: null });
+  let token = player.feed_token;
+  if (!token) {
+    token = require('crypto').randomBytes(24).toString('hex');
+    db.prepare('UPDATE players SET feed_token = ? WHERE player_id = ?').run(token, player.player_id);
+  }
+  res.json({ token, url: `${process.env.BASE_URL || ''}/api/calendar/my-feed.ics?token=${token}` });
+});
+
+function tierLabel(tier) {
+  const tiers = { tier1: 'Tier 1: Lv 1-4', tier2: 'Tier 2: Lv 5-10', tier3: 'Tier 3: Lv 11-16', tier4: 'Tier 4: Lv 17-20' };
+  return tiers[tier] || '';
+}
+
 // ── Campaigns ──
 
 router.get('/campaigns', (req, res) => {
@@ -182,6 +246,63 @@ router.post('/feedback', (req, res) => {
   db.prepare(`INSERT INTO email_log (log_id, timestamp, type, recipient, subject, status, related_id)
     VALUES (?, datetime('now'), 'Feedback', ?, ?, 'OK', ?)`)
     .run(generateUuid(), email, `Rating: ${req.body.rating} — ${req.body.comment || ''}`, req.body.sessionId);
+  res.json({ success: true });
+});
+
+// ── Session Comments (A2) ──
+
+router.get('/sessions/:id/comments', (req, res) => {
+  const db = getDb();
+  const comments = db.prepare(`
+    SELECT c.*, p.name AS player_name, p.photo_url
+    FROM session_comments c
+    LEFT JOIN players p ON c.player_id = p.player_id
+    WHERE c.session_id = ?
+    ORDER BY c.created_at ASC
+  `).all(req.params.id);
+  res.json(comments);
+});
+
+router.post('/sessions/:id/comments', (req, res) => {
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.status(403).json({ error: 'Player not found' });
+  const text = sanitize(req.body.text, 1000);
+  if (!text) return res.json({ success: false, message: 'Comment text is required.' });
+  const db = getDb();
+  db.prepare(`INSERT INTO session_comments (comment_id, session_id, player_id, text, created_at)
+    VALUES (?, ?, ?, ?, datetime('now'))`).run(generateUuid(), req.params.id, player.player_id, text);
+  res.json({ success: true });
+});
+
+// ── Notifications (A3) ──
+
+router.get('/me/notifications', (req, res) => {
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.json({ notifications: [], unread: 0 });
+  const { getUnreadNotifications, getUnreadCount } = require('../services/notification-service');
+  res.json({
+    notifications: getUnreadNotifications(player.player_id),
+    unread: getUnreadCount(player.player_id),
+  });
+});
+
+router.post('/me/notifications/read-all', (req, res) => {
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.json({ success: false });
+  const { markAllRead } = require('../services/notification-service');
+  markAllRead(player.player_id);
+  res.json({ success: true });
+});
+
+router.post('/me/notifications/:id/read', (req, res) => {
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.json({ success: false });
+  const { markRead } = require('../services/notification-service');
+  markRead(req.params.id, player.player_id);
   res.json({ success: true });
 });
 

@@ -40,6 +40,7 @@ function initializeDatabase() {
       location TEXT,
       tags TEXT,
       difficulty TEXT,
+      level_tier TEXT DEFAULT 'any',
       co_dm TEXT,
       prep_checklist TEXT,
       calendar_event_id TEXT,
@@ -51,6 +52,7 @@ function initializeDatabase() {
       player_id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
+      photo_url TEXT,
       pronouns TEXT,
       preferred_campaign TEXT,
       preferred_times TEXT,
@@ -58,6 +60,7 @@ function initializeDatabase() {
       emergency_contact TEXT,
       dm_notes TEXT,
       played_before TEXT,
+      feed_token TEXT,
       registered_at TEXT DEFAULT (datetime('now')),
       active_status TEXT DEFAULT 'Active' CHECK(active_status IN ('Active','Inactive')),
       modified_at TEXT
@@ -119,6 +122,24 @@ function initializeDatabase() {
       related_id TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS session_comments (
+      comment_id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sessions(session_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      text TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      notification_id TEXT PRIMARY KEY,
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      type TEXT NOT NULL,
+      message TEXT NOT NULL,
+      related_id TEXT,
+      read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     -- Indexes for common queries
     CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
     CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
@@ -148,6 +169,16 @@ function initializeDatabase() {
     ['FEATURE_WAITLIST', 'FALSE', 'Enable waitlist when sessions are full'],
     ['FEATURE_PLAYER_CANCEL', 'TRUE', 'Allow players to self-cancel registrations'],
   ];
+
+  // Schema migrations for existing databases
+  const migrations = [
+    "ALTER TABLE players ADD COLUMN photo_url TEXT",
+    "ALTER TABLE players ADD COLUMN feed_token TEXT",
+    "ALTER TABLE sessions ADD COLUMN level_tier TEXT DEFAULT 'any'",
+  ];
+  for (const sql of migrations) {
+    try { db.exec(sql); } catch (e) { /* column already exists */ }
+  }
 
   const seedTx = db.transaction(() => {
     for (const [key, value, desc] of defaults) {

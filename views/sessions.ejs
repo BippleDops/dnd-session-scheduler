@@ -5,6 +5,9 @@
   <%- include('partials/header') %>
   <main class="container">
     <div class="page-header"><h2>Upcoming Sessions</h2></div>
+    <div class="toolbar">
+      <button class="btn btn-sm btn-secondary" onclick="subscribeCalendar()">📅 Subscribe to Calendar</button>
+    </div>
     <div id="sessions-list"></div>
     <div id="no-sessions" class="card hidden" style="text-align:center;padding:40px;">
       <p style="font-size:1.1rem;">No sessions on the schedule right now.</p>
@@ -42,6 +45,14 @@
         }).join('');
       }).catch(function() { hideLoading(); showToast('Couldn\'t load sessions.', 'error'); });
     })();
+    function subscribeCalendar() {
+      var feedUrl = window.location.origin + '/api/calendar/feed.ics';
+      var webcalUrl = feedUrl.replace('https://', 'webcal://').replace('http://', 'webcal://');
+      showModal('Subscribe to Calendar', '<p>Add this URL to Google Calendar, Apple Calendar, or Outlook:</p><input type="text" class="form-input" value="' + feedUrl + '" id="feed-url-input" readonly style="margin:8px 0;"><p style="font-size:0.85rem;color:var(--color-text-muted);">Or <a href="' + webcalUrl + '">click here to open in your default calendar app</a>.</p>', function() {
+        var input = document.getElementById('feed-url-input');
+        if (input) { input.select(); navigator.clipboard.writeText(input.value).then(function(){showToast('URL copied!','success');}); }
+      }, 'Copy URL');
+    }
   </script>
 </body>
 </html>

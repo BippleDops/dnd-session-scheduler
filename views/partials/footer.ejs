@@ -187,6 +187,32 @@
     }
   });
 
+  function toggleNotifications() {
+    var panel = document.getElementById('notif-panel');
+    if (!panel) return;
+    if (panel.style.display === 'none') {
+      panel.style.display = '';
+      fetch('/api/me/notifications').then(function(r){return r.json();}).then(function(d) {
+        if (!d.notifications || d.notifications.length === 0) {
+          panel.innerHTML = '<p style="padding:12px;color:var(--color-text-muted);text-align:center;font-size:0.85rem;">No new notifications</p>';
+        } else {
+          panel.innerHTML = '<div style="display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--color-border);"><strong style="font-size:0.85rem;">Notifications</strong><button class="btn btn-sm btn-secondary" onclick="markAllNotifRead()" style="font-size:0.7rem;padding:2px 8px;">Mark all read</button></div>' +
+            d.notifications.map(function(n) {
+              return '<div style="padding:8px;border-bottom:1px solid var(--color-border);font-size:0.85rem;">' +
+                '<div>' + escHtml(n.message) + '</div>' +
+                '<div style="font-size:0.75rem;color:var(--color-text-muted);">' + formatTimestamp(n.created_at) + '</div></div>';
+            }).join('');
+        }
+      });
+    } else { panel.style.display = 'none'; }
+  }
+  function markAllNotifRead() {
+    fetch('/api/me/notifications/read-all', { method: 'POST' }).then(function() {
+      var badge = document.getElementById('notif-badge'); if (badge) badge.style.display = 'none';
+      var panel = document.getElementById('notif-panel'); if (panel) panel.innerHTML = '<p style="padding:12px;color:var(--color-text-muted);text-align:center;font-size:0.85rem;">No new notifications</p>';
+    });
+  }
+
   function downloadIcs(sessionId) {
     window.location.href = '/api/sessions/' + sessionId + '/ics';
   }

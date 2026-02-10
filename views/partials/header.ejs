@@ -17,6 +17,8 @@
   </div>
   <div class="nav-actions">
     <% if (typeof user !== 'undefined' && user) { %>
+      <span id="notif-bell" style="cursor:pointer;font-size:1.1rem;position:relative;" onclick="toggleNotifications()" title="Notifications">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:var(--color-error);color:#fff;border-radius:50%;font-size:0.6rem;width:16px;height:16px;line-height:16px;text-align:center;"></span></span>
+      <div id="notif-panel" style="display:none;position:absolute;top:50px;right:20px;width:320px;max-height:400px;overflow-y:auto;background:var(--color-surface);border:1px solid var(--color-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:100;padding:8px;"></div>
       <span style="color:rgba(255,255,255,0.7);font-size:0.8rem;"><%= user.name || user.email %></span>
       <a href="/auth/logout" class="theme-toggle" style="text-decoration:none;">Logout</a>
     <% } else { %>
@@ -31,6 +33,15 @@
       if (role && role.isAdmin) {
         var els = document.querySelectorAll('.admin-only');
         for (var i = 0; i < els.length; i++) els[i].style.display = '';
+      }
+      // Load notification count
+      if (role && role.email) {
+        fetch('/api/me/notifications').then(r => r.json()).then(function(d) {
+          if (d.unread > 0) {
+            var badge = document.getElementById('notif-badge');
+            if (badge) { badge.textContent = d.unread; badge.style.display = ''; }
+          }
+        }).catch(function(){});
       }
     }).catch(function(){});
   })();

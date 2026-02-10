@@ -22,12 +22,23 @@ function initPassport() {
     },
     (accessToken, refreshToken, profile, done) => {
       const email = profile.emails && profile.emails[0] ? profile.emails[0].value : '';
-      done(null, {
-        id: profile.id,
-        name: profile.displayName,
-        email: email.toLowerCase(),
-        photo: profile.photos && profile.photos[0] ? profile.photos[0].value : '',
-      });
+      const photo = profile.photos && profile.photos[0] ? profile.photos[0].value : '';
+      const name = profile.displayName || '';
+
+      // Auto-create player record on first login (A1 onboarding)
+      try {
+        const { getDb, generateUuid, nowTimestamp } = require('../db');
+        const db = getDb();
+        const existing = db.prepare('SELECT player_id, photo_url FROM players WHERE email = ?').get(email.toLowerCase());
+        if (!existing) {
+          db.prepare(`INSERT INTO players (player_id, name, email, photo_url, registered_at, active_status)
+            VALUES (?, ?, ?, ?, datetime('now'), 'Active')`).run(generateUuid(), name, email.toLowerCase(), photo);
+        } else if (photo && !existing.photo_url) {
+          db.prepare('UPDATE players SET photo_url = ? WHERE player_id = ?').run(photo, existing.player_id);
+        }
+      } catch (e) { console.error('Auto-create player error:', e.message); }
+
+      done(null, { id: profile.id, name, email: email.toLowerCase(), photo });
     }
   ));
 }

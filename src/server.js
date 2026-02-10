@@ -111,9 +111,9 @@ cron.schedule(`0 ${triggerHour} * * *`, async () => {
   } catch (e) { console.error('Cron reminder error:', e); }
 }, { timezone: 'America/Chicago' });
 
-// Weekly backup Sunday 2 AM
-cron.schedule('0 2 * * 0', () => {
-  console.log('[Cron] Running weekly backup');
+// Daily backup at 2 AM
+cron.schedule('0 2 * * *', () => {
+  console.log('[Cron] Running daily backup');
   try {
     const { performBackup } = require('./services/backup-service');
     performBackup();

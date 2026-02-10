@@ -16,8 +16,18 @@ function performBackup() {
 
     const db = getDb();
     db.backup(backupPath).then(() => {
-      logAction('BACKUP_COMPLETED', `Backup created: ${backupPath}`, 'System', '');
-      // Prune backups older than 30 days
+      // Verify backup integrity
+      try {
+        const Database = require('better-sqlite3');
+        const backupDb = new Database(backupPath, { readonly: true });
+        const result = backupDb.pragma('integrity_check');
+        backupDb.close();
+        const ok = result && result[0] && result[0].integrity_check === 'ok';
+        logAction('BACKUP_COMPLETED', `Backup created: ${backupPath} (integrity: ${ok ? 'OK' : 'FAILED'})`, 'System', '');
+        if (!ok) console.error('Backup integrity check failed!');
+      } catch (e) {
+        logAction('BACKUP_COMPLETED', `Backup created: ${backupPath} (integrity check error: ${e.message})`, 'System', '');
+      }
       pruneOldBackups();
     }).catch(err => {
       console.error('Backup error:', err);
