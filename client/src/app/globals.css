@@ -1,0 +1,281 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --wood-dark: #2c1810;
+  --wood-medium: #4a2c1a;
+  --wood-light: #6b3d22;
+  --parchment: #f4e4c1;
+  --parchment-dark: #d4c4a1;
+  --ink: #1a1209;
+  --ink-faded: #5c4a32;
+  --gold: #c9a959;
+  --gold-bright: #e8c84a;
+  --candle: #ff9d2e;
+  --blood-red: #8b0000;
+  --deep-blue: #1a3a5c;
+  --teal: #1a4a4a;
+  --amber: #b8860b;
+  --font-heading: 'MedievalSharp', Georgia, serif;
+  --font-body: 'Crimson Text', Georgia, serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+}
+
+/* ── Wood plank background (CSS-generated, no image needed) ── */
+body {
+  font-family: var(--font-body);
+  background-color: var(--wood-dark);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 120px,
+      rgba(0,0,0,0.15) 120px,
+      rgba(0,0,0,0.15) 122px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    linear-gradient(180deg, #3a2015 0%, #2c1810 50%, #241208 100%);
+  color: var(--parchment);
+  min-height: 100vh;
+}
+
+/* ── Parchment texture (CSS-generated) ── */
+.parchment {
+  background-color: var(--parchment);
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(139,90,43,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139,90,43,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(139,90,43,0.05) 0%, transparent 50%);
+  color: var(--ink);
+  border-radius: 4px;
+  position: relative;
+}
+
+.parchment::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 28px,
+    rgba(139,90,43,0.03) 28px,
+    rgba(139,90,43,0.03) 29px
+  );
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* ── Tavern sign nav ── */
+.tavern-nav {
+  background: linear-gradient(180deg, #3a2218 0%, #2c1810 100%);
+  border-bottom: 3px solid var(--gold);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(201,169,89,0.3);
+  position: relative;
+}
+
+.tavern-nav::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+/* ── Quest card (pinned notice) ── */
+.quest-card {
+  background-color: var(--parchment);
+  background-image:
+    radial-gradient(ellipse at 30% 40%, rgba(139,90,43,0.1) 0%, transparent 60%);
+  color: var(--ink);
+  border-radius: 2px;
+  box-shadow:
+    2px 3px 8px rgba(0,0,0,0.4),
+    inset 0 0 30px rgba(139,90,43,0.08);
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quest-card:hover {
+  transform: translateY(-2px) rotate(0.3deg);
+  box-shadow:
+    4px 6px 16px rgba(0,0,0,0.5),
+    inset 0 0 30px rgba(139,90,43,0.08);
+}
+
+/* Pin/tack on top of card */
+.quest-card::before {
+  content: '📌';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.4));
+  z-index: 2;
+}
+
+/* ── Wood button ── */
+.wood-btn {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  background: linear-gradient(180deg, var(--wood-light) 0%, var(--wood-medium) 100%);
+  color: var(--gold);
+  border: 1px solid rgba(201,169,89,0.4);
+  border-radius: 4px;
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.wood-btn:hover {
+  background: linear-gradient(180deg, #7a4a2a 0%, var(--wood-light) 100%);
+  border-color: var(--gold);
+  box-shadow: 0 2px 8px rgba(201,169,89,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.wood-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.wood-btn-primary {
+  background: linear-gradient(180deg, var(--gold) 0%, var(--amber) 100%);
+  color: var(--ink);
+  border-color: var(--gold-bright);
+  text-shadow: none;
+}
+
+.wood-btn-primary:hover {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
+}
+
+.wood-btn-danger {
+  background: linear-gradient(180deg, #a02020 0%, var(--blood-red) 100%);
+  color: #fff;
+  border-color: rgba(255,100,100,0.3);
+}
+
+/* ── Wax seal badge ── */
+.wax-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.15);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Candle loader ── */
+@keyframes flicker {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  25% { opacity: 0.9; transform: scale(1.02, 0.98); }
+  50% { opacity: 1; transform: scale(0.98, 1.02); }
+  75% { opacity: 0.85; transform: scale(1.01, 0.99); }
+}
+
+.candle-flame {
+  width: 12px;
+  height: 20px;
+  background: radial-gradient(ellipse at bottom, var(--candle) 0%, var(--gold-bright) 40%, transparent 70%);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  animation: flicker 1.5s ease-in-out infinite;
+  filter: blur(0.5px);
+}
+
+/* ── Scroll heading ── */
+.scroll-heading {
+  font-family: var(--font-heading);
+  color: var(--gold);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* ── Form inputs (parchment style) ── */
+.tavern-input {
+  font-family: var(--font-body);
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--parchment-dark);
+  border-radius: 2px;
+  padding: 10px 12px;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.tavern-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(201,169,89,0.3);
+}
+
+.tavern-input::placeholder {
+  color: var(--ink-faded);
+  font-style: italic;
+}
+
+/* ── Tier shield ── */
+.tier-shield {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--wood-medium);
+  color: var(--gold);
+  border: 1px solid rgba(201,169,89,0.3);
+}
+
+/* ── Sword divider ── */
+.sword-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--gold);
+  opacity: 0.5;
+}
+
+.sword-divider::before,
+.sword-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .quest-card::before { font-size: 14px; top: -6px; }
+}
+
+/* ── Dungeon mode (dark variant) ── */
+[data-theme="dungeon"] {
+  --parchment: #2a2520;
+  --parchment-dark: #1e1a16;
+  --ink: #d4c4a1;
+  --ink-faded: #8a7a62;
+  --wood-dark: #0d0908;
+  --wood-medium: #1a1210;
+  --wood-light: #2a1e18;
+}

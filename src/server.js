@@ -86,7 +86,21 @@ app.use((req, res, next) => {
 app.use('/auth', authRouter);
 app.use('/api', apiPublic);
 app.use('/api/admin', apiAdmin);
+
+// Serve React static export for non-API routes
+// EJS routes kept as fallback for pages not yet in React
 app.use('/', pageRoutes);
+
+// React SPA fallback: serve .html files for client-side routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) return next();
+  const htmlPath = path.join(__dirname, '..', 'public', req.path + '.html');
+  const fs = require('fs');
+  if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
+  const indexPath = path.join(__dirname, '..', 'public', req.path, 'index.html');
+  if (fs.existsSync(indexPath)) return res.sendFile(indexPath);
+  next();
+});
 
 // ── Health check ──
 app.get('/health', (req, res) => {

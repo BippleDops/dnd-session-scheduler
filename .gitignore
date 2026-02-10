@@ -5,3 +5,6 @@ data/backups/
 .env
 .cursor/
 
+client/node_modules/
+client/.next/
+client/out/
