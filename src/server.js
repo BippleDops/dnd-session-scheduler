@@ -70,6 +70,18 @@ app.use(injectUser);
 // ── Trust proxy (Cloudflare Tunnel) ──
 app.set('trust proxy', 1);
 
+// ── Request logging ──
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    if (!req.path.startsWith('/health') && !req.path.startsWith('/styles')) {
+      console.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${req.user ? req.user.email : 'anon'}`);
+    }
+  });
+  next();
+});
+
 // ── Routes ──
 app.use('/auth', authRouter);
 app.use('/api', apiPublic);
@@ -118,8 +130,22 @@ app.use((err, req, res, next) => {
 });
 
 // ── Start ──
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`D&D Session Scheduler running on http://0.0.0.0:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+// ── Graceful shutdown ──
+function shutdown(signal) {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+  server.close(() => {
+    try { require('./db').getDb().close(); } catch (e) {}
+    console.log('Server closed. Database connection closed.');
+    process.exit(0);
+  });
+  // Force exit after 10s if graceful shutdown hangs
+  setTimeout(() => { console.error('Forced shutdown'); process.exit(1); }, 10000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 

@@ -61,36 +61,41 @@ router.get('/csrf-token', (req, res) => {
   res.json({ token: generateCsrfToken(sessionId) });
 });
 
-// ── Signup ──
+// ── Signup (REQUIRES LOGIN — uses authenticated email, not form input) ──
 
 router.post('/signup', (req, res) => {
-  const result = processSignup(req.body);
+  if (!req.user || !req.user.email) {
+    return res.status(401).json({ success: false, message: 'You must sign in with Google before signing up.' });
+  }
+  // Override email/name with authenticated user data — prevents impersonation
+  const formData = { ...req.body, email: req.user.email, name: req.user.name || req.body.name };
+  const result = processSignup(formData);
   res.json(result);
 });
 
-// ── My data (requires login) ──
+// ── My data (ALL require login) ──
 
 router.get('/me/characters', (req, res) => {
-  const email = req.query.email || (req.user ? req.user.email : '');
-  res.json(getPlayerCharactersByEmail(email));
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  // Only return the authenticated user's characters — no email param accepted
+  res.json(getPlayerCharactersByEmail(req.user.email));
 });
 
 router.get('/me/registrations', (req, res) => {
-  const email = req.user ? req.user.email : '';
-  res.json(getMyRegistrationsData(email));
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  res.json(getMyRegistrationsData(req.user.email));
 });
 
 router.delete('/me/registrations/:id', (req, res) => {
-  const email = req.user ? req.user.email : '';
-  res.json(cancelMyRegistration(req.params.id, email));
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  res.json(cancelMyRegistration(req.params.id, req.user.email));
 });
 
 router.get('/me/profile', (req, res) => {
-  const email = req.user ? req.user.email : '';
-  if (!email) return res.json(null);
-  const player = getPlayerByEmail(email);
+  if (!req.user || !req.user.email) return res.status(401).json(null);
+  const player = getPlayerByEmail(req.user.email);
   if (!player) return res.json(null);
-  const chars = getPlayerCharactersByEmail(email);
+  const chars = getPlayerCharactersByEmail(req.user.email);
   res.json({
     playerId: player.player_id,
     name: player.name,
@@ -99,23 +104,24 @@ router.get('/me/profile', (req, res) => {
     accessibilityNeeds: player.accessibility_needs || '',
     dmNotes: player.dm_notes || '',
     playedBefore: player.played_before || '',
+    profileComplete: !!(player.name && player.played_before),
     characters: chars,
   });
 });
 
 router.put('/me/profile', (req, res) => {
-  const email = req.user ? req.user.email : '';
-  if (!email) return res.json({ success: false, message: 'Not authenticated.' });
-  const player = getPlayerByEmail(email);
+  if (!req.user || !req.user.email) return res.status(401).json({ success: false, message: 'Not authenticated.' });
+  const player = getPlayerByEmail(req.user.email);
   if (!player) return res.json({ success: false, message: 'Player not found.' });
 
   const db = getDb();
   const updates = req.body;
   const safe = {};
-  if (updates.name) safe.name = String(updates.name).slice(0, 100);
-  if (updates.preferredCampaign !== undefined) safe.preferred_campaign = String(updates.preferredCampaign).slice(0, 100);
-  if (updates.accessibilityNeeds !== undefined) safe.accessibility_needs = String(updates.accessibilityNeeds).slice(0, 1000);
-  if (updates.dmNotes !== undefined) safe.dm_notes = String(updates.dmNotes).slice(0, 1000);
+  if (updates.name) safe.name = sanitize(updates.name, 100);
+  if (updates.preferredCampaign !== undefined) safe.preferred_campaign = sanitize(updates.preferredCampaign, 100);
+  if (updates.accessibilityNeeds !== undefined) safe.accessibility_needs = sanitize(updates.accessibilityNeeds, 1000);
+  if (updates.dmNotes !== undefined) safe.dm_notes = sanitize(updates.dmNotes, 1000);
+  if (updates.playedBefore !== undefined) safe.played_before = sanitize(updates.playedBefore, 20);
   safe.modified_at = nowTimestamp();
 
   const setClauses = Object.keys(safe).map(k => `${k} = ?`).join(', ');
@@ -123,6 +129,12 @@ router.put('/me/profile', (req, res) => {
     .run(...Object.values(safe), player.player_id);
   res.json({ success: true });
 });
+
+/** Strip HTML tags and enforce length limit. */
+function sanitize(str, maxLen) {
+  if (!str) return '';
+  return String(str).replace(/<[^>]*>/g, '').replace(/on\w+\s*=/gi, '').slice(0, maxLen || 500);
+}
 
 // ── Cancel by token ──
 
@@ -161,8 +173,8 @@ router.get('/recaps', (req, res) => {
 // ── Feedback ──
 
 router.post('/feedback', (req, res) => {
-  const email = req.user ? req.user.email : '';
-  if (!email) return res.json({ success: false, message: 'Not authenticated.' });
+  if (!req.user || !req.user.email) return res.status(401).json({ success: false, message: 'Not authenticated.' });
+  const email = req.user.email;
   const player = getPlayerByEmail(email);
   if (!player) return res.json({ success: false, message: 'Player not found.' });
 

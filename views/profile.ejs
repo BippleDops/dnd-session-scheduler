@@ -5,14 +5,25 @@
   <%- include('partials/header') %>
   <main class="container">
     <div class="page-header"><h2>My Profile</h2></div>
+    <% if (typeof needsCompletion !== 'undefined' && needsCompletion) { %>
+      <div class="alert alert-warning" style="margin-bottom:16px;">Please complete your profile before signing up for sessions. Fill in all required fields and click Save.</div>
+    <% } %>
     <div id="not-found" class="card hidden" style="text-align:center;padding:40px;">
       <p>No profile found. <a href="/sessions">Sign up for a session</a> to create your profile.</p>
     </div>
     <div id="profile-content" style="display:none;">
       <form id="profile-form" class="card" style="max-width:600px;">
-        <div class="form-group"><label class="form-label">Name</label><input type="text" id="p-name" class="form-input" maxlength="100"></div>
+        <div class="form-group"><label class="form-label">Name <span class="required">*</span></label><input type="text" id="p-name" class="form-input" maxlength="100" required></div>
         <div class="form-group"><label class="form-label">Email</label><input type="email" id="p-email" class="form-input" disabled></div>
         <div class="form-group"><label class="form-label">Preferred Campaign</label><select id="p-campaign" class="form-select"><option value="">No Preference</option></select></div>
+        <div class="form-group">
+          <label class="form-label">Have you played D&D before? <span class="required">*</span></label>
+          <div style="display:flex;gap:16px;">
+            <label class="checkbox-item"><input type="radio" name="playedBefore" id="p-played-yes" value="Yes"> Yes</label>
+            <label class="checkbox-item"><input type="radio" name="playedBefore" id="p-played-no" value="No"> No</label>
+            <label class="checkbox-item"><input type="radio" name="playedBefore" id="p-played-first" value="First Time"> First Time</label>
+          </div>
+        </div>
         <div class="form-group"><label class="form-label">Accessibility Needs</label><textarea id="p-accessibility" class="form-textarea" rows="2" maxlength="1000"></textarea></div>
         <div class="form-group"><label class="form-label">Anything the DM Should Know</label><textarea id="p-dmNotes" class="form-textarea" rows="2" maxlength="1000"></textarea></div>
         <button type="submit" class="btn btn-primary">Save Profile</button>
@@ -40,6 +51,10 @@
         document.getElementById('p-campaign').value = profile.preferredCampaign || '';
         document.getElementById('p-accessibility').value = profile.accessibilityNeeds || '';
         document.getElementById('p-dmNotes').value = profile.dmNotes || '';
+        if (profile.playedBefore) {
+          var radio = document.querySelector('input[name="playedBefore"][value="' + profile.playedBefore + '"]');
+          if (radio) radio.checked = true;
+        }
         var charEl = document.getElementById('char-list');
         if (profile.characters && profile.characters.length > 0) {
           charEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">' + profile.characters.map(function(c) { return '<div class="card" style="padding:14px;"><div style="font-weight:700;color:var(--color-primary);">' + escHtml(c.characterName) + '</div><div style="font-size:0.85rem;color:var(--color-text-muted);">' + escHtml(c.characterClass) + ' · Level ' + c.characterLevel + '</div></div>'; }).join('') + '</div>';
@@ -47,7 +62,10 @@
       }).catch(function(e) { hideLoading(); showToast('Error loading profile', 'error'); });
       document.getElementById('profile-form').addEventListener('submit', function(e) {
         e.preventDefault(); showLoading();
-        fetch('/api/me/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('p-name').value.trim(), preferredCampaign: document.getElementById('p-campaign').value, accessibilityNeeds: document.getElementById('p-accessibility').value.trim(), dmNotes: document.getElementById('p-dmNotes').value.trim() }) }).then(function(r){return r.json();}).then(function(r) { hideLoading(); if (r.success) showToast('Profile saved!', 'success'); else showToast(r.message, 'error'); }).catch(function(e) { hideLoading(); showToast('Error saving profile', 'error'); });
+        var playedRadio = document.querySelector('input[name="playedBefore"]:checked');
+        if (!document.getElementById('p-name').value.trim()) { showToast('Name is required', 'error'); hideLoading(); return; }
+        if (!playedRadio) { showToast('Please select whether you have played before', 'error'); hideLoading(); return; }
+        fetch('/api/me/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('p-name').value.trim(), preferredCampaign: document.getElementById('p-campaign').value, accessibilityNeeds: document.getElementById('p-accessibility').value.trim(), dmNotes: document.getElementById('p-dmNotes').value.trim(), playedBefore: playedRadio.value }) }).then(function(r){return r.json();}).then(function(r) { hideLoading(); if (r.success) showToast('Profile saved!', 'success'); else showToast(r.message, 'error'); }).catch(function(e) { hideLoading(); showToast('Error saving profile', 'error'); });
       });
     })();
   </script>

@@ -128,21 +128,34 @@ function getPlayerSessionHistory(playerId) {
 }
 
 function setPlayerStatus(playerId, status) {
+  if (!['Active', 'Inactive'].includes(status)) {
+    return { success: false, error: 'Invalid status. Must be Active or Inactive.' };
+  }
   const db = getDb();
+  const exists = db.prepare('SELECT 1 FROM players WHERE player_id = ?').get(playerId);
+  if (!exists) return { success: false, error: 'Player not found.' };
   db.prepare('UPDATE players SET active_status = ?, modified_at = datetime(\'now\') WHERE player_id = ?')
     .run(status, playerId);
+  logAction('PLAYER_STATUS_CHANGED', `Player ${playerId} set to ${status}`, '', playerId);
   return { success: true };
+}
+
+function sanitize(str, maxLen) {
+  if (!str) return '';
+  return String(str).replace(/<[^>]*>/g, '').replace(/on\w+\s*=/gi, '').slice(0, maxLen || 500);
 }
 
 function updatePlayerRecord(playerId, updates) {
   const db = getDb();
+  const exists = db.prepare('SELECT 1 FROM players WHERE player_id = ?').get(playerId);
+  if (!exists) return { success: false, error: 'Player not found.' };
   const colMap = {
-    name: 'name', preferredCampaign: 'preferred_campaign',
-    accessibilityNeeds: 'accessibility_needs', dmNotes: 'dm_notes',
+    name: ['name', 100], preferredCampaign: ['preferred_campaign', 100],
+    accessibilityNeeds: ['accessibility_needs', 1000], dmNotes: ['dm_notes', 1000],
   };
   const safeUpdates = { modified_at: nowTimestamp() };
-  for (const [k, col] of Object.entries(colMap)) {
-    if (updates[k] !== undefined) safeUpdates[col] = updates[k];
+  for (const [k, [col, maxLen]] of Object.entries(colMap)) {
+    if (updates[k] !== undefined) safeUpdates[col] = sanitize(updates[k], maxLen);
   }
   const setClauses = Object.keys(safeUpdates).map(k => `${k} = ?`).join(', ');
   db.prepare(`UPDATE players SET ${setClauses} WHERE player_id = ?`)
