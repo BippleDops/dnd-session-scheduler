@@ -41,6 +41,7 @@ function initializeDatabase() {
       tags TEXT,
       difficulty TEXT,
       level_tier TEXT DEFAULT 'any',
+      map_url TEXT,
       co_dm TEXT,
       prep_checklist TEXT,
       calendar_event_id TEXT,
@@ -140,6 +141,120 @@ function initializeDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    -- V3 tables
+
+    CREATE TABLE IF NOT EXISTS campaigns (
+      campaign_id TEXT PRIMARY KEY,
+      slug TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      lore TEXT,
+      house_rules TEXT,
+      banner_url TEXT,
+      world_map_url TEXT,
+      default_tier TEXT DEFAULT 'any',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS characters (
+      character_id TEXT PRIMARY KEY,
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      name TEXT NOT NULL,
+      class TEXT,
+      subclass TEXT,
+      level INTEGER DEFAULT 1,
+      race TEXT,
+      backstory TEXT,
+      portrait_url TEXT,
+      hp INTEGER,
+      max_hp INTEGER,
+      ac INTEGER,
+      str INTEGER DEFAULT 10,
+      dex INTEGER DEFAULT 10,
+      con INTEGER DEFAULT 10,
+      int_ INTEGER DEFAULT 10,
+      wis INTEGER DEFAULT 10,
+      cha INTEGER DEFAULT 10,
+      proficiencies TEXT,
+      equipment TEXT,
+      gold INTEGER DEFAULT 0,
+      silver INTEGER DEFAULT 0,
+      copper INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'Active' CHECK(status IN ('Active','Retired','Dead')),
+      created_at TEXT DEFAULT (datetime('now')),
+      modified_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS dice_rolls (
+      roll_id TEXT PRIMARY KEY,
+      session_id TEXT REFERENCES sessions(session_id),
+      player_id TEXT REFERENCES players(player_id),
+      expression TEXT NOT NULL,
+      results TEXT,
+      total INTEGER,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS initiative_entries (
+      entry_id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sessions(session_id),
+      name TEXT NOT NULL,
+      initiative INTEGER DEFAULT 0,
+      hp INTEGER,
+      max_hp INTEGER,
+      conditions TEXT,
+      is_npc INTEGER DEFAULT 0,
+      player_id TEXT,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS loot (
+      loot_id TEXT PRIMARY KEY,
+      session_id TEXT REFERENCES sessions(session_id),
+      character_id TEXT REFERENCES characters(character_id),
+      item_name TEXT NOT NULL,
+      description TEXT,
+      rarity TEXT DEFAULT 'Common',
+      quantity INTEGER DEFAULT 1,
+      gold_value INTEGER DEFAULT 0,
+      awarded_by TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS player_recaps (
+      recap_id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sessions(session_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      content TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      message_id TEXT PRIMARY KEY,
+      from_player_id TEXT NOT NULL REFERENCES players(player_id),
+      to_player_id TEXT NOT NULL REFERENCES players(player_id),
+      subject TEXT,
+      body TEXT NOT NULL,
+      read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS achievements (
+      achievement_id TEXT PRIMARY KEY,
+      key TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS player_achievements (
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      achievement_id TEXT NOT NULL REFERENCES achievements(achievement_id),
+      earned_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (player_id, achievement_id)
+    );
+
     -- Indexes for common queries
     CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
     CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
@@ -148,6 +263,13 @@ function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_players_email ON players(email);
     CREATE INDEX IF NOT EXISTS idx_admin_log_type ON admin_log(action_type);
     CREATE INDEX IF NOT EXISTS idx_admin_log_timestamp ON admin_log(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_characters_player ON characters(player_id);
+    CREATE INDEX IF NOT EXISTS idx_loot_character ON loot(character_id);
+    CREATE INDEX IF NOT EXISTS idx_loot_session ON loot(session_id);
+    CREATE INDEX IF NOT EXISTS idx_dice_rolls_session ON dice_rolls(session_id);
+    CREATE INDEX IF NOT EXISTS idx_initiative_session ON initiative_entries(session_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_player_id);
+    CREATE INDEX IF NOT EXISTS idx_campaigns_slug ON campaigns(slug);
   `);
 
   // Seed default config values
@@ -186,6 +308,28 @@ function initializeDatabase() {
     }
   });
   seedTx();
+
+  // Seed campaigns from config
+  const campaignList = (db.prepare("SELECT value FROM config WHERE key = 'CAMPAIGN_LIST'").get()?.value || 'Aethermoor,Aquabyssos,Terravor,Two Cities').split(',').map(c => c.trim());
+  const insertCampaign = db.prepare(`INSERT OR IGNORE INTO campaigns (campaign_id, slug, name, created_at) VALUES (?, ?, ?, datetime('now'))`);
+  for (const name of campaignList) {
+    insertCampaign.run(generateUuid(), name.toLowerCase().replace(/\s+/g, '-'), name);
+  }
+
+  // Seed achievements
+  const achievements = [
+    ['first-session', 'First Quest', 'Completed your first session', '⚔️'],
+    ['ten-sessions', 'Veteran Adventurer', 'Completed 10 sessions', '🛡️'],
+    ['hundred-sessions', 'Living Legend', 'Completed 100 sessions', '👑'],
+    ['perfect-attendance', 'Reliable Ally', 'Never missed a registered session', '⭐'],
+    ['level-20', 'Epic Hero', 'Reached character level 20', '🌟'],
+    ['multi-campaign', 'World Traveler', 'Played in 3+ campaigns', '🌍'],
+    ['first-character', 'Character Born', 'Created your first character', '📝'],
+  ];
+  const insertAchievement = db.prepare(`INSERT OR IGNORE INTO achievements (achievement_id, key, name, description, icon) VALUES (?, ?, ?, ?, ?)`);
+  for (const [key, name, desc, icon] of achievements) {
+    insertAchievement.run(generateUuid(), key, name, desc, icon);
+  }
 
   return db;
 }

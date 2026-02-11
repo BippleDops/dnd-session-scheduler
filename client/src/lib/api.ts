@@ -34,6 +34,55 @@ export const cancelByToken = (token: string) => fetchJson<ApiResult>('/api/cance
 export const getSessionComments = (id: string) => fetchJson<Comment[]>(`/api/sessions/${id}/comments`);
 export const postSessionComment = (id: string, text: string) => fetchJson<ApiResult>(`/api/sessions/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) });
 
+// ── Characters V2 ──
+export const getMyCharactersV2 = () => fetchJson<CharacterSheet[]>('/api/me/characters-v2');
+export const getCharacterDetail = (id: string) => fetchJson<CharacterSheet>(`/api/characters/${id}`);
+export const getCharacterSessions = (id: string) => fetchJson<CharacterSessionEntry[]>(`/api/characters/${id}/sessions`);
+export const getCharacterLoot = (id: string) => fetchJson<LootEntry[]>(`/api/characters/${id}/loot`);
+export const createMyCharacter = (data: Record<string, unknown>) => fetchJson<ApiResult & { characterId?: string }>('/api/me/characters', { method: 'POST', body: JSON.stringify(data) });
+export const updateMyCharacter = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/me/characters/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const retireMyCharacter = (id: string) => fetchJson<ApiResult>(`/api/me/characters/${id}`, { method: 'DELETE' });
+
+// ── Campaigns V2 ──
+export const getCampaignsList = () => fetchJson<Campaign[]>('/api/campaigns');
+export const getCampaignDetail = (slug: string) => fetchJson<Campaign>(`/api/campaigns/${slug}`);
+export const getCampaignRoster = (slug: string) => fetchJson<CampaignRosterEntry[]>(`/api/campaigns/${slug}/roster`);
+export const getCampaignTimeline = (slug: string) => fetchJson<CampaignTimelineEntry[]>(`/api/campaigns/${slug}/timeline`);
+export const updateAdminCampaign = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const setCharacterLevel = (id: string, level: number) => fetchJson<ApiResult>(`/api/admin/characters/${id}/level`, { method: 'PUT', body: JSON.stringify({ level }) });
+
+// ── Dice ──
+export const rollDice = (expression: string, sessionId?: string) => fetchJson<DiceRollResult>('/api/dice/roll', { method: 'POST', body: JSON.stringify({ expression, sessionId }) });
+export const getDiceHistory = (sessionId: string) => fetchJson<DiceRoll[]>(`/api/dice/history/${sessionId}`);
+
+// ── Initiative ──
+export const getInitiativeEntries = (sessionId: string) => fetchJson<InitiativeEntry[]>(`/api/initiative/${sessionId}`);
+export const addInitiativeEntry = (sessionId: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/initiative/${sessionId}`, { method: 'POST', body: JSON.stringify(data) });
+export const updateInitiativeEntry = (entryId: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/initiative/entry/${entryId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteInitiativeEntry = (entryId: string) => fetchJson<ApiResult>(`/api/initiative/entry/${entryId}`, { method: 'DELETE' });
+export const clearInitiative = (sessionId: string) => fetchJson<ApiResult>(`/api/initiative/${sessionId}/clear`, { method: 'POST' });
+
+// ── Loot ──
+export const addLoot = (data: Record<string, unknown>) => fetchJson<ApiResult>('/api/admin/loot', { method: 'POST', body: JSON.stringify(data) });
+export const updateCharacterGold = (characterId: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/characters/${characterId}/gold`, { method: 'PUT', body: JSON.stringify(data) });
+
+// ── Player Recaps ──
+export const getPlayerRecaps = (sessionId: string) => fetchJson<PlayerRecap[]>(`/api/sessions/${sessionId}/player-recaps`);
+export const submitPlayerRecap = (sessionId: string, content: string) => fetchJson<ApiResult>(`/api/sessions/${sessionId}/player-recaps`, { method: 'POST', body: JSON.stringify({ content }) });
+
+// ── Messages ──
+export const getMyMessages = () => fetchJson<Message[]>('/api/me/messages');
+export const sendMessage = (data: Record<string, unknown>) => fetchJson<ApiResult>('/api/me/messages', { method: 'POST', body: JSON.stringify(data) });
+export const markMessageRead = (id: string) => fetchJson<ApiResult>(`/api/me/messages/${id}/read`, { method: 'POST' });
+
+// ── Achievements ──
+export const getMyAchievements = () => fetchJson<Achievement[]>('/api/me/achievements');
+export const getPlayerPublicProfile = (id: string) => fetchJson<PlayerPublicProfile>(`/api/players/${id}`);
+
+// ── Analytics ──
+export const getAdminAnalytics = () => fetchJson<AnalyticsData>('/api/admin/analytics');
+export const getMyStats = () => fetchJson<PlayerStats>('/api/me/stats');
+
 // ── Admin ──
 export const getAdminDashboard = () => fetchJson<AdminDashboard>('/api/admin/dashboard');
 export const getAdminSessions = (params?: Record<string, string>) => {
@@ -110,3 +159,76 @@ export interface LogsResponse { logs: { LogID: string; Timestamp: string; Action
 export interface Notification { notification_id: string; type: string; message: string; created_at: string }
 export interface Comment { comment_id: string; session_id: string; player_id: string; text: string; created_at: string; player_name: string; photo_url?: string }
 
+// V3 types
+export interface CharacterSheet {
+  character_id: string; player_id: string; name: string; class: string; subclass: string;
+  level: number; race: string; backstory: string; portrait_url: string;
+  hp: number; max_hp: number; ac: number;
+  str: number; dex: number; con: number; int_: number; wis: number; cha: number;
+  proficiencies: string; equipment: string;
+  gold: number; silver: number; copper: number;
+  status: string; created_at: string; modified_at: string;
+}
+export interface CharacterSessionEntry { session_id: string; date: string; campaign: string; title: string; status: string }
+export interface LootEntry {
+  loot_id: string; session_id: string; character_id: string;
+  item_name: string; description: string; rarity: string; quantity: number;
+  gold_value: number; awarded_by: string; created_at: string;
+}
+export interface Campaign {
+  campaign_id: string; slug: string; name: string; description: string;
+  lore: string; house_rules: string; banner_url: string; world_map_url: string;
+  default_tier: string; created_at: string;
+}
+export interface CampaignRosterEntry {
+  player_id: string; name: string; photo_url: string;
+  session_count: number; characters: string;
+}
+export interface CampaignTimelineEntry {
+  session_id: string; date: string; title: string; status: string;
+  dm_post_notes: string; player_count: number; characters: string;
+}
+export interface DiceRoll {
+  roll_id: string; session_id: string; player_id: string; expression: string;
+  results: string; total: number; created_at: string; player_name?: string;
+}
+export interface InitiativeEntry {
+  entry_id: string; session_id: string; name: string; initiative: number;
+  hp: number; max_hp: number; conditions: string; is_npc: number;
+  player_id: string; sort_order: number;
+}
+export interface PlayerRecap {
+  recap_id: string; session_id: string; player_id: string;
+  content: string; created_at: string; player_name?: string;
+}
+export interface Message {
+  message_id: string; from_player_id: string; to_player_id: string;
+  subject: string; body: string; read: number; created_at: string;
+  from_name?: string; to_name?: string;
+}
+export interface Achievement {
+  achievement_id: string; key: string; name: string;
+  description: string; icon: string; earned_at?: string;
+}
+export interface DiceRollResult {
+  success: boolean; roll_id: string; expression: string;
+  results: number[]; total: number; modifier: number;
+  player_name: string; created_at: string;
+}
+export interface PlayerPublicProfile {
+  player_id: string; name: string; photo_url: string;
+  characters: CharacterSheet[]; campaigns: string[];
+  session_count: number; achievements: Achievement[];
+}
+export interface AnalyticsData {
+  sessionsPerMonth: { month: string; count: number }[];
+  avgAttendance: number; campaignDistribution: { campaign: string; count: number }[];
+  busiestDay: string; playerRetention: number;
+  topPlayers: { name: string; sessions: number }[];
+}
+export interface PlayerStats {
+  totalSessions: number; attendanceRate: number; streak: number;
+  campaignDistribution: { campaign: string; count: number }[];
+  levelProgression: { date: string; level: number }[];
+  mostPlayedCharacter: string;
+}

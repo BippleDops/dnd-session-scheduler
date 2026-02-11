@@ -86,6 +86,10 @@ app.use((req, res, next) => {
 app.use('/auth', authRouter);
 app.use('/api', apiPublic);
 app.use('/api/admin', apiAdmin);
+app.use('/api/sse', require('./routes/api-sse'));
+app.use('/api/dice', require('./routes/api-dice'));
+app.use('/api/initiative', require('./routes/api-initiative'));
+app.use('/api', require('./routes/api-v3'));
 
 // Serve React static export for non-API routes
 // EJS routes kept as fallback for pages not yet in React

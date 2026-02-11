@@ -229,5 +229,28 @@ router.post('/bulk-email', async (req, res) => {
   res.json({ success: true, draftCount: count });
 });
 
-module.exports = router;
+// ── Campaign Admin ──
+const { getAllCampaigns, getCampaignById, updateCampaign } = require('../services/campaign-service');
 
+router.get('/campaigns', (req, res) => {
+  res.json(getAllCampaigns());
+});
+
+router.put('/campaigns/:id', (req, res) => {
+  const result = updateCampaign(req.params.id, req.body);
+  res.json(result);
+});
+
+// ── Character Admin (level adjustment, etc.) ──
+const { getCharacterById, updateCharacter: updateCharAdmin } = require('../services/character-service');
+
+router.put('/characters/:id/level', (req, res) => {
+  const db = require('../db').getDb();
+  const level = parseInt(req.body.level, 10);
+  if (!level || level < 1 || level > 20) return res.status(400).json({ error: 'Invalid level (1-20)' });
+  db.prepare('UPDATE characters SET level = ?, modified_at = datetime(\'now\') WHERE character_id = ?').run(level, req.params.id);
+  logAction('CHARACTER_LEVELED', `Character ${req.params.id} set to level ${level}`, req.user.email, req.params.id);
+  res.json({ success: true });
+});
+
+module.exports = router;

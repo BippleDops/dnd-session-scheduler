@@ -9,6 +9,8 @@ const { getUpcomingSessions, getSessionById, getCampaignList } = require('../ser
 const { processSignup, cancelMyRegistration, getMyRegistrationsData } = require('../services/registration-service');
 const { getPlayerByEmail, getPlayerCharactersByEmail } = require('../services/player-service');
 const { getDb, generateUuid, nowTimestamp } = require('../db');
+const { getCharactersByPlayer, getCharacterById, createCharacter, updateCharacter, retireCharacter, getCharacterSessionHistory, getCharacterLoot } = require('../services/character-service');
+const { getAllCampaigns, getCampaignBySlug, getCampaignRoster, getCampaignTimeline } = require('../services/campaign-service');
 
 const router = express.Router();
 
@@ -306,5 +308,74 @@ router.post('/me/notifications/:id/read', (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = router;
+// ── Characters ──
+router.get('/me/characters-v2', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.json([]);
+  res.json(getCharactersByPlayer(player.player_id));
+});
 
+router.get('/characters/:id', (req, res) => {
+  const char = getCharacterById(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Not found' });
+  // Don't expose player_id in public view — just basic info
+  res.json(char);
+});
+
+router.get('/characters/:id/sessions', (req, res) => {
+  res.json(getCharacterSessionHistory(req.params.id));
+});
+
+router.get('/characters/:id/loot', (req, res) => {
+  res.json(getCharacterLoot(req.params.id));
+});
+
+router.post('/me/characters', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  const result = createCharacter(player.player_id, req.body);
+  res.json(result);
+});
+
+router.put('/me/characters/:id', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  const result = updateCharacter(req.params.id, player.player_id, req.body);
+  res.json(result);
+});
+
+router.delete('/me/characters/:id', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  const result = retireCharacter(req.params.id, player.player_id);
+  res.json(result);
+});
+
+// ── Campaigns ──
+router.get('/campaigns', (req, res) => {
+  res.json(getAllCampaigns());
+});
+
+router.get('/campaigns/:slug', (req, res) => {
+  const campaign = getCampaignBySlug(req.params.slug);
+  if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+  res.json(campaign);
+});
+
+router.get('/campaigns/:slug/roster', (req, res) => {
+  const campaign = getCampaignBySlug(req.params.slug);
+  if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+  res.json(getCampaignRoster(campaign.name));
+});
+
+router.get('/campaigns/:slug/timeline', (req, res) => {
+  const campaign = getCampaignBySlug(req.params.slug);
+  if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+  res.json(getCampaignTimeline(campaign.name));
+});
+
+module.exports = router;

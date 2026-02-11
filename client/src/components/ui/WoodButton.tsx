@@ -1,7 +1,7 @@
 'use client';
 import { cn } from '@/lib/utils';
 
-type Variant = 'default' | 'primary' | 'danger' | 'sm';
+type Variant = 'default' | 'primary' | 'secondary' | 'danger' | 'sm';
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -12,6 +12,7 @@ export default function WoodButton({ variant = 'default', href, className, child
   const base = cn(
     'wood-btn',
     variant === 'primary' && 'wood-btn-primary',
+    variant === 'secondary' && 'opacity-70 hover:opacity-100',
     variant === 'danger' && 'wood-btn-danger',
     variant === 'sm' && 'text-sm py-1 px-3',
     className,

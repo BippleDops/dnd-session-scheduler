@@ -3,6 +3,7 @@ import { AuthContext, useAuthProvider } from '@/hooks/useAuth';
 import { ToastProvider } from '@/components/ui/Toast';
 import TavernNav from '@/components/layout/TavernNav';
 import Footer from '@/components/layout/Footer';
+import { DiceRoller } from '@/components/ui/DiceRoller';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const auth = useAuthProvider();
@@ -15,6 +16,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <Footer />
+        <DiceRoller />
       </ToastProvider>
     </AuthContext.Provider>
   );
