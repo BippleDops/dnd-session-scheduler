@@ -83,6 +83,63 @@ export const getPlayerPublicProfile = (id: string) => fetchJson<PlayerPublicProf
 export const getAdminAnalytics = () => fetchJson<AnalyticsData>('/api/admin/analytics');
 export const getMyStats = () => fetchJson<PlayerStats>('/api/me/stats');
 
+// ── V4: Obsidian Bridge ──
+export const getSessionPrep = (id: string) => fetchJson<SessionPrep>(`/api/admin/sessions/${id}/prep`);
+export const saveSessionPrep = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/sessions/${id}/prep`, { method: 'PUT', body: JSON.stringify(data) });
+export const importSessionNotes = (id: string, markdown: string) => fetchJson<ApiResult>(`/api/admin/sessions/${id}/notes`, { method: 'POST', body: JSON.stringify({ markdown }) });
+export const exportSessionNotes = (id: string) => fetchJson<ObsidianExport>(`/api/admin/sessions/${id}/notes`);
+export const exportCampaignVault = (slug: string) => fetchJson<CampaignExport>(`/api/admin/obsidian/export/${slug}`);
+
+// ── V4: Pre-Session Autopilot ──
+export const getSessionChecklist = (id: string) => fetchJson<SessionChecklist>(`/api/admin/sessions/${id}/checklist`);
+export const saveSessionChecklist = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/sessions/${id}/checklist`, { method: 'PUT', body: JSON.stringify(data) });
+export const getPolls = () => fetchJson<AvailabilityPoll[]>('/api/polls');
+export const getPollDetail = (id: string) => fetchJson<AvailabilityPollDetail>(`/api/polls/${id}`);
+export const createPoll = (data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/polls`, { method: 'POST', body: JSON.stringify(data) });
+export const votePoll = (id: string, selectedOptions: string[]) => fetchJson<ApiResult>(`/api/polls/${id}/vote`, { method: 'POST', body: JSON.stringify({ selectedOptions }) });
+
+// ── V4: Session Moments ──
+export const getSessionMoments = (id: string) => fetchJson<SessionMoment[]>(`/api/sessions/${id}/moments`);
+export const addSessionMoment = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/sessions/${id}/moments`, { method: 'POST', body: JSON.stringify(data) });
+
+// ── V4: Character Journals ──
+export const getCharacterJournals = (charId: string) => fetchJson<JournalEntry[]>(`/api/characters/${charId}/journals`);
+export const addCharacterJournal = (charId: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/me/characters/${charId}/journals`, { method: 'POST', body: JSON.stringify(data) });
+export const commentOnJournal = (id: string, comment: string) => fetchJson<ApiResult>(`/api/admin/journals/${id}/comment`, { method: 'PUT', body: JSON.stringify({ comment }) });
+
+// ── V4: Downtime ──
+export const getMyDowntime = () => fetchJson<DowntimeAction[]>('/api/me/downtime');
+export const submitDowntime = (data: Record<string, unknown>) => fetchJson<ApiResult>('/api/me/downtime', { method: 'POST', body: JSON.stringify(data) });
+export const getAdminDowntime = (status?: string) => fetchJson<DowntimeAction[]>(`/api/admin/downtime${status ? `?status=${status}` : ''}`);
+export const resolveDowntime = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/downtime/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+// ── V4: Discussions ──
+export const getDiscussions = (slug: string) => fetchJson<DiscussionThread[]>(`/api/campaigns/${slug}/discussions`);
+export const createThread = (slug: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/campaigns/${slug}/discussions`, { method: 'POST', body: JSON.stringify(data) });
+export const getThread = (threadId: string) => fetchJson<DiscussionThreadDetail>(`/api/discussions/${threadId}`);
+export const replyToThread = (threadId: string, content: string) => fetchJson<ApiResult>(`/api/discussions/${threadId}/reply`, { method: 'POST', body: JSON.stringify({ content }) });
+export const adminThread = (threadId: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/discussions/${threadId}`, { method: 'PUT', body: JSON.stringify(data) });
+
+// ── V4: Questionnaires ──
+export const getQuestionnaires = () => fetchJson<Questionnaire[]>('/api/admin/questionnaires');
+export const createQuestionnaire = (data: Record<string, unknown>) => fetchJson<ApiResult>('/api/admin/questionnaires', { method: 'POST', body: JSON.stringify(data) });
+export const getQuestionnaire = (id: string) => fetchJson<Questionnaire>(`/api/questionnaires/${id}`);
+export const respondQuestionnaire = (id: string, answers: Record<string, string>) => fetchJson<ApiResult>(`/api/questionnaires/${id}/respond`, { method: 'POST', body: JSON.stringify({ answers }) });
+export const getQuestionnaireResponses = (id: string) => fetchJson<QuestionnaireResponse[]>(`/api/admin/questionnaires/${id}/responses`);
+
+// ── V4: World State ──
+export const getWorldState = (slug: string) => fetchJson<WorldStateEntry[]>(`/api/campaigns/${slug}/world-state`);
+export const addWorldState = (campaignId: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/campaigns/${campaignId}/world-state`, { method: 'POST', body: JSON.stringify(data) });
+
+// ── V4: Homework ──
+export const getMyHomework = () => fetchJson<HomeworkEntry[]>('/api/me/homework');
+export const updateHomework = (sessionId: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/me/homework/${sessionId}`, { method: 'PUT', body: JSON.stringify(data) });
+
+// ── V4: Session Requests ──
+export const getSessionRequests = () => fetchJson<SessionRequest[]>('/api/session-requests');
+export const createSessionRequest = (data: Record<string, unknown>) => fetchJson<ApiResult>('/api/me/session-requests', { method: 'POST', body: JSON.stringify(data) });
+export const voteSessionRequest = (id: string, availableDates: string[]) => fetchJson<ApiResult>(`/api/session-requests/${id}/vote`, { method: 'POST', body: JSON.stringify({ availableDates }) });
+
 // ── Admin ──
 export const getAdminDashboard = () => fetchJson<AdminDashboard>('/api/admin/dashboard');
 export const getAdminSessions = (params?: Record<string, string>) => {
@@ -231,4 +288,47 @@ export interface PlayerStats {
   campaignDistribution: { campaign: string; count: number }[];
   levelProgression: { date: string; level: number }[];
   mostPlayedCharacter: string;
+}
+
+// V4 types
+export interface SessionPrep {
+  session_id: string; previously_on: string; key_npcs: string;
+  scenes_planned: string; secrets: string; possible_loot: string;
+  dm_teaser: string; foundry_scene: string; map_screenshot_url: string;
+}
+export interface ObsidianExport {
+  markdown: string; session: unknown; history: unknown; prep: SessionPrep | null;
+  loot: LootEntry[]; moments: SessionMoment[]; journals: JournalEntry[];
+}
+export interface CampaignExport { campaign: string; files: { path: string; content: string }[] }
+export interface SessionChecklist {
+  session_id: string; recap_written: number; attendance_confirmed: number;
+  characters_leveled: number; foundry_loaded: number; prep_reviewed: number;
+  loot_prepared: number; music_set: number;
+}
+export interface SessionMoment { moment_id: string; session_id: string; timestamp: string; type: string; description: string }
+export interface AvailabilityPoll { poll_id: string; campaign_id: string; campaign_name: string; title: string; options: string[]; status: string; created_at: string }
+export interface AvailabilityPollDetail extends AvailabilityPoll { votes: { player_name: string; selected_options: string[] }[] }
+export interface JournalEntry { journal_id: string; character_id: string; player_id: string; session_id: string; title: string; content: string; dm_comment: string; created_at: string; char_name?: string }
+export interface DowntimeAction {
+  action_id: string; character_id: string; player_id: string; campaign_id: string;
+  type: string; description: string; goal: string; duration: string;
+  status: string; dm_notes: string; reward: string;
+  character_name?: string; player_name?: string; created_at: string; resolved_at: string;
+}
+export interface DiscussionThread {
+  thread_id: string; campaign_id: string; player_id: string; title: string;
+  pinned: number; locked: number; author_name: string; author_photo: string;
+  post_count: number; last_post_at: string; created_at: string;
+}
+export interface DiscussionPost { post_id: string; thread_id: string; player_id: string; content: string; author_name: string; author_photo: string; created_at: string }
+export interface DiscussionThreadDetail extends DiscussionThread { posts: DiscussionPost[] }
+export interface Questionnaire { questionnaire_id: string; campaign_id: string; campaign_name: string; title: string; questions: string[]; created_at: string }
+export interface QuestionnaireResponse { response_id: string; questionnaire_id: string; player_id: string; player_name: string; answers: Record<string, string>; created_at: string }
+export interface WorldStateEntry { state_id: string; campaign_id: string; fact: string; value: string; session_date: string; session_title: string; changed_at: string }
+export interface HomeworkEntry { player_id: string; session_id: string; date: string; campaign: string; title: string; recap_read: number; journal_written: number; downtime_submitted: number; character_updated: number }
+export interface SessionRequest {
+  request_id: string; campaign_id: string; player_id: string; player_name: string;
+  photo_url: string; campaign_name: string; preferred_date: string; message: string;
+  upvotes: number; vote_count: number; status: string; created_at: string;
 }

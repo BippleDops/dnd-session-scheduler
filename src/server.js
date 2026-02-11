@@ -90,6 +90,7 @@ app.use('/api/sse', require('./routes/api-sse'));
 app.use('/api/dice', require('./routes/api-dice'));
 app.use('/api/initiative', require('./routes/api-initiative'));
 app.use('/api', require('./routes/api-v3'));
+app.use('/api', require('./routes/api-v4'));
 
 // Serve React static export for non-API routes
 // EJS routes kept as fallback for pages not yet in React
@@ -136,6 +137,48 @@ cron.schedule('0 2 * * *', () => {
     const { performBackup } = require('./services/backup-service');
     performBackup();
   } catch (e) { console.error('Cron backup error:', e); }
+}, { timezone: 'America/Chicago' });
+
+// Auto-briefing: 48h before sessions, send briefing emails
+cron.schedule('0 10 * * *', async () => {
+  console.log('[Cron] Checking for sessions needing auto-briefing');
+  try {
+    const { getDb } = require('./db');
+    const db = getDb();
+    // Find sessions in ~48 hours
+    const upcoming = db.prepare(`
+      SELECT s.*, sp.previously_on, sp.dm_teaser FROM sessions s
+      LEFT JOIN session_prep sp ON s.session_id = sp.session_id
+      WHERE s.status = 'Scheduled' AND s.date = date('now', '+2 days')
+    `).all();
+    if (upcoming.length === 0) return;
+
+    const { sendEmail, wrapEmailTemplate } = require('./services/reminder-service');
+    for (const session of upcoming) {
+      const regs = db.prepare(`SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.session_id = ? AND r.status = 'registered'`).all(session.session_id);
+      if (regs.length === 0) continue;
+
+      // Get previous session recap
+      const prevSession = db.prepare(`SELECT h.dm_post_notes FROM sessions s LEFT JOIN session_history h ON s.session_id = h.session_id WHERE s.campaign = ? AND s.date < ? AND s.status = 'Completed' ORDER BY s.date DESC LIMIT 1`).get(session.campaign, session.date);
+      const campaign = db.prepare('SELECT * FROM campaigns WHERE name = ?').get(session.campaign);
+      const rosterList = regs.map(r => `${r.char_name_snapshot || r.name}`).join(', ');
+
+      for (const reg of regs) {
+        let body = `<h2>⚔️ Session Briefing: ${session.title || session.campaign}</h2>`;
+        body += `<p><strong>Date:</strong> ${session.date} at ${session.start_time}</p>`;
+        body += `<p><strong>Your character:</strong> ${reg.char_name_snapshot || 'TBD'} (Level ${reg.char_level_snapshot || '?'})</p>`;
+        body += `<p><strong>Party:</strong> ${rosterList}</p>`;
+        if (session.previously_on || prevSession?.dm_post_notes) {
+          body += `<h3>Last time on ${session.campaign}...</h3><p>${session.previously_on || prevSession.dm_post_notes.slice(0, 500)}</p>`;
+        }
+        if (session.dm_teaser) body += `<h3>DM's Note</h3><p>${session.dm_teaser}</p>`;
+        if (campaign?.foundry_url) body += `<p>🎮 <a href="${campaign.foundry_url}">Connect to Foundry</a></p>`;
+        const html = wrapEmailTemplate ? wrapEmailTemplate(`Session Briefing: ${session.title || session.campaign}`, body) : body;
+        await sendEmail(reg.email, `⚔️ Session Briefing: ${session.title || session.campaign} — ${session.date}`, html);
+      }
+      console.log(`[Cron] Sent briefing for session ${session.session_id} to ${regs.length} players`);
+    }
+  } catch (e) { console.error('Cron briefing error:', e); }
 }, { timezone: 'America/Chicago' });
 
 // ── Error handler ──

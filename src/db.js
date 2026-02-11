@@ -255,6 +255,160 @@ function initializeDatabase() {
       PRIMARY KEY (player_id, achievement_id)
     );
 
+    -- V4 tables
+
+    CREATE TABLE IF NOT EXISTS session_prep (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(session_id),
+      previously_on TEXT,
+      key_npcs TEXT,
+      scenes_planned TEXT,
+      secrets TEXT,
+      possible_loot TEXT,
+      dm_teaser TEXT,
+      foundry_scene TEXT,
+      map_screenshot_url TEXT,
+      modified_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS session_moments (
+      moment_id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sessions(session_id),
+      timestamp TEXT DEFAULT (datetime('now')),
+      type TEXT NOT NULL CHECK(type IN ('combat_start','combat_end','key_moment','break','loot_drop','plot_reveal','note')),
+      description TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS session_checklists (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(session_id),
+      recap_written INTEGER DEFAULT 0,
+      attendance_confirmed INTEGER DEFAULT 0,
+      characters_leveled INTEGER DEFAULT 0,
+      foundry_loaded INTEGER DEFAULT 0,
+      prep_reviewed INTEGER DEFAULT 0,
+      loot_prepared INTEGER DEFAULT 0,
+      music_set INTEGER DEFAULT 0,
+      modified_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS character_journals (
+      journal_id TEXT PRIMARY KEY,
+      character_id TEXT NOT NULL REFERENCES characters(character_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      session_id TEXT REFERENCES sessions(session_id),
+      title TEXT,
+      content TEXT NOT NULL,
+      dm_comment TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS downtime_actions (
+      action_id TEXT PRIMARY KEY,
+      character_id TEXT NOT NULL REFERENCES characters(character_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      campaign_id TEXT REFERENCES campaigns(campaign_id),
+      type TEXT NOT NULL CHECK(type IN ('Crafting','Training','Research','Carousing','Working','Exploring','Other')),
+      description TEXT NOT NULL,
+      goal TEXT,
+      duration TEXT,
+      status TEXT DEFAULT 'Pending' CHECK(status IN ('Pending','Approved','Rejected','Resolved')),
+      dm_notes TEXT,
+      reward TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      resolved_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS discussion_threads (
+      thread_id TEXT PRIMARY KEY,
+      campaign_id TEXT NOT NULL REFERENCES campaigns(campaign_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      title TEXT NOT NULL,
+      pinned INTEGER DEFAULT 0,
+      locked INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS discussion_posts (
+      post_id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES discussion_threads(thread_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      content TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS questionnaires (
+      questionnaire_id TEXT PRIMARY KEY,
+      campaign_id TEXT REFERENCES campaigns(campaign_id),
+      title TEXT NOT NULL,
+      questions TEXT NOT NULL,
+      created_by TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS questionnaire_responses (
+      response_id TEXT PRIMARY KEY,
+      questionnaire_id TEXT NOT NULL REFERENCES questionnaires(questionnaire_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      answers TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS availability_polls (
+      poll_id TEXT PRIMARY KEY,
+      campaign_id TEXT REFERENCES campaigns(campaign_id),
+      title TEXT NOT NULL,
+      options TEXT NOT NULL,
+      created_by TEXT,
+      status TEXT DEFAULT 'Open' CHECK(status IN ('Open','Closed','Converted')),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS availability_votes (
+      vote_id TEXT PRIMARY KEY,
+      poll_id TEXT NOT NULL REFERENCES availability_polls(poll_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      selected_options TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS session_requests (
+      request_id TEXT PRIMARY KEY,
+      campaign_id TEXT REFERENCES campaigns(campaign_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      preferred_date TEXT,
+      message TEXT,
+      upvotes INTEGER DEFAULT 1,
+      status TEXT DEFAULT 'Open' CHECK(status IN ('Open','Converted','Closed')),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS session_request_votes (
+      request_id TEXT NOT NULL REFERENCES session_requests(request_id),
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      available_dates TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (request_id, player_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS world_state (
+      state_id TEXT PRIMARY KEY,
+      campaign_id TEXT NOT NULL REFERENCES campaigns(campaign_id),
+      fact TEXT NOT NULL,
+      value TEXT NOT NULL,
+      changed_session_id TEXT REFERENCES sessions(session_id),
+      changed_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS homework_progress (
+      player_id TEXT NOT NULL REFERENCES players(player_id),
+      session_id TEXT NOT NULL REFERENCES sessions(session_id),
+      recap_read INTEGER DEFAULT 0,
+      journal_written INTEGER DEFAULT 0,
+      downtime_submitted INTEGER DEFAULT 0,
+      character_updated INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (player_id, session_id)
+    );
+
     -- Indexes for common queries
     CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
     CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
@@ -270,6 +424,15 @@ function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_initiative_session ON initiative_entries(session_id);
     CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_player_id);
     CREATE INDEX IF NOT EXISTS idx_campaigns_slug ON campaigns(slug);
+    CREATE INDEX IF NOT EXISTS idx_journals_character ON character_journals(character_id);
+    CREATE INDEX IF NOT EXISTS idx_journals_player ON character_journals(player_id);
+    CREATE INDEX IF NOT EXISTS idx_downtime_player ON downtime_actions(player_id);
+    CREATE INDEX IF NOT EXISTS idx_downtime_status ON downtime_actions(status);
+    CREATE INDEX IF NOT EXISTS idx_threads_campaign ON discussion_threads(campaign_id);
+    CREATE INDEX IF NOT EXISTS idx_posts_thread ON discussion_posts(thread_id);
+    CREATE INDEX IF NOT EXISTS idx_worldstate_campaign ON world_state(campaign_id);
+    CREATE INDEX IF NOT EXISTS idx_moments_session ON session_moments(session_id);
+    CREATE INDEX IF NOT EXISTS idx_homework_player ON homework_progress(player_id);
   `);
 
   // Seed default config values
@@ -297,6 +460,10 @@ function initializeDatabase() {
     "ALTER TABLE players ADD COLUMN photo_url TEXT",
     "ALTER TABLE players ADD COLUMN feed_token TEXT",
     "ALTER TABLE sessions ADD COLUMN level_tier TEXT DEFAULT 'any'",
+    "ALTER TABLE campaigns ADD COLUMN foundry_url TEXT",
+    "ALTER TABLE campaigns ADD COLUMN recurring_schedule TEXT",
+    "ALTER TABLE campaigns ADD COLUMN recurring_exceptions TEXT",
+    "ALTER TABLE sessions ADD COLUMN map_url TEXT",
   ];
   for (const sql of migrations) {
     try { db.exec(sql); } catch (e) { /* column already exists */ }
