@@ -7,6 +7,7 @@ import { getDiscussions, createThread, getThread, replyToThread, adminThread, ge
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 export default function DiscussionsPage() { return <Suspense><DiscussionsInner /></Suspense>; }
 
@@ -77,7 +78,7 @@ function DiscussionsInner() {
               </form>
             )}
             {threads.length === 0 ? (
-              <ParchmentPanel><p className="text-[var(--ink-faded)] text-center text-sm">No discussions yet.</p></ParchmentPanel>
+              <EmptyStateFromPreset preset="discussions" />
             ) : threads.map(t => (
               <button key={t.thread_id} onClick={() => openThread(t)}
                 className={`w-full text-left p-3 rounded transition-colors ${activeThread?.thread_id === t.thread_id ? 'bg-[var(--gold)]/20 border border-[var(--gold)]' : 'bg-[var(--wood-dark)] hover:bg-[var(--wood)]'}`}>

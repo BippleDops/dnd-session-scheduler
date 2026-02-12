@@ -6,6 +6,7 @@ import { getMyMessages, sendMessage, markMessageRead, getMyContacts, type Messag
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 export default function MessagesPage() {
   usePageTitle('Messages');
@@ -81,7 +82,7 @@ export default function MessagesPage() {
         {/* Message list */}
         <div className="md:col-span-1 space-y-1">
           {messages.length === 0 ? (
-            <ParchmentPanel><p className="text-[var(--ink-faded)] text-center">No messages.</p></ParchmentPanel>
+            <EmptyStateFromPreset preset="messages" />
           ) : messages.map(m => (
             <button key={m.message_id} onClick={() => openMessage(m)}
               className={`w-full text-left p-3 rounded transition-colors ${selected?.message_id === m.message_id ? 'bg-[var(--gold)]/20 border border-[var(--gold)]' : 'bg-[var(--wood-dark)] hover:bg-[var(--wood)]'} ${!m.read ? 'font-bold' : ''}`}>

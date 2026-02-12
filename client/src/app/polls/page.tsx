@@ -7,6 +7,7 @@ import { getPolls, getPollDetail, votePoll, createPoll, getCampaignsList, type A
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 export default function PollsPage() { return <Suspense><PollsInner /></Suspense>; }
 
@@ -86,7 +87,7 @@ function PollsInner() {
         {/* Poll list */}
         <div className="space-y-2">
           {polls.length === 0 ? (
-            <ParchmentPanel><p className="text-[var(--ink-faded)] text-center text-sm">No polls yet.</p></ParchmentPanel>
+            <EmptyStateFromPreset preset="polls" />
           ) : polls.map(p => (
             <button key={p.poll_id} onClick={() => { getPollDetail(p.poll_id).then(setDetail); setSelected([]); }}
               className={`w-full text-left p-3 rounded transition-colors ${detail?.poll_id === p.poll_id ? 'bg-[var(--gold)]/20 border border-[var(--gold)]' : 'bg-[var(--wood-dark)] hover:bg-[var(--wood)]'}`}>
