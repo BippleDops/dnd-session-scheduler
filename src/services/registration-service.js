@@ -141,6 +141,19 @@ function processSignup(formData) {
     `${formData.characterName} ${isWaitlisted ? 'waitlisted for' : 'registered for'} ${session.campaign} on ${session.date}`,
     formData.email, regId);
 
+  // Send confirmation email (async, best-effort — don't block the response)
+  if (!isWaitlisted) {
+    try {
+      const { sendConfirmationEmail } = require('./reminder-service');
+      const sessionData = {
+        date: normalizeDate(session.date), startTime: normalizeTime(session.start_time),
+        endTime: normalizeTime(session.end_time), campaign: session.campaign, title: session.title,
+      };
+      sendConfirmationEmail(formData.email, formData.name, sessionData, formData.characterName)
+        .catch(e => console.error('Confirmation email error:', e.message));
+    } catch (e) { console.error('Confirmation email setup error:', e.message); }
+  }
+
   if (isWaitlisted) {
     return {
       success: true,
