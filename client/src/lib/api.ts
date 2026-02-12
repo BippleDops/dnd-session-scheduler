@@ -28,6 +28,7 @@ export const getMyRegistrations = () => fetchJson<MyRegistrations>('/api/me/regi
 export const cancelMyRegistration = (id: string) => fetchJson<ApiResult>(`/api/me/registrations/${id}`, { method: 'DELETE' });
 export const getMyCharacters = () => fetchJson<Character[]>('/api/me/characters');
 export const getMyFeedToken = () => fetchJson<{ token: string; url: string }>('/api/me/feed-token');
+export const getMyContacts = () => fetchJson<{ id: string; name: string }[]>('/api/me/contacts');
 export const getMyNotifications = () => fetchJson<{ notifications: Notification[]; unread: number }>('/api/me/notifications');
 export const markAllNotificationsRead = () => fetchJson<ApiResult>('/api/me/notifications/read-all', { method: 'POST' });
 export const cancelByToken = (token: string) => fetchJson<ApiResult>('/api/cancel-by-token', { method: 'POST', body: JSON.stringify({ token }) });

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getMyMessages, sendMessage, markMessageRead, getAdminPlayers, type Message, type AdminPlayer } from '@/lib/api';
+import { getMyMessages, sendMessage, markMessageRead, getMyContacts, type Message } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -9,7 +9,7 @@ import CandleLoader from '@/components/ui/CandleLoader';
 export default function MessagesPage() {
   const { isLoggedIn, user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [players, setPlayers] = useState<AdminPlayer[]>([]);
+  const [players, setPlayers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCompose, setShowCompose] = useState(false);
   const [form, setForm] = useState({ toPlayerId: '', subject: '', body: '' });
@@ -17,7 +17,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    Promise.all([getMyMessages(), getAdminPlayers()]).then(([m, p]) => {
+    Promise.all([getMyMessages(), getMyContacts()]).then(([m, p]) => {
       setMessages(m);
       setPlayers(p);
     }).finally(() => setLoading(false));
@@ -58,7 +58,7 @@ export default function MessagesPage() {
               <label className="block text-xs font-bold mb-1">To</label>
               <select required className="parchment-input w-full" value={form.toPlayerId} onChange={e => setForm({ ...form, toPlayerId: e.target.value })}>
                 <option value="">Select player...</option>
-                {players.map(p => <option key={p.PlayerID} value={p.PlayerID}>{p.Name}</option>)}
+                {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>

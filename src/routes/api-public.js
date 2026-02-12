@@ -299,6 +299,13 @@ router.post('/me/notifications/read-all', (req, res) => {
   res.json({ success: true });
 });
 
+// ── Contacts (lightweight player list for message recipient picker) ──
+router.get('/me/contacts', (req, res) => {
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  const { getPlayerContacts } = require('../services/player-service');
+  res.json(getPlayerContacts());
+});
+
 router.post('/me/notifications/:id/read', (req, res) => {
   if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
   const player = getPlayerByEmail(req.user.email);

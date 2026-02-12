@@ -13,6 +13,7 @@ const compression = require('compression');
 const path = require('path');
 const cron = require('node-cron');
 
+const rateLimit = require('express-rate-limit');
 const { initializeDatabase, getConfigValue } = require('./db');
 const { router: authRouter, initPassport } = require('./routes/auth');
 const pageRoutes = require('./routes/pages');
@@ -31,7 +32,20 @@ app.use(compression());
 
 // ── Security ──
 app.use(helmet({
-  contentSecurityPolicy: false, // EJS templates use inline scripts
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'", 'https://accounts.google.com'],
+    },
+  },
   crossOriginEmbedderPolicy: false,
 }));
 
@@ -98,6 +112,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── API Rate Limiting ──
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120, // 120 requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down.' },
+  skip: (req) => req.path === '/health',
+});
+app.use('/api/', apiLimiter);
+
 // ── Routes ──
 app.use('/auth', authRouter);
 app.use('/api', apiPublic);
@@ -145,14 +170,13 @@ app.use((req, res, next) => {
 
 // ── Health check ──
 app.get('/health', (req, res) => {
-  const db = require('./db').getDb();
-  const playerCount = db.prepare('SELECT COUNT(*) AS c FROM players').get().c;
-  const sessionCount = db.prepare('SELECT COUNT(*) AS c FROM sessions').get().c;
-  res.json({
-    status: 'ok',
-    playerCount, sessionCount,
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    // Verify DB is accessible with a lightweight query
+    require('./db').getDb().prepare('SELECT 1').get();
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'error', timestamp: new Date().toISOString() });
+  }
 });
 
 // ── Cron jobs ──
