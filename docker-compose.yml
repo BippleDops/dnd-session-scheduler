@@ -37,8 +37,8 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=America/Chicago
-      - CUSTOM_USER=admin
-      - PASSWORD=DnDAdmin2026!
+      - CUSTOM_USER=${SQLITE_BROWSER_USER:-admin}
+      - PASSWORD=${SQLITE_BROWSER_PASS:-changeme}
     volumes:
       - ./data:/databases:ro
     shm_size: "1gb"
