@@ -388,6 +388,23 @@ body {
   animation: urgentPulse 1.5s ease-in-out infinite;
 }
 
+/* ── Reduced motion: disable all custom animations ── */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .card-enter,
+  .dice-pop,
+  .bell-swing,
+  .confetti-piece,
+  .capacity-bar-fill,
+  .capacity-urgent,
+  .candle-flame {
+    animation: none !important;
+  }
+  .quest-card:hover {
+    transform: none !important;
+  }
+}
+
 /* ── Dungeon mode (dark variant) ── */
 [data-theme="dungeon"] {
   --parchment: #2a2520;

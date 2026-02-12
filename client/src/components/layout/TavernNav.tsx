@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import NotificationBell from './NotificationBell';
 
 const publicLinks = [
@@ -28,6 +29,7 @@ export default function TavernNav() {
   const { user, isAdmin, isLoggedIn } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useClickOutside<HTMLDivElement>(useCallback(() => setUserMenuOpen(false), []));
   const [dungeonMode, setDungeonMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dungeonMode');
@@ -112,7 +114,7 @@ export default function TavernNav() {
       <div className="flex items-center gap-2">
         {isLoggedIn && <NotificationBell />}
         {isLoggedIn ? (
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="flex items-center gap-2 bg-transparent border-none cursor-pointer py-1 px-2 rounded hover:bg-[rgba(255,255,255,0.08)] transition-colors"

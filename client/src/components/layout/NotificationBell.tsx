@@ -1,12 +1,14 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getMyNotifications, markAllNotificationsRead, type Notification } from '@/lib/api';
 import { formatTimestamp } from '@/lib/utils';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const dropdownRef = useClickOutside<HTMLDivElement>(useCallback(() => setOpen(false), []));
 
   useEffect(() => {
     getMyNotifications().then(d => {
@@ -24,7 +26,7 @@ export default function NotificationBell() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button onClick={() => setOpen(!open)} className="text-lg bg-transparent border-none cursor-pointer relative" aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}>
         <span className={unread > 0 && !open ? 'bell-swing inline-block' : 'inline-block'}>🔔</span>
         {unread > 0 && (

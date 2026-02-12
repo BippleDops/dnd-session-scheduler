@@ -6,6 +6,7 @@ import { getRecaps, getCampaigns } from '@/lib/api';
 import { formatDate, campaignColor } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import WaxSeal from '@/components/ui/WaxSeal';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 export default function RecapsPage() {
   usePageTitle('Session Recaps');
@@ -27,10 +28,7 @@ export default function RecapsPage() {
       </div>
 
       {(!recaps || recaps.length === 0) ? (
-        <div className="parchment p-10 text-center">
-          <p className="font-[var(--font-heading)] text-xl text-[var(--ink)]">No session recaps yet.</p>
-          <p className="text-[var(--ink-faded)] italic mt-2">Tales of past adventures will appear here once the DM writes them.</p>
-        </div>
+        <EmptyStateFromPreset preset="recaps" />
       ) : (
         <div className="space-y-6">
           {recaps.map(r => (

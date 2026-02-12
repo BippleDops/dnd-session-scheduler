@@ -6,6 +6,7 @@ import { getMyDowntime, submitDowntime, getMyCharactersV2, type DowntimeAction, 
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 const TYPES = ['Crafting','Training','Research','Carousing','Working','Exploring','Other'];
 const TYPE_ICONS: Record<string, string> = { Crafting: '🔨', Training: '⚔️', Research: '📚', Carousing: '🍺', Working: '💼', Exploring: '🗺️', Other: '❓' };
@@ -83,7 +84,7 @@ export default function DowntimePage() {
       )}
 
       {actions.length === 0 && !showForm ? (
-        <ParchmentPanel><p className="text-[var(--ink-faded)] text-center">No downtime actions yet. What will your character do between adventures?</p></ParchmentPanel>
+        <EmptyStateFromPreset preset="downtime" action={{ label: '+ New Action', href: '#' }} />
       ) : (
         <div className="space-y-3">
           {actions.map(a => (

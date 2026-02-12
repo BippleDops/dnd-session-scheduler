@@ -8,6 +8,7 @@ import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
 
 export default function MySessionsPage() {
@@ -51,9 +52,7 @@ export default function MySessionsPage() {
       {/* Upcoming */}
       <h2 className="scroll-heading text-xl mb-3">Upcoming Adventures</h2>
       {data?.upcoming.length === 0 ? (
-        <ParchmentPanel className="text-center py-6">
-          <p className="text-[var(--ink-faded)] italic">No upcoming quests. <a href="/sessions" className="text-[var(--gold)] underline">Browse the quest board!</a></p>
-        </ParchmentPanel>
+        <EmptyStateFromPreset preset="quests" action={{ label: 'Browse Quest Board', href: '/sessions' }} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 mb-6">
           {data?.upcoming.map(r => (
