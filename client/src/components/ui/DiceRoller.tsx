@@ -57,7 +57,7 @@ export function DiceRoller({ sessionId }: Props) {
       {/* Floating dice button */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-[1500] w-14 h-14 rounded-full bg-[var(--gold)] text-[var(--wood-dark)] text-2xl shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+        className="dice-fab fixed bottom-6 right-6 z-[1500] w-14 h-14 rounded-full bg-[var(--gold)] text-[var(--wood-dark)] text-2xl shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
         title="Dice Roller"
         aria-label={open ? 'Close dice roller' : 'Open dice roller'}
       >
@@ -66,7 +66,7 @@ export function DiceRoller({ sessionId }: Props) {
 
       {/* Dice tray */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-[1500] w-80 max-h-[70vh] overflow-y-auto bg-[var(--wood)] border-2 border-[var(--gold)] rounded-lg shadow-2xl">
+        <div className="dice-tray fixed bottom-24 right-6 z-[1500] w-80 max-h-[70vh] overflow-y-auto bg-[var(--wood)] border-2 border-[var(--gold)] rounded-lg shadow-2xl">
           <div className="p-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-[var(--font-heading)] text-lg text-[var(--gold)]">🎲 Dice Tray</h3>

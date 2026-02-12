@@ -290,8 +290,9 @@ body {
   /* Add bottom padding so content isn't hidden behind mobile nav */
   body { padding-bottom: 60px; }
 
-  /* Move dice roller button above mobile nav */
-  .fixed.bottom-6.right-6 { bottom: 76px !important; }
+  /* Move dice roller above mobile nav */
+  .dice-fab { bottom: 76px !important; }
+  .dice-tray { bottom: 94px !important; }
 }
 
 /* Safe area for notched phones */
