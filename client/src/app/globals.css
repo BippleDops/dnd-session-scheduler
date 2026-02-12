@@ -15,7 +15,10 @@
   --deep-blue: #1a3a5c;
   --teal: #1a4a4a;
   --amber: #b8860b;
-  /* Font families — set by next/font classes on <html>, fallbacks for safety */
+  /* Font families — overridden by next/font classes on <html> at runtime */
+  --font-heading: Georgia, serif;
+  --font-body: Georgia, serif;
+  --font-ui: system-ui, sans-serif;
 }
 
 /* ── Wood plank background (CSS-generated, no image needed) ── */

@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getAdminSessionDetail, getSessionPrep, exportSessionNotes, addLoot, setCharacterLevel, addWorldState, type SessionPrep, type SessionDetail } from '@/lib/api';
+import { getAdminSessionDetail, getSessionPrep, exportSessionNotes, addLoot, addWorldState, type SessionPrep, type SessionDetail } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -116,7 +116,7 @@ function RecapWizardInner() {
           {session.registrations?.map(r => (
             <div key={r.registrationId} className="flex items-center justify-between p-2 bg-[var(--wood-dark)] rounded mb-1">
               <span>{r.characterName} — Level {r.characterLevel}</span>
-              <WoodButton variant="sm" onClick={() => { /* TODO: setCharacterLevel call */ }}>Level Up</WoodButton>
+              <WoodButton variant="sm" href={`/admin/players`}>Level Up →</WoodButton>
             </div>
           ))}
         </ParchmentPanel>
