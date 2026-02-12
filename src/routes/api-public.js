@@ -355,8 +355,8 @@ router.delete('/me/characters/:id', (req, res) => {
   res.json(result);
 });
 
-// ── Campaigns ──
-router.get('/campaigns', (req, res) => {
+// ── Campaigns (detail) ──
+router.get('/campaigns-list', (req, res) => {
   res.json(getAllCampaigns());
 });
 

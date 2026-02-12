@@ -27,7 +27,16 @@ export default function TavernNav() {
   const pathname = usePathname();
   const { user, isAdmin, isLoggedIn } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [dungeonMode, setDungeonMode] = useState(false);
+  const [dungeonMode, setDungeonMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dungeonMode');
+      if (saved === 'true') {
+        document.documentElement.setAttribute('data-theme', 'dungeon');
+        return true;
+      }
+    }
+    return false;
+  });
 
   const isActive = (page: string) => {
     if (page === '') return pathname === '/';
@@ -37,6 +46,7 @@ export default function TavernNav() {
   const toggleDungeon = () => {
     const next = !dungeonMode;
     setDungeonMode(next);
+    localStorage.setItem('dungeonMode', String(next));
     document.documentElement.setAttribute('data-theme', next ? 'dungeon' : '');
   };
 
@@ -65,6 +75,7 @@ export default function TavernNav() {
           <Link
             key={link.page}
             href={link.href}
+            onClick={() => setMenuOpen(false)}
             className={`px-3 py-2 rounded text-sm no-underline transition-colors ${
               isActive(link.page)
                 ? 'bg-[rgba(201,169,89,0.2)] text-[var(--gold)]'
@@ -82,6 +93,7 @@ export default function TavernNav() {
               <Link
                 key={link.page}
                 href={link.href}
+                onClick={() => setMenuOpen(false)}
                 className={`px-3 py-2 rounded text-sm no-underline transition-colors ${
                   isActive(link.page)
                     ? 'bg-[rgba(201,169,89,0.2)] text-[var(--gold)]'

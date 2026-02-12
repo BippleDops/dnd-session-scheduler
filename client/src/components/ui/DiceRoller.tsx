@@ -52,20 +52,6 @@ export function DiceRoller({ sessionId }: Props) {
     if (customExpr) rollDice(customExpr);
   };
 
-  // Listen for SSE dice_roll events
-  useEffect(() => {
-    if (!sessionId) return;
-    const base = process.env.NEXT_PUBLIC_API_URL || '';
-    const es = new EventSource(`${base}/api/sse/${sessionId}`, { withCredentials: true });
-    es.addEventListener('dice_roll', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data);
-        setHistory(prev => [data, ...prev].slice(0, 20));
-      } catch { /* ignore */ }
-    });
-    return () => es.close();
-  }, [sessionId]);
-
   return (
     <>
       {/* Floating dice button */}

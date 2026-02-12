@@ -44,7 +44,7 @@ export const updateMyCharacter = (id: string, data: Record<string, unknown>) => 
 export const retireMyCharacter = (id: string) => fetchJson<ApiResult>(`/api/me/characters/${id}`, { method: 'DELETE' });
 
 // ── Campaigns V2 ──
-export const getCampaignsList = () => fetchJson<Campaign[]>('/api/campaigns');
+export const getCampaignsList = () => fetchJson<Campaign[]>('/api/campaigns-list');
 export const getCampaignDetail = (slug: string) => fetchJson<Campaign>(`/api/campaigns/${slug}`);
 export const getCampaignRoster = (slug: string) => fetchJson<CampaignRosterEntry[]>(`/api/campaigns/${slug}/roster`);
 export const getCampaignTimeline = (slug: string) => fetchJson<CampaignTimelineEntry[]>(`/api/campaigns/${slug}/timeline`);

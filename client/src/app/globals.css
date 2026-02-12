@@ -226,9 +226,28 @@ body {
   box-shadow: 0 0 0 2px rgba(201,169,89,0.3);
 }
 
-.tavern-input::placeholder {
+.tavern-input::placeholder,
+.parchment-input::placeholder {
   color: var(--ink-faded);
   font-style: italic;
+}
+
+/* Alias: parchment-input matches tavern-input — used across many components */
+.parchment-input {
+  font-family: var(--font-body);
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--parchment-dark);
+  border-radius: 2px;
+  padding: 10px 12px;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.parchment-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(201,169,89,0.3);
 }
 
 /* ── Tier shield ── */
