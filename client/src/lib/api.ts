@@ -162,6 +162,7 @@ export const voteSessionRequest = (id: string, availableDates: string[]) => fetc
 
 // ── Admin ──
 export const getAdminDashboard = () => fetchJson<AdminDashboard>('/api/admin/dashboard');
+export const getAdminHealthDetail = () => fetchJson<HealthDetail>('/api/admin/health-detail');
 export const getAdminSessions = (params?: Record<string, string>) => {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return fetchJson<AdminSession[]>(`/api/admin/sessions${qs}`);
@@ -222,6 +223,14 @@ export interface AdminDashboard {
   sessionsThisMonth: number; lastBackup: string;
   thisWeekSessions: { sessionId: string; date: string; startTime: string; campaign: string; title: string; maxPlayers: number; registeredCount: number }[];
   recentLogs: { ActionType: string; Timestamp: string; Details: string }[];
+}
+export interface HealthDetail {
+  status: string; uptime: number; uptimeHuman: string;
+  memory: { heapUsedMB: number; heapTotalMB: number; rssMB: number };
+  database: { sizeMB: number; tables: Record<string, number> };
+  lastBackup: string;
+  system: { nodeVersion: string; platform: string; cpus: number; totalMemMB: number; freeMemMB: number };
+  timestamp: string;
 }
 export interface AdminSession { sessionId: string; date: string; startTime: string; endTime: string; campaign: string; title: string; maxPlayers: number; registeredCount: number; status: string }
 export interface AdminPlayer {
