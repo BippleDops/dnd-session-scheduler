@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getAdminSessionDetail, getSessionPrep, exportSessionNotes, addLoot, addWorldState, type SessionPrep, type SessionDetail } from '@/lib/api';
+import { getAdminSessionDetail, getSessionPrep, exportSessionNotes, type SessionPrep, type SessionDetail } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -19,7 +19,7 @@ function RecapWizardInner() {
   const { isAdmin } = useAuth();
   const [step, setStep] = useState(0);
   const [session, setSession] = useState<SessionDetail | null>(null);
-  const [prep, setPrep] = useState<SessionPrep | null>(null);
+  const [, setPrep] = useState<SessionPrep | null>(null);
   const [recap, setRecap] = useState('');
   const [lootItems, setLootItems] = useState<{name: string; rarity: string; characterId: string}[]>([]);
   const [npcs, setNpcs] = useState('');

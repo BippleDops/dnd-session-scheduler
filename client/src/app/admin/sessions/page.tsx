@@ -5,7 +5,6 @@ import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminSessions, getAdminSessionDetail, createAdminSession, cancelAdminSession, completeAdminSession, markAttendance, cancelAdminRegistration, getCampaigns } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';

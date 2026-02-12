@@ -2,7 +2,7 @@
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminDashboard, triggerReminders, triggerBackup } from '@/lib/api';
-import { formatDate, formatTime, formatTimestamp, campaignColor } from '@/lib/utils';
+import { formatDate, formatTime, formatTimestamp } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';

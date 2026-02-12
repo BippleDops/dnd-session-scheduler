@@ -20,7 +20,7 @@ function SignupInner() {
   usePageTitle('Sign Up');
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') || '';
-  const { user, isLoggedIn } = useAuth();
+  const { isLoggedIn } = useAuth();
   const { toast } = useToast();
 
   const [session, setSession] = useState<Session | null>(null);
@@ -79,7 +79,7 @@ function SignupInner() {
       });
       if (result.success) { setDone(true); setResultMsg(result.message || ''); }
       else { toast(result.message || 'Failed', 'error'); }
-    } catch (e) { toast('An error occurred', 'error'); }
+    } catch { toast('An error occurred', 'error'); }
     setSubmitting(false);
   };
 

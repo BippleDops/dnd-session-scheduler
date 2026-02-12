@@ -10,7 +10,7 @@ async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
       ...opts,
       headers: { 'Content-Type': 'application/json', ...opts?.headers },
     });
-  } catch (e) {
+  } catch {
     throw new Error('Network error — please check your connection.');
   }
 

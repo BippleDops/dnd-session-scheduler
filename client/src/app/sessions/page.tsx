@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions } from '@/lib/api';
-import CandleLoader from '@/components/ui/CandleLoader';
 import { SessionGridSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 import WoodButton from '@/components/ui/WoodButton';

@@ -4,7 +4,6 @@ import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions, type Session } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
-import CandleLoader from '@/components/ui/CandleLoader';
 import { CalendarSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 

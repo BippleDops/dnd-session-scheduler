@@ -7,7 +7,6 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useSSEContext } from '@/hooks/useSSEContext';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
-import CandleLoader from '@/components/ui/CandleLoader';
 
 const CONDITIONS = ['Blinded','Charmed','Deafened','Frightened','Grappled','Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious','Concentrating'];
 

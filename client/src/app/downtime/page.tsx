@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getMyDowntime, submitDowntime, getMyCharactersV2, getCampaignsList, type DowntimeAction, type CharacterSheet, type Campaign } from '@/lib/api';
+import { getMyDowntime, submitDowntime, getMyCharactersV2, type DowntimeAction, type CharacterSheet } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -15,15 +15,14 @@ export default function DowntimePage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const [actions, setActions] = useState<DowntimeAction[]>([]);
   const [chars, setChars] = useState<CharacterSheet[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ characterId: '', campaignId: '', type: 'Other', description: '', goal: '', duration: '' });
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    Promise.all([getMyDowntime(), getMyCharactersV2(), getCampaignsList()]).then(([a, c, ca]) => {
-      setActions(a); setChars(c); setCampaigns(ca);
+    Promise.all([getMyDowntime(), getMyCharactersV2()]).then(([a, c]) => {
+      setActions(a); setChars(c);
     }).finally(() => setLoading(false));
   }, [isLoggedIn]);
 
