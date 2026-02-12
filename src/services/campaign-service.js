@@ -42,7 +42,7 @@ function getCampaignRoster(campaignName) {
     FROM registrations r
     JOIN sessions s ON r.session_id = s.session_id
     JOIN players p ON r.player_id = p.player_id
-    WHERE s.campaign = ? AND r.status = 'registered'
+    WHERE s.campaign = ? AND r.status IN ('Confirmed','Attended')
     GROUP BY p.player_id
     ORDER BY session_count DESC
   `).all(campaignName);
@@ -52,11 +52,11 @@ function getCampaignTimeline(campaignName) {
   return getDb().prepare(`
     SELECT s.session_id, s.date, s.title, s.status,
       h.dm_post_notes,
-      COUNT(r.reg_id) as player_count,
+      COUNT(r.registration_id) as player_count,
       GROUP_CONCAT(r.char_name_snapshot, ', ') as characters
     FROM sessions s
     LEFT JOIN session_history h ON s.session_id = h.session_id
-    LEFT JOIN registrations r ON s.session_id = r.session_id AND r.status = 'registered'
+    LEFT JOIN registrations r ON s.session_id = r.session_id AND r.status IN ('Confirmed','Attended')
     WHERE s.campaign = ?
     GROUP BY s.session_id
     ORDER BY s.date DESC
