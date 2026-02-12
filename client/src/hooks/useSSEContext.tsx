@@ -22,10 +22,12 @@ export function useSSEContext() { return useContext(SSEContext); }
 export function SSEProvider({ children }: { children: ReactNode }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [presence, setPresence] = useState(0);
+  const [reconnectKey, setReconnectKey] = useState(0);
   const sourceRef = useRef<EventSource | null>(null);
   const listenersRef = useRef<Map<string, Set<SSEListener>>>(new Map());
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
 
-  // Subscribe to an SSE event type
   const subscribe = useCallback((event: string, handler: SSEListener) => {
     if (!listenersRef.current.has(event)) {
       listenersRef.current.set(event, new Set());
@@ -49,7 +51,6 @@ export function SSEProvider({ children }: { children: ReactNode }) {
       try { setPresence(JSON.parse(e.data).count); } catch {}
     });
 
-    // Proxy all events to registered listeners
     const proxyHandler = (eventType: string) => (e: MessageEvent) => {
       const handlers = listenersRef.current.get(eventType);
       if (!handlers) return;
@@ -68,9 +69,9 @@ export function SSEProvider({ children }: { children: ReactNode }) {
 
     es.onerror = () => {
       es.close();
-      // Reconnect after 3s
+      // Reconnect after 3s by bumping the key
       setTimeout(() => {
-        if (sessionId) setSessionId(prev => prev); // trigger reconnect
+        if (sessionIdRef.current) setReconnectKey(k => k + 1);
       }, 3000);
     };
 
@@ -81,7 +82,7 @@ export function SSEProvider({ children }: { children: ReactNode }) {
       es.close();
       sourceRef.current = null;
     };
-  }, [sessionId]);
+  }, [sessionId, reconnectKey]);
 
   return (
     <SSEContext.Provider value={{ sessionId, setSessionId, subscribe, presence }}>

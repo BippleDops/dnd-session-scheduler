@@ -198,6 +198,16 @@ cron.schedule(`0 ${triggerHour} * * *`, async () => {
   } catch (e) { console.error('Cron reminder error:', e); }
 }, { timezone: 'America/Chicago' });
 
+// Auto-complete past sessions at 1 AM
+cron.schedule('0 1 * * *', () => {
+  console.log('[Cron] Auto-completing past sessions');
+  try {
+    const { autoCompletePastSessions } = require('./services/session-service');
+    const result = autoCompletePastSessions();
+    if (result.count > 0) console.log(`[Cron] Auto-completed ${result.count} past sessions`);
+  } catch (e) { console.error('Cron auto-complete error:', e); }
+}, { timezone: 'America/Chicago' });
+
 // Daily backup at 2 AM
 cron.schedule('0 2 * * *', () => {
   console.log('[Cron] Running daily backup');
