@@ -49,14 +49,21 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
+// ── Trust proxy (Cloudflare Tunnel) — must be set before session middleware ──
+app.set('trust proxy', 1);
+
 // ── Body parsing ──
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── Sessions ──
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret || sessionSecret.length < 32) {
+  console.warn('[SECURITY] SESSION_SECRET is missing or too short. Set a random 64+ character string in .env');
+}
 app.use(session({
   store: new SQLiteStore({ dir: path.join(__dirname, '..', 'data'), db: 'sessions.sqlite' }),
-  secret: process.env.SESSION_SECRET || 'change-me-please-' + Date.now(),
+  secret: sessionSecret || 'change-me-please-' + Date.now(),
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -97,17 +104,18 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 // ── Inject user into all templates ──
 app.use(injectUser);
 
-// ── Trust proxy (Cloudflare Tunnel) ──
-app.set('trust proxy', 1);
-
-// ── Request logging ──
+// ── Request logging (skip static assets and health checks) ──
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
+    // Skip logging for static assets, health checks, and SSE keepalives
+    if (req.path.startsWith('/health') || req.path.startsWith('/_next/') ||
+        req.path.startsWith('/styles') || req.path.endsWith('.js') ||
+        req.path.endsWith('.css') || req.path.endsWith('.ico') ||
+        req.path.endsWith('.png') || req.path.endsWith('.svg') ||
+        req.path.endsWith('.woff') || req.path.endsWith('.woff2')) return;
     const ms = Date.now() - start;
-    if (!req.path.startsWith('/health') && !req.path.startsWith('/styles')) {
-      console.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${req.user ? req.user.email : 'anon'}`);
-    }
+    console.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${req.user ? req.user.email : 'anon'}`);
   });
   next();
 });
@@ -215,7 +223,7 @@ cron.schedule('0 10 * * *', async () => {
 
     const { sendEmail, wrapEmailTemplate } = require('./services/reminder-service');
     for (const session of upcoming) {
-      const regs = db.prepare(`SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.session_id = ? AND r.status = 'registered'`).all(session.session_id);
+      const regs = db.prepare(`SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.session_id = ? AND r.status IN ('Confirmed','Attended')`).all(session.session_id);
       if (regs.length === 0) continue;
 
       // Get previous session recap
