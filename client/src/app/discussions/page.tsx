@@ -8,6 +8,7 @@ import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useToast } from '@/components/ui/Toast';
 
 export default function DiscussionsPage() { return <Suspense><DiscussionsInner /></Suspense>; }
 
@@ -26,6 +27,7 @@ function DiscussionsInner() {
   const [newContent, setNewContent] = useState('');
   const [replyText, setReplyText] = useState('');
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => { getCampaignsList().then(setCampaigns); }, []);
   useEffect(() => {
@@ -38,17 +40,22 @@ function DiscussionsInner() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newContent) return;
-    await createThread(selectedSlug, { title: newTitle, content: newContent });
-    setShowNew(false); setNewTitle(''); setNewContent('');
-    getDiscussions(selectedSlug).then(setThreads);
+    try {
+      await createThread(selectedSlug, { title: newTitle, content: newContent });
+      toast('Thread created!', 'success');
+      setShowNew(false); setNewTitle(''); setNewContent('');
+      getDiscussions(selectedSlug).then(setThreads);
+    } catch (err) { toast(err instanceof Error ? err.message : 'Failed', 'error'); }
   };
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText || !activeThread) return;
-    await replyToThread(activeThread.thread_id, replyText);
-    setReplyText('');
-    getThread(activeThread.thread_id).then(setActiveThread);
+    try {
+      await replyToThread(activeThread.thread_id, replyText);
+      setReplyText('');
+      getThread(activeThread.thread_id).then(setActiveThread);
+    } catch (err) { toast(err instanceof Error ? err.message : 'Failed', 'error'); }
   };
 
   const openThread = (t: DiscussionThread) => { getThread(t.thread_id).then(setActiveThread); };
