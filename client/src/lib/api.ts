@@ -3,13 +3,32 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, {
-    credentials: 'include',
-    ...opts,
-    headers: { 'Content-Type': 'application/json', ...opts?.headers },
-  });
-  if (!res.ok && res.status === 401) throw new Error('Not authenticated');
-  return res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${url}`, {
+      credentials: 'include',
+      ...opts,
+      headers: { 'Content-Type': 'application/json', ...opts?.headers },
+    });
+  } catch (e) {
+    throw new Error('Network error — please check your connection.');
+  }
+
+  if (res.status === 401) throw new Error('Not authenticated');
+  if (res.status === 429) throw new Error('Too many requests — please slow down.');
+
+  // Try to parse JSON; fall back to text error message
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    if (!res.ok) throw new Error(`Server error (${res.status})`);
+    throw new Error('Unexpected response format');
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `Request failed (${res.status})`);
+  }
+  return data;
 }
 
 // ── Public ──

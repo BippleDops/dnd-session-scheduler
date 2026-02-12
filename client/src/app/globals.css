@@ -285,6 +285,12 @@ body {
   .quest-card::before { font-size: 14px; top: -6px; }
 }
 
+/* ── Toast slide-in animation ── */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 /* ── Dungeon mode (dark variant) ── */
 [data-theme="dungeon"] {
   --parchment: #2a2520;
