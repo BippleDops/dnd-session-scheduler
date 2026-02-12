@@ -49,12 +49,21 @@ export default function NotificationBell() {
               The messenger has nothing for you, adventurer.
             </p>
           ) : (
-            notifications.map(n => (
-              <div key={n.notification_id} className="px-2 py-2 border-b border-[rgba(255,255,255,0.05)] text-sm">
-                <p className="text-[var(--parchment)]">{n.message}</p>
-                <p className="text-xs text-[var(--ink-faded)] mt-1">{formatTimestamp(n.created_at)}</p>
-              </div>
-            ))
+            notifications.map(n => {
+              const icon = n.type === 'registration' ? '⚔️' :
+                n.type === 'waitlist_promoted' ? '🎉' :
+                n.type === 'session_cancelled' ? '❌' :
+                n.type === 'reminder' ? '🔔' : '📜';
+              return (
+                <div key={n.notification_id} className="px-2 py-2 border-b border-[rgba(255,255,255,0.05)] text-sm flex gap-2">
+                  <span className="text-base flex-shrink-0">{icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-[var(--parchment)]">{n.message}</p>
+                    <p className="text-[10px] text-[var(--ink-faded)] mt-0.5">{formatTimestamp(n.created_at)}</p>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       )}

@@ -8,9 +8,12 @@ import MobileNav from '@/components/layout/MobileNav';
 import Footer from '@/components/layout/Footer';
 import { DiceRoller } from '@/components/ui/DiceRoller';
 import InstallPrompt from '@/components/ui/InstallPrompt';
+import KeyboardHelp from '@/components/ui/KeyboardHelp';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const auth = useAuthProvider();
+  const { showHelp, setShowHelp } = useKeyboardShortcuts();
 
   return (
     <AuthContext.Provider value={auth}>
@@ -29,6 +32,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <Footer />
           <MobileNav />
           <DiceRoller />
+          <KeyboardHelp open={showHelp} onClose={() => setShowHelp(false)} />
         </ToastProvider>
       </SSEProvider>
     </AuthContext.Provider>

@@ -14,6 +14,11 @@ import { useToast } from '@/components/ui/Toast';
 import Confetti from '@/components/ui/Confetti';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter','Other'];
+const CLASS_ICONS: Record<string, string> = {
+  Barbarian: '🪓', Bard: '🎵', Cleric: '✝️', Druid: '🌿', Fighter: '⚔️', Monk: '👊',
+  Paladin: '🛡️', Ranger: '🏹', Rogue: '🗡️', Sorcerer: '✨', Warlock: '👁️', Wizard: '🧙',
+  Artificer: '⚙️', 'Blood Hunter': '🩸', Other: '⚔️',
+};
 const RACES = ['Human','Elf','Half-Elf','Dwarf','Halfling','Gnome','Half-Orc','Tiefling','Dragonborn','Goliath','Aasimar','Genasi','Tabaxi','Kenku','Firbolg','Tortle','Warforged','Changeling','Kalashtar','Shifter','Harengon','Owlin','Other'];
 
 export default function SignupPage() { return <Suspense><SignupInner /></Suspense>; }
@@ -138,14 +143,32 @@ function SignupInner() {
       {/* Character picker */}
       {characters.length > 0 && (
         <ParchmentPanel>
-          <p className="text-sm font-semibold text-[var(--ink)] mb-2">Your Characters</p>
-          <div className="flex flex-wrap gap-2">
-            {characters.map((c, i) => (
-              <button key={i} onClick={() => fillCharacter(c)} className="wood-btn text-xs py-1 px-3">
-                {c.characterName} <span className="opacity-60">({c.characterClass} Lv{c.characterLevel})</span>
-              </button>
-            ))}
-            <button onClick={() => { setCharName(''); setCharLevel(''); setCharClasses([]); setCharRace(''); }} className="wood-btn text-xs py-1 px-3">+ New Character</button>
+          <p className="text-sm font-semibold text-[var(--ink)] mb-2">Quick Select a Character</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {characters.map((c, i) => {
+              const isSelected = charName === c.characterName;
+              const classIcon = CLASS_ICONS[c.characterClass.split(',')[0].trim()] || '⚔️';
+              return (
+                <button key={i} onClick={() => fillCharacter(c)}
+                  className={`flex items-center gap-2 p-3 rounded-lg text-left transition-all border ${
+                    isSelected
+                      ? 'border-[var(--gold)] bg-[rgba(201,169,89,0.15)] shadow-md'
+                      : 'border-[var(--parchment-dark)] bg-[var(--parchment)] hover:border-[var(--gold)] hover:shadow-sm'
+                  }`}
+                >
+                  <span className="text-2xl">{classIcon}</span>
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold truncate ${isSelected ? 'text-[var(--gold)]' : 'text-[var(--ink)]'}`}>{c.characterName}</p>
+                    <p className="text-[10px] text-[var(--ink-faded)]">{c.characterClass} · Lv{c.characterLevel}</p>
+                  </div>
+                </button>
+              );
+            })}
+            <button onClick={() => { setCharName(''); setCharLevel(''); setCharClasses([]); setCharRace(''); }}
+              className="flex items-center gap-2 p-3 rounded-lg text-left border border-dashed border-[var(--parchment-dark)] bg-[var(--parchment)] hover:border-[var(--gold)] transition-colors">
+              <span className="text-2xl opacity-40">➕</span>
+              <p className="text-sm text-[var(--ink-faded)]">New Character</p>
+            </button>
           </div>
         </ParchmentPanel>
       )}
