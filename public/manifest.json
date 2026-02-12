@@ -4,18 +4,43 @@
   "description": "Sign up for D&D sessions, manage characters, and track your adventures.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f0e1",
+  "background_color": "#2c1810",
   "theme_color": "#8b0000",
+  "orientation": "any",
+  "categories": ["games", "entertainment", "productivity"],
+  "lang": "en-US",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quest Board",
+      "short_name": "Quests",
+      "url": "/",
+      "description": "View upcoming D&D sessions"
+    },
+    {
+      "name": "My Sessions",
+      "short_name": "My Quests",
+      "url": "/my-sessions",
+      "description": "View your registered sessions"
+    },
+    {
+      "name": "Characters",
+      "short_name": "Characters",
+      "url": "/characters",
+      "description": "Manage your character roster"
     }
   ]
 }

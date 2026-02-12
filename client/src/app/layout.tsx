@@ -28,15 +28,47 @@ export const metadata: Metadata = {
   title: 'D&D Session Scheduler',
   description: 'Sign up for D&D sessions, manage characters, and track your adventures.',
   manifest: '/manifest.json',
+  metadataBase: new URL('https://dndsignup.get-suss.com'),
+  openGraph: {
+    title: 'D&D Session Scheduler',
+    description: 'Sign up for D&D sessions, manage characters, and track your adventures.',
+    url: 'https://dndsignup.get-suss.com',
+    siteName: 'D&D Session Scheduler',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'D&D Session Scheduler',
+    description: 'Sign up for D&D sessions, manage characters, and track your adventures.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: '#8b0000',
 };
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'D&D Session Scheduler',
+  description: 'Sign up for D&D sessions, manage characters, and track your adventures.',
+  url: 'https://dndsignup.get-suss.com',
+  applicationCategory: 'GameApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${medievalSharp.variable} ${crimsonText.variable} ${inter.variable}`}>
+      <head>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      </head>
       <body className="min-h-screen flex flex-col">
         <Providers>
           {children}
