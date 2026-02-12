@@ -185,6 +185,7 @@ function AdminSessionsInner() {
             <WoodButton onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/signup?sessionId=${detail.sessionId}`); toast('Link copied!', 'success'); }}>Copy Sign-Up Link</WoodButton>
             <WoodButton href={`/session/live?sessionId=${detail.sessionId}`}>⚡ Live View</WoodButton>
             <WoodButton href={`/admin/prep?sessionId=${detail.sessionId}`}>🗺️ Prep</WoodButton>
+            <WoodButton href={`/admin/recap-wizard?sessionId=${detail.sessionId}`}>📜 Recap</WoodButton>
           </div>
         </>
       )}
