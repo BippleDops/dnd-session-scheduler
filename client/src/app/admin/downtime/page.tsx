@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminDowntime, resolveDowntime, type DowntimeAction } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
@@ -9,6 +10,7 @@ import CandleLoader from '@/components/ui/CandleLoader';
 const TYPE_ICONS: Record<string, string> = { Crafting: '🔨', Training: '⚔️', Research: '📚', Carousing: '🍺', Working: '💼', Exploring: '🗺️', Other: '❓' };
 
 export default function AdminDowntimePage() {
+  usePageTitle('Manage Downtime');
   const { isAdmin } = useAuth();
   const [actions, setActions] = useState<DowntimeAction[]>([]);
   const [filter, setFilter] = useState('Pending');

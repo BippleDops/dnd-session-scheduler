@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { cancelByToken } from '@/lib/api';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
@@ -8,6 +9,7 @@ import WoodButton from '@/components/ui/WoodButton';
 
 export default function CancelPage() { return <Suspense><CancelInner /></Suspense>; }
 function CancelInner() {
+  usePageTitle('Cancel Registration');
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);

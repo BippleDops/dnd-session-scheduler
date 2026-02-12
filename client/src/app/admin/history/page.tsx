@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminHistory, updateHistoryNotes, getCampaigns } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -10,6 +11,7 @@ import WoodButton from '@/components/ui/WoodButton';
 import { useToast } from '@/components/ui/Toast';
 
 export default function AdminHistoryPage() {
+  usePageTitle('Session History');
   const [filterCampaign, setFilterCampaign] = useState('');
   const { data: history, loading } = useApi(() => getAdminHistory(filterCampaign ? { campaign: filterCampaign } : undefined), [filterCampaign]);
   const { data: campaigns } = useApi(getCampaigns);

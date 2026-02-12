@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminSessionDetail, getSessionPrep, exportSessionNotes, addLoot, setCharacterLevel, addWorldState, type SessionPrep, type SessionDetail } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
@@ -12,6 +13,7 @@ const STEPS = ['Recap', 'Attendance', 'Loot', 'Leveling', 'NPCs & World', 'Expor
 export default function RecapWizardPage() { return <Suspense><RecapWizardInner /></Suspense>; }
 
 function RecapWizardInner() {
+  usePageTitle('Recap Wizard');
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') || '';
   const { isAdmin } = useAuth();

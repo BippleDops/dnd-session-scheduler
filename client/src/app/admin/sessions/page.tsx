@@ -2,6 +2,7 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminSessions, getAdminSessionDetail, createAdminSession, cancelAdminSession, completeAdminSession, markAttendance, cancelAdminRegistration, getCampaigns } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -15,6 +16,7 @@ export default function AdminSessionsPage() {
 }
 
 function AdminSessionsInner() {
+  usePageTitle('Session Management');
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   const sessionIdParam = searchParams.get('sessionId');

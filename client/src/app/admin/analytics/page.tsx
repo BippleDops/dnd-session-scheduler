@@ -1,11 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminAnalytics, type AnalyticsData } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import CandleLoader from '@/components/ui/CandleLoader';
 
 export default function AnalyticsPage() {
+  usePageTitle('Analytics');
   const { isAdmin } = useAuth();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);

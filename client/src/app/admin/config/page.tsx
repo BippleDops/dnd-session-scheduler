@@ -1,5 +1,6 @@
 'use client';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminConfig, saveAdminConfig } from '@/lib/api';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
@@ -7,6 +8,7 @@ import WoodButton from '@/components/ui/WoodButton';
 import { useToast } from '@/components/ui/Toast';
 
 export default function AdminConfigPage() {
+  usePageTitle('Configuration');
   const { data: config, loading } = useApi(getAdminConfig);
   const { toast } = useToast();
 

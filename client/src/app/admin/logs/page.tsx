@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminLogs } from '@/lib/api';
 import { formatTimestamp } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -8,6 +9,7 @@ import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 
 export default function AdminLogsPage() {
+  usePageTitle('Admin Logs');
   const [page, setPage] = useState(1);
   const [actionType, setActionType] = useState('');
   const { data, loading } = useApi(() => getAdminLogs(page, actionType || undefined), [page, actionType]);

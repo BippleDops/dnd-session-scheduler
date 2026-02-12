@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getPlayerPublicProfile, type PlayerPublicProfile } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -11,6 +12,8 @@ function PlayerProfileInner() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id') || '';
   const [profile, setProfile] = useState<PlayerPublicProfile | null>(null);
+
+  usePageTitle(profile?.name || 'Player Profile');
 
   useEffect(() => {
     if (id) getPlayerPublicProfile(id).then(setProfile);
