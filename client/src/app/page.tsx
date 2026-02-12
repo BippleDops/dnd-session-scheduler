@@ -6,6 +6,7 @@ import { getSessions, type Session } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import { CalendarSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 export default function CalendarPage() {
   usePageTitle('Quest Board');
@@ -61,7 +62,12 @@ export default function CalendarPage() {
       <div className="parchment p-5 mb-6">
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => changeMonth(-1)} className="wood-btn text-sm py-1 px-3">← Prev</button>
-          <h2 className="font-[var(--font-heading)] text-xl text-[var(--ink)]">{monthNames[month]} {year}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-[var(--font-heading)] text-xl text-[var(--ink)]">{monthNames[month]} {year}</h2>
+            {(month !== new Date().getMonth() || year !== new Date().getFullYear()) && (
+              <button onClick={() => { setCurrentDate(new Date()); setSelectedDate(null); }} className="text-xs text-[var(--gold)] hover:underline bg-transparent border-none cursor-pointer">Today</button>
+            )}
+          </div>
           <button onClick={() => changeMonth(1)} className="wood-btn text-sm py-1 px-3">Next →</button>
         </div>
 
@@ -140,10 +146,7 @@ export default function CalendarPage() {
 
       {/* No sessions */}
       {(!sessions || sessions.length === 0) && (
-        <div className="parchment p-10 text-center">
-          <p className="font-[var(--font-heading)] text-xl text-[var(--ink)] mb-2">The quest board is empty...</p>
-          <p className="text-[var(--ink-faded)] italic">Check back soon, adventurer. New quests are posted regularly.</p>
-        </div>
+        <EmptyStateFromPreset preset="sessions" />
       )}
     </div>
   );

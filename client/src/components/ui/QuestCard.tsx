@@ -1,6 +1,7 @@
 'use client';
 import { type Session } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
+import { useCountdown } from '@/hooks/useCountdown';
 import WaxSeal from './WaxSeal';
 import TierShield from './TierShield';
 import WoodButton from './WoodButton';
@@ -15,6 +16,7 @@ export default function QuestCard({ session: s, showSignup = true, index = 0 }: 
   const spotsLow = s.spotsRemaining > 0 && s.spotsRemaining <= 2;
   const full = s.spotsRemaining <= 0;
   const capacityPct = s.maxPlayers > 0 ? Math.round((s.registeredCount / s.maxPlayers) * 100) : 0;
+  const countdown = useCountdown(s.date, s.startTime);
 
   return (
     <div
@@ -36,6 +38,14 @@ export default function QuestCard({ session: s, showSignup = true, index = 0 }: 
         </div>
         <WaxSeal campaign={s.campaign} />
       </div>
+
+      {/* Countdown */}
+      {countdown && !countdown.isPast && (
+        <div className={`mt-2 text-xs font-semibold flex items-center gap-1 ${countdown.isUrgent ? 'text-[var(--candle)]' : 'text-[var(--gold)]'}`}>
+          <span>⏳</span>
+          <span>Starts in {countdown.label}</span>
+        </div>
+      )}
 
       {/* Tier + Description */}
       <div className="mt-3 flex items-center gap-2 flex-wrap">
