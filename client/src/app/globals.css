@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   --wood-dark: #2c1810;
@@ -16,9 +15,7 @@
   --deep-blue: #1a3a5c;
   --teal: #1a4a4a;
   --amber: #b8860b;
-  --font-heading: 'MedievalSharp', Georgia, serif;
-  --font-body: 'Crimson Text', Georgia, serif;
-  --font-ui: 'Inter', system-ui, sans-serif;
+  /* Font families — set by next/font classes on <html>, fallbacks for safety */
 }
 
 /* ── Wood plank background (CSS-generated, no image needed) ── */

@@ -1,8 +1,28 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import { MedievalSharp, Crimson_Text, Inter } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 
-import type { Viewport } from 'next';
+const medievalSharp = MedievalSharp({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-heading',
+  display: 'swap',
+});
+
+const crimsonText = Crimson_Text({
+  weight: ['400', '600', '700'],
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+  variable: '--font-body',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-ui',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'D&D Session Scheduler',
@@ -16,7 +36,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${medievalSharp.variable} ${crimsonText.variable} ${inter.variable}`}>
       <body className="min-h-screen flex flex-col">
         <Providers>
           {children}

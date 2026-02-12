@@ -15,21 +15,37 @@ const ACTION_TYPES = {
 function getUpcomingSessions() {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
+
+  // Single query: join sessions with registrations to avoid N+1
   const sessions = db.prepare(`
     SELECT * FROM sessions
     WHERE date >= ? AND status = 'Scheduled'
     ORDER BY date, start_time
   `).all(today);
 
-  return sessions.map(s => {
-    const regs = db.prepare(`
-      SELECT char_name_snapshot AS characterName,
-             class_snapshot AS characterClass,
-             level_snapshot AS characterLevel
-      FROM registrations
-      WHERE session_id = ? AND status IN ('Confirmed','Attended')
-    `).all(s.session_id);
+  if (sessions.length === 0) return [];
 
+  // Batch-fetch all registrations for upcoming sessions in one query
+  const sessionIds = sessions.map(s => s.session_id);
+  const placeholders = sessionIds.map(() => '?').join(',');
+  const allRegs = db.prepare(`
+    SELECT session_id,
+           char_name_snapshot AS characterName,
+           class_snapshot AS characterClass,
+           level_snapshot AS characterLevel
+    FROM registrations
+    WHERE session_id IN (${placeholders}) AND status IN ('Confirmed','Attended')
+  `).all(...sessionIds);
+
+  // Group registrations by session_id
+  const regsBySession = {};
+  for (const reg of allRegs) {
+    if (!regsBySession[reg.session_id]) regsBySession[reg.session_id] = [];
+    regsBySession[reg.session_id].push(reg);
+  }
+
+  return sessions.map(s => {
+    const regs = regsBySession[s.session_id] || [];
     const registeredCount = regs.length;
     const maxPlayers = s.max_players || 6;
 
@@ -222,33 +238,31 @@ function completeSessionRecord(sessionId, adminEmail) {
 
 function getAllSessionsAdmin(filters = {}) {
   const db = getDb();
-  let sql = 'SELECT * FROM sessions WHERE 1=1';
+  let sql = `
+    SELECT s.*,
+      (SELECT COUNT(*) FROM registrations r
+       WHERE r.session_id = s.session_id AND r.status IN ('Confirmed','Attended')
+      ) AS registered_count
+    FROM sessions s WHERE 1=1`;
   const params = [];
 
-  if (filters.status) { sql += ' AND status = ?'; params.push(filters.status); }
-  if (filters.campaign) { sql += ' AND campaign = ?'; params.push(filters.campaign); }
+  if (filters.status) { sql += ' AND s.status = ?'; params.push(filters.status); }
+  if (filters.campaign) { sql += ' AND s.campaign = ?'; params.push(filters.campaign); }
 
-  sql += ' ORDER BY date DESC, start_time';
+  sql += ' ORDER BY s.date DESC, s.start_time';
   const sessions = db.prepare(sql).all(...params);
 
-  return sessions.map(s => {
-    const count = db.prepare(`
-      SELECT COUNT(*) AS c FROM registrations
-      WHERE session_id = ? AND status IN ('Confirmed','Attended')
-    `).get(s.session_id).c;
-
-    return {
-      sessionId: s.session_id,
-      date: normalizeDate(s.date),
-      startTime: normalizeTime(s.start_time),
-      endTime: normalizeTime(s.end_time),
-      campaign: s.campaign || '',
-      title: s.title || '',
-      maxPlayers: s.max_players || 6,
-      registeredCount: count,
-      status: s.status,
-    };
-  });
+  return sessions.map(s => ({
+    sessionId: s.session_id,
+    date: normalizeDate(s.date),
+    startTime: normalizeTime(s.start_time),
+    endTime: normalizeTime(s.end_time),
+    campaign: s.campaign || '',
+    title: s.title || '',
+    maxPlayers: s.max_players || 6,
+    registeredCount: s.registered_count,
+    status: s.status,
+  }));
 }
 
 function getSessionHistoryRecords(filters = {}) {

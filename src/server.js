@@ -9,6 +9,7 @@ const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const passport = require('passport');
 const helmet = require('helmet');
+const compression = require('compression');
 const path = require('path');
 const cron = require('node-cron');
 
@@ -24,6 +25,9 @@ const PORT = parseInt(process.env.PORT, 10) || 3000;
 
 // ── Database ──
 initializeDatabase();
+
+// ── Compression ──
+app.use(compression());
 
 // ── Security ──
 app.use(helmet({
@@ -61,8 +65,20 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 
-// ── Static files ──
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// ── Static files (with caching) ──
+app.use('/_next/static', express.static(path.join(__dirname, '..', 'public', '_next', 'static'), {
+  maxAge: '1y',
+  immutable: true,
+}));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    // HTML files get shorter cache + revalidation
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    }
+  },
+}));
 
 // ── Inject user into all templates ──
 app.use(injectUser);
@@ -97,13 +113,33 @@ app.use('/api', require('./routes/api-v4'));
 app.use('/', pageRoutes);
 
 // React SPA fallback: serve .html files for client-side routes
+// Pre-build the set of available HTML files at startup to avoid sync fs checks per request
+const _staticHtmlFiles = new Map();
+(function buildHtmlFileSet(dir, prefix) {
+  const fs = require('fs');
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      const urlPath = prefix + '/' + entry.name;
+      if (entry.isDirectory()) {
+        buildHtmlFileSet(fullPath, urlPath);
+      } else if (entry.name.endsWith('.html')) {
+        _staticHtmlFiles.set(urlPath, fullPath);
+        // Also map /foo to /foo.html and /foo/ to /foo/index.html
+        if (entry.name === 'index.html') {
+          _staticHtmlFiles.set(prefix || '/', fullPath);
+        } else {
+          _staticHtmlFiles.set(urlPath.replace(/\.html$/, ''), fullPath);
+        }
+      }
+    }
+  } catch { /* directory doesn't exist yet during build */ }
+})(path.join(__dirname, '..', 'public'), '');
+
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) return next();
-  const htmlPath = path.join(__dirname, '..', 'public', req.path + '.html');
-  const fs = require('fs');
-  if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
-  const indexPath = path.join(__dirname, '..', 'public', req.path, 'index.html');
-  if (fs.existsSync(indexPath)) return res.sendFile(indexPath);
+  const htmlFile = _staticHtmlFiles.get(req.path);
+  if (htmlFile) return res.sendFile(htmlFile);
   next();
 });
 
