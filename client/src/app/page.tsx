@@ -53,8 +53,6 @@ export default function CalendarPage() {
     onSwipeRight: () => changeMonth(-1),
   });
 
-  if (loading) return <CalendarSkeleton />;
-
   const daySessions = selectedDate ? (sessionsByDate[selectedDate] || []) : [];
   const selectedRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +62,8 @@ export default function CalendarPage() {
       selectedRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [selectedDate, daySessions.length]);
+
+  if (loading) return <CalendarSkeleton />;
 
   return (
     <div>
