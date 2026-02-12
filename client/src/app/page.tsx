@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions, type Session } from '@/lib/api';
@@ -44,6 +44,14 @@ export default function CalendarPage() {
   if (loading) return <CalendarSkeleton />;
 
   const daySessions = selectedDate ? (sessionsByDate[selectedDate] || []) : [];
+  const selectedRef = useRef<HTMLDivElement>(null);
+
+  // Smooth scroll to selected day's sessions
+  useEffect(() => {
+    if (selectedDate && daySessions.length > 0 && selectedRef.current) {
+      selectedRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedDate, daySessions.length]);
 
   return (
     <div>
@@ -122,10 +130,10 @@ export default function CalendarPage() {
 
       {/* Selected day sessions */}
       {selectedDate && daySessions.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-6" ref={selectedRef}>
           <h2 className="scroll-heading text-xl mb-4">{formatDate(selectedDate)}</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            {daySessions.map(s => <QuestCard key={s.sessionId} session={s} />)}
+            {daySessions.map((s, i) => <QuestCard key={s.sessionId} session={s} index={i} />)}
           </div>
         </div>
       )}

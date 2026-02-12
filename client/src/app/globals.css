@@ -288,10 +288,93 @@ body {
   .quest-card::before { font-size: 14px; top: -6px; }
 }
 
+/* ── Page content entrance ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: fadeInUp 0.35s ease-out both;
+}
+
+/* ── Quest card stagger entrance ── */
+@keyframes cardPin {
+  0% { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  60% { opacity: 1; transform: translateY(2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.card-enter {
+  animation: cardPin 0.4s ease-out both;
+}
+
 /* ── Toast slide-in animation ── */
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(100%); }
   to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Dice roll pop ── */
+@keyframes dicePop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.35) rotate(-3deg); }
+  60% { transform: scale(0.95) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.dice-pop {
+  animation: dicePop 0.4s ease-out;
+}
+
+/* ── Notification bell swing ── */
+@keyframes bellSwing {
+  0% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-10deg); }
+  45% { transform: rotate(6deg); }
+  60% { transform: rotate(-4deg); }
+  75% { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.bell-swing {
+  animation: bellSwing 0.8s ease-in-out;
+  transform-origin: top center;
+}
+
+/* ── Confetti burst ── */
+@keyframes confettiFall {
+  0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translateY(60vh) rotate(720deg) scale(0.3); }
+}
+
+.confetti-piece {
+  position: fixed;
+  top: -10px;
+  width: 8px;
+  height: 8px;
+  z-index: 9999;
+  pointer-events: none;
+  animation: confettiFall 2.5s ease-in forwards;
+}
+
+/* ── Capacity bar ── */
+@keyframes barFill {
+  from { width: 0%; }
+}
+
+.capacity-bar-fill {
+  animation: barFill 0.6s ease-out both;
+}
+
+@keyframes urgentPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.capacity-urgent {
+  animation: urgentPulse 1.5s ease-in-out infinite;
 }
 
 /* ── Dungeon mode (dark variant) ── */

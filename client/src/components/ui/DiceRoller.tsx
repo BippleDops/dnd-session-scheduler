@@ -121,7 +121,7 @@ export function DiceRoller({ sessionId }: Props) {
                         <span className="text-[var(--parchment-dark)]">{r.expression}</span>
                         <span className="text-[var(--ink-faded)] ml-1">[{r.results.join(', ')}]{r.modifier ? (r.modifier > 0 ? `+${r.modifier}` : r.modifier) : ''}</span>
                       </div>
-                      <span className="font-bold text-[var(--gold)] text-sm">{r.total}</span>
+                      <span className={`font-bold text-[var(--gold)] text-sm ${i === 0 ? 'dice-pop' : ''}`}>{r.total}</span>
                     </div>
                   ))}
                 </div>

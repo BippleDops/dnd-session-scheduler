@@ -18,7 +18,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             Skip to main content
           </a>
           <TavernNav />
-          <main id="main-content" className="container mx-auto px-5 py-6 flex-1 max-w-5xl">
+          <main id="main-content" className="container mx-auto px-5 py-6 flex-1 max-w-5xl page-enter">
             <ErrorBoundary>
               {children}
             </ErrorBoundary>

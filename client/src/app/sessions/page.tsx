@@ -45,7 +45,7 @@ export default function SessionsPage() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {sessions.map(s => <QuestCard key={s.sessionId} session={s} />)}
+          {sessions.map((s, i) => <QuestCard key={s.sessionId} session={s} index={i} />)}
         </div>
       )}
     </div>
