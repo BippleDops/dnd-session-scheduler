@@ -94,6 +94,9 @@ export default function QuestCard({ session: s, showSignup = true, index = 0 }: 
         <WoodButton variant="sm" onClick={() => window.location.href = `/api/sessions/${s.sessionId}/ics`}>
           📅
         </WoodButton>
+        {countdown && countdown.isUrgent && (
+          <WoodButton variant="sm" href={`/session/live?sessionId=${s.sessionId}`}>⚡ Live</WoodButton>
+        )}
         {showSignup && !full && (
           <WoodButton variant="primary" href={`/signup?sessionId=${s.sessionId}`}>Sign Up</WoodButton>
         )}

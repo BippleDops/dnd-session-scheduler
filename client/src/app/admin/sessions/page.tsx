@@ -183,6 +183,8 @@ function AdminSessionsInner() {
               <WoodButton variant="primary" onClick={async () => { const ok = await confirm({ title: 'Mark Completed?', message: 'This will mark the session as completed and create a history entry.', confirmLabel: 'Complete' }); if (!ok) return; await completeAdminSession(detail.sessionId); toast('Completed!', 'success'); refetchDetail(); }}>Mark Completed</WoodButton>
             </>}
             <WoodButton onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/signup?sessionId=${detail.sessionId}`); toast('Link copied!', 'success'); }}>Copy Sign-Up Link</WoodButton>
+            <WoodButton href={`/session/live?sessionId=${detail.sessionId}`}>⚡ Live View</WoodButton>
+            <WoodButton href={`/admin/prep?sessionId=${detail.sessionId}`}>🗺️ Prep</WoodButton>
           </div>
         </>
       )}
