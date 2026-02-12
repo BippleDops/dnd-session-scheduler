@@ -3,7 +3,8 @@
  * Ported from SessionService.gs + parts of Code.gs.
  */
 const { getDb, generateUuid, nowTimestamp, normalizeDate, normalizeTime, logAction, getConfigValue } = require('../db');
-const { postToDiscord } = require('./reminder-service');
+// Lazy-require to avoid circular dependency: session-service → reminder-service → registration-service → session-service
+function postToDiscord(msg) { return require('./reminder-service').postToDiscord(msg); }
 
 const ACTION_TYPES = {
   SESSION_CREATED: 'SESSION_CREATED',
