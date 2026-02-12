@@ -286,6 +286,17 @@ body {
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .quest-card::before { font-size: 14px; top: -6px; }
+
+  /* Add bottom padding so content isn't hidden behind mobile nav */
+  body { padding-bottom: 60px; }
+
+  /* Move dice roller button above mobile nav */
+  .fixed.bottom-6.right-6 { bottom: 76px !important; }
+}
+
+/* Safe area for notched phones */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ── Page content entrance ── */

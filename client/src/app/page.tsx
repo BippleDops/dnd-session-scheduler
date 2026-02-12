@@ -4,6 +4,7 @@ import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions, type Session } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
+import { useSwipe } from '@/hooks/useSwipe';
 import { CalendarSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
@@ -42,6 +43,11 @@ export default function CalendarPage() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrev = new Date(year, month, 0).getDate();
 
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: () => changeMonth(1),
+    onSwipeRight: () => changeMonth(-1),
+  });
+
   if (loading) return <CalendarSkeleton />;
 
   const daySessions = selectedDate ? (sessionsByDate[selectedDate] || []) : [];
@@ -59,7 +65,7 @@ export default function CalendarPage() {
       <h1 className="scroll-heading text-3xl mb-6">⚔️ Quest Board</h1>
 
       {/* Calendar */}
-      <div className="parchment p-5 mb-6">
+      <div className="parchment p-5 mb-6" {...swipeHandlers}>
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => changeMonth(-1)} className="wood-btn text-sm py-1 px-3">← Prev</button>
           <div className="flex items-center gap-2">
