@@ -245,6 +245,56 @@ router.put('/campaigns/:id', (req, res) => {
   res.json(result);
 });
 
+// ── Health Dashboard (detailed, admin-only) ──
+router.get('/health-detail', (req, res) => {
+  const db = getDb();
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+
+  const tables = ['sessions', 'players', 'registrations', 'characters', 'campaigns',
+    'session_history', 'notifications', 'messages', 'dice_rolls', 'admin_log'];
+  const rowCounts = {};
+  for (const t of tables) {
+    try { rowCounts[t] = db.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get().c; } catch { rowCounts[t] = 0; }
+  }
+
+  const dbPath = path.join(__dirname, '..', '..', 'data', 'scheduler.db');
+  let dbSizeMB = 0;
+  try { dbSizeMB = Math.round(fs.statSync(dbPath).size / 1024 / 1024 * 10) / 10; } catch {}
+
+  const mem = process.memoryUsage();
+  const { getPresenceCount } = require('./api-sse');
+
+  res.json({
+    status: 'ok',
+    uptime: Math.round(process.uptime()),
+    uptimeHuman: formatUptime(process.uptime()),
+    memory: {
+      heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+      rssMB: Math.round(mem.rss / 1024 / 1024),
+    },
+    database: { sizeMB: dbSizeMB, tables: rowCounts },
+    lastBackup: getLastBackupTimestamp(),
+    system: {
+      nodeVersion: process.version,
+      platform: os.platform(),
+      cpus: os.cpus().length,
+      totalMemMB: Math.round(os.totalmem() / 1024 / 1024),
+      freeMemMB: Math.round(os.freemem() / 1024 / 1024),
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+function formatUptime(seconds) {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${d}d ${h}h ${m}m`;
+}
+
 // ── Character Admin (level adjustment, etc.) ──
 const { getCharacterById, updateCharacter: updateCharAdmin } = require('../services/character-service');
 
