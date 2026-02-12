@@ -44,6 +44,31 @@ const PRESETS = {
     title: 'Camp is peaceful',
     description: "No downtime actions submitted yet. Between adventures, your character can craft, train, research, or explore.",
   },
+  requests: {
+    icon: '📯',
+    title: 'No calls to adventure',
+    description: 'No one has requested a session yet. Sound the horn and rally your fellow adventurers!',
+  },
+  polls: {
+    icon: '🗳️',
+    title: 'No votes to cast',
+    description: 'No availability polls are open. The DM will create one when planning the next session.',
+  },
+  homework: {
+    icon: '📋',
+    title: 'No tasks from the guild',
+    description: 'Complete sessions to receive between-adventure homework — read recaps, write journals, submit downtime.',
+  },
+  loot: {
+    icon: '💰',
+    title: 'The treasure chest is empty',
+    description: 'No loot has been acquired yet. Adventure awaits — and so does the treasure!',
+  },
+  history: {
+    icon: '⏳',
+    title: 'The hourglass stands still',
+    description: 'No session history yet. Your tale is about to begin.',
+  },
 } as const;
 
 export type EmptyStatePreset = keyof typeof PRESETS;

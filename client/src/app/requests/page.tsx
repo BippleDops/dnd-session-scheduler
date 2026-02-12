@@ -6,6 +6,7 @@ import { getSessionRequests, createSessionRequest, voteSessionRequest, getCampai
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 export default function RequestsPage() {
   usePageTitle('Session Requests');
@@ -68,7 +69,7 @@ export default function RequestsPage() {
       )}
 
       {requests.length === 0 ? (
-        <ParchmentPanel><p className="text-[var(--ink-faded)] text-center">No session requests yet. Be the first to request a game!</p></ParchmentPanel>
+        <EmptyStateFromPreset preset="requests" action={isLoggedIn ? { label: '+ Request Session', href: '#' } : undefined} />
       ) : (
         <div className="space-y-3">
           {requests.map(r => (

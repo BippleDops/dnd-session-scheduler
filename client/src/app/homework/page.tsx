@@ -5,6 +5,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyHomework, updateHomework, type HomeworkEntry } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import Link from 'next/link';
 
 export default function HomeworkPage() {
@@ -32,7 +33,7 @@ export default function HomeworkPage() {
       <h1 className="font-[var(--font-heading)] text-2xl text-[var(--gold)]">📝 Between-Session Homework</h1>
 
       {entries.length === 0 ? (
-        <ParchmentPanel><p className="text-[var(--ink-faded)] text-center">No homework assigned yet. Complete sessions to see tasks here!</p></ParchmentPanel>
+        <EmptyStateFromPreset preset="homework" />
       ) : entries.map(h => {
         const tasks = [
           { key: 'recap_read', label: 'Read the session recap', link: '/recaps', val: h.recap_read },

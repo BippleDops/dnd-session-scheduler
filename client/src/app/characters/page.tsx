@@ -6,6 +6,7 @@ import { getMyCharactersV2, createMyCharacter, updateMyCharacter, retireMyCharac
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import Link from 'next/link';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter'];
@@ -151,7 +152,7 @@ export default function CharactersPage() {
       )}
 
       {chars.length === 0 && !showForm && (
-        <ParchmentPanel><p className="text-center text-[var(--ink-faded)]">No characters yet. Create your first hero!</p></ParchmentPanel>
+        <EmptyStateFromPreset preset="characters" action={{ label: '+ Create Character', href: '#' }} />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

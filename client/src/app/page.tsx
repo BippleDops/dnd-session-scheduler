@@ -9,9 +9,11 @@ import { CalendarSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 import CalendarPopover from '@/components/ui/CalendarPopover';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function CalendarPage() {
   usePageTitle('Quest Board');
+  const { isLoggedIn } = useAuth();
   const { data: sessions, loading } = useApi(getSessions);
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -65,7 +67,40 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <h1 className="scroll-heading text-3xl mb-6">⚔️ Quest Board</h1>
+      {/* Hero banner for visitors */}
+      {!isLoggedIn && (
+        <div className="parchment p-6 mb-6 text-center relative overflow-hidden">
+          <div className="relative z-10">
+            <h1 className="font-[var(--font-heading)] text-3xl text-[var(--ink)] mb-2">⚔️ Welcome to the Quest Board</h1>
+            <p className="text-[var(--ink-faded)] max-w-lg mx-auto mb-4">
+              Sign up for D&amp;D sessions, manage your characters, track your adventures, and coordinate with your party.
+            </p>
+            <a href="/auth/google" className="wood-btn wood-btn-primary no-underline inline-block text-sm">
+              🎲 Sign In with Google to Join
+            </a>
+          </div>
+        </div>
+      )}
+
+      {isLoggedIn && <h1 className="scroll-heading text-3xl mb-6">⚔️ Quest Board</h1>}
+
+      {/* Next session highlight */}
+      {isLoggedIn && sessions && sessions.length > 0 && (() => {
+        const next = sessions.find(s => s.date >= todayStr && s.spotsRemaining > 0);
+        if (!next) return null;
+        return (
+          <div className="parchment p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🗓️</span>
+              <div>
+                <p className="text-sm font-semibold text-[var(--ink)]">Next available: <strong>{next.title || next.campaign}</strong></p>
+                <p className="text-xs text-[var(--ink-faded)]">{formatDate(next.date)} · {formatTime(next.startTime)} · {next.spotsRemaining} spots open</p>
+              </div>
+            </div>
+            <a href={`/signup?sessionId=${next.sessionId}`} className="wood-btn wood-btn-primary text-xs py-1 px-3 no-underline">Sign Up →</a>
+          </div>
+        );
+      })()}
 
       {/* Calendar */}
       <div className="parchment p-5 mb-6" {...swipeHandlers}>
