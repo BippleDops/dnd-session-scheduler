@@ -433,6 +433,16 @@ function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_worldstate_campaign ON world_state(campaign_id);
     CREATE INDEX IF NOT EXISTS idx_moments_session ON session_moments(session_id);
     CREATE INDEX IF NOT EXISTS idx_homework_player ON homework_progress(player_id);
+
+    -- Composite indexes for frequent query patterns
+    CREATE INDEX IF NOT EXISTS idx_registrations_session_status ON registrations(session_id, status);
+    CREATE INDEX IF NOT EXISTS idx_registrations_player_status ON registrations(player_id, status);
+    CREATE INDEX IF NOT EXISTS idx_sessions_date_status ON sessions(date, status);
+    CREATE INDEX IF NOT EXISTS idx_session_history_date ON session_history(session_date);
+    CREATE INDEX IF NOT EXISTS idx_notifications_player ON notifications(player_id, read);
+    CREATE INDEX IF NOT EXISTS idx_session_comments_session ON session_comments(session_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_player_id);
+    CREATE INDEX IF NOT EXISTS idx_email_log_timestamp ON email_log(timestamp);
   `);
 
   // Seed default config values
