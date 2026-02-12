@@ -4,6 +4,7 @@ import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions } from '@/lib/api';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { SessionGridSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 import WoodButton from '@/components/ui/WoodButton';
 
@@ -13,7 +14,7 @@ export default function SessionsPage() {
   const [showSubscribe, setShowSubscribe] = useState(false);
   const feedUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/calendar/feed.ics` : '';
 
-  if (loading) return <CandleLoader text="Unrolling the scrolls..." />;
+  if (loading) return <SessionGridSkeleton />;
 
   return (
     <div>

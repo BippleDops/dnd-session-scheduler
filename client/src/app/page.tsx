@@ -5,6 +5,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions, type Session } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { CalendarSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 
 export default function CalendarPage() {
@@ -41,7 +42,7 @@ export default function CalendarPage() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrev = new Date(year, month, 0).getDate();
 
-  if (loading) return <CandleLoader text="Consulting the oracle..." />;
+  if (loading) return <CalendarSkeleton />;
 
   const daySessions = selectedDate ? (sessionsByDate[selectedDate] || []) : [];
 
