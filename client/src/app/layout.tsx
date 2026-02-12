@@ -46,10 +46,19 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'D&D Sessions',
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: '#8b0000',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
 };
 
 const jsonLd = {
