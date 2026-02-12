@@ -1,12 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getRecaps, getCampaigns } from '@/lib/api';
 import { formatDate, campaignColor } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import WaxSeal from '@/components/ui/WaxSeal';
 
 export default function RecapsPage() {
+  usePageTitle('Session Recaps');
   const [campaign, setCampaign] = useState('');
   const { data: recaps, loading } = useApi(() => getRecaps(campaign || undefined), [campaign]);
   const { data: campaigns } = useApi(getCampaigns);

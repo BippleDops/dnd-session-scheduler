@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getPolls, getPollDetail, votePoll, createPoll, getCampaignsList, type AvailabilityPoll, type AvailabilityPollDetail, type Campaign } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
@@ -10,6 +11,7 @@ import CandleLoader from '@/components/ui/CandleLoader';
 export default function PollsPage() { return <Suspense><PollsInner /></Suspense>; }
 
 function PollsInner() {
+  usePageTitle('Availability Polls');
   const searchParams = useSearchParams();
   const pollId = searchParams.get('poll') || '';
   const { isLoggedIn, isAdmin } = useAuth();

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyCharactersV2, createMyCharacter, updateMyCharacter, retireMyCharacter, type CharacterSheet } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
@@ -11,7 +12,8 @@ const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin',
 const RACES = ['Human','Elf','Dwarf','Halfling','Gnome','Half-Elf','Half-Orc','Tiefling','Dragonborn','Goliath','Aasimar','Genasi','Tabaxi','Firbolg','Kenku','Lizardfolk','Changeling','Shifter','Warforged'];
 
 export default function CharactersPage() {
-  const { isLoggedIn } = useAuth();
+  usePageTitle('Characters');
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [chars, setChars] = useState<CharacterSheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -57,6 +59,7 @@ export default function CharactersPage() {
     load();
   };
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return <ParchmentPanel title="Sign In Required"><p>Please sign in to manage characters.</p></ParchmentPanel>;
   if (loading) return <CandleLoader text="Loading characters..." />;
 

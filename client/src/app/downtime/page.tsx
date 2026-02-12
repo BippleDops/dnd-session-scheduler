@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyDowntime, submitDowntime, getMyCharactersV2, getCampaignsList, type DowntimeAction, type CharacterSheet, type Campaign } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
@@ -10,7 +11,8 @@ const TYPES = ['Crafting','Training','Research','Carousing','Working','Exploring
 const TYPE_ICONS: Record<string, string> = { Crafting: '🔨', Training: '⚔️', Research: '📚', Carousing: '🍺', Working: '💼', Exploring: '🗺️', Other: '❓' };
 
 export default function DowntimePage() {
-  const { isLoggedIn } = useAuth();
+  usePageTitle('Downtime Actions');
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [actions, setActions] = useState<DowntimeAction[]>([]);
   const [chars, setChars] = useState<CharacterSheet[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -33,6 +35,7 @@ export default function DowntimePage() {
     getMyDowntime().then(setActions);
   };
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return <ParchmentPanel title="Sign In Required"><p>Please sign in.</p></ParchmentPanel>;
   if (loading) return <CandleLoader text="Loading downtime..." />;
 

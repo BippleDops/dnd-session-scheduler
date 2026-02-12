@@ -1,12 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions } from '@/lib/api';
 import CandleLoader from '@/components/ui/CandleLoader';
 import QuestCard from '@/components/ui/QuestCard';
 import WoodButton from '@/components/ui/WoodButton';
 
 export default function SessionsPage() {
+  usePageTitle('Sessions');
   const { data: sessions, loading } = useApi(getSessions);
   const [showSubscribe, setShowSubscribe] = useState(false);
   const feedUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/calendar/feed.ics` : '';

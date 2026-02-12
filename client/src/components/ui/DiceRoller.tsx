@@ -59,6 +59,7 @@ export function DiceRoller({ sessionId }: Props) {
         onClick={() => setOpen(!open)}
         className="fixed bottom-6 right-6 z-[1500] w-14 h-14 rounded-full bg-[var(--gold)] text-[var(--wood-dark)] text-2xl shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
         title="Dice Roller"
+        aria-label={open ? 'Close dice roller' : 'Open dice roller'}
       >
         🎲
       </button>

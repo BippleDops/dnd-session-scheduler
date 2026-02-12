@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSession, getCsrfToken, submitSignup, getMyCharacters, getCampaigns, type Session, type Character } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -16,6 +17,7 @@ const RACES = ['Human','Elf','Half-Elf','Dwarf','Halfling','Gnome','Half-Orc','T
 
 export default function SignupPage() { return <Suspense><SignupInner /></Suspense>; }
 function SignupInner() {
+  usePageTitle('Sign Up');
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') || '';
   const { user, isLoggedIn } = useAuth();

@@ -1,6 +1,7 @@
 'use client';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyRegistrations, cancelMyRegistration, getMyFeedToken } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -10,10 +11,12 @@ import WoodButton from '@/components/ui/WoodButton';
 import { useToast } from '@/components/ui/Toast';
 
 export default function MySessionsPage() {
-  const { isLoggedIn } = useAuth();
+  usePageTitle('My Quests');
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const { data, loading, refetch } = useApi(getMyRegistrations);
   const { toast } = useToast();
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return (
     <ParchmentPanel className="text-center py-10">
       <h2 className="font-[var(--font-heading)] text-xl text-[var(--ink)]">Sign In to View Your Quests</h2>

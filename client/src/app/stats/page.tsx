@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyStats, getMyAchievements, type PlayerStats, type Achievement } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import CandleLoader from '@/components/ui/CandleLoader';
 
 export default function StatsPage() {
-  const { isLoggedIn } = useAuth();
+  usePageTitle('Adventurer Stats');
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,7 @@ export default function StatsPage() {
     }).finally(() => setLoading(false));
   }, [isLoggedIn]);
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return <ParchmentPanel title="Sign In Required"><p>Please sign in.</p></ParchmentPanel>;
   if (loading) return <CandleLoader text="Consulting the oracle..." />;
   if (!stats) return <ParchmentPanel><p>No stats available.</p></ParchmentPanel>;

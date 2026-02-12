@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getDiscussions, createThread, getThread, replyToThread, adminThread, getCampaignsList, type DiscussionThread, type DiscussionThreadDetail, type Campaign } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
@@ -10,6 +11,7 @@ import CandleLoader from '@/components/ui/CandleLoader';
 export default function DiscussionsPage() { return <Suspense><DiscussionsInner /></Suspense>; }
 
 function DiscussionsInner() {
+  usePageTitle('Tavern Talk');
   const searchParams = useSearchParams();
   const slug = searchParams.get('campaign') || '';
   const threadId = searchParams.get('thread') || '';

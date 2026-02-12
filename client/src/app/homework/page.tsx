@@ -1,13 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyHomework, updateHomework, type HomeworkEntry } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import CandleLoader from '@/components/ui/CandleLoader';
 import Link from 'next/link';
 
 export default function HomeworkPage() {
-  const { isLoggedIn } = useAuth();
+  usePageTitle('Homework');
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [entries, setEntries] = useState<HomeworkEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,6 +23,7 @@ export default function HomeworkPage() {
     getMyHomework().then(setEntries);
   };
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return <ParchmentPanel title="Sign In Required"><p>Please sign in.</p></ParchmentPanel>;
   if (loading) return <CandleLoader text="Loading homework..." />;
 

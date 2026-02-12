@@ -118,7 +118,7 @@ export default function TavernNav() {
         ) : (
           <a href="/auth/google" className="wood-btn wood-btn-primary text-xs py-1 px-3 no-underline">Sign In</a>
         )}
-        <button onClick={toggleDungeon} className="text-lg cursor-pointer bg-transparent border-none" title="Toggle Dungeon Mode">
+        <button onClick={toggleDungeon} className="text-lg cursor-pointer bg-transparent border-none" title="Toggle Dungeon Mode" aria-label={dungeonMode ? 'Switch to tavern mode' : 'Switch to dungeon mode'}>
           {dungeonMode ? '🕯️' : '🏰'}
         </button>
       </div>

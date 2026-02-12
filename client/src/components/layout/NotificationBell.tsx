@@ -25,7 +25,7 @@ export default function NotificationBell() {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className="text-lg bg-transparent border-none cursor-pointer relative">
+      <button onClick={() => setOpen(!open)} className="text-lg bg-transparent border-none cursor-pointer relative" aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}>
         🔔
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">

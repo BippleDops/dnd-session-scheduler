@@ -1,12 +1,14 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions, type Session } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import QuestCard from '@/components/ui/QuestCard';
 
 export default function CalendarPage() {
+  usePageTitle('Quest Board');
   const { data: sessions, loading } = useApi(getSessions);
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);

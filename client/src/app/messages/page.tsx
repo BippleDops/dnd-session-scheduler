@@ -1,13 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyMessages, sendMessage, markMessageRead, getMyContacts, type Message } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
 
 export default function MessagesPage() {
-  const { isLoggedIn, user } = useAuth();
+  usePageTitle('Messages');
+  const { isLoggedIn, loading: authLoading, user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [players, setPlayers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +41,7 @@ export default function MessagesPage() {
     }
   };
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return <ParchmentPanel title="Sign In Required"><p>Please sign in to view messages.</p></ParchmentPanel>;
   if (loading) return <CandleLoader text="Loading messages..." />;
 

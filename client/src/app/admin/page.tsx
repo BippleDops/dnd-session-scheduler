@@ -1,5 +1,6 @@
 'use client';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminDashboard, triggerReminders, triggerBackup } from '@/lib/api';
 import { formatDate, formatTime, formatTimestamp, campaignColor } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -8,6 +9,7 @@ import WoodButton from '@/components/ui/WoodButton';
 import { useToast } from '@/components/ui/Toast';
 
 export default function AdminDashboard() {
+  usePageTitle('DM War Table');
   const { data, loading } = useApi(getAdminDashboard);
   const { toast } = useToast();
 

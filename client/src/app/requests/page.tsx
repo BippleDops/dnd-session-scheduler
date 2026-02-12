@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessionRequests, createSessionRequest, voteSessionRequest, getCampaignsList, type SessionRequest, type Campaign } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
 
 export default function RequestsPage() {
+  usePageTitle('Session Requests');
   const { isLoggedIn } = useAuth();
   const [requests, setRequests] = useState<SessionRequest[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
