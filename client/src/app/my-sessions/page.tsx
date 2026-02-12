@@ -10,12 +10,14 @@ import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 export default function MySessionsPage() {
   usePageTitle('My Quests');
   const { isLoggedIn, loading: authLoading } = useAuth();
   const { data, loading, refetch } = useApi(getMyRegistrations);
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return (
@@ -29,7 +31,8 @@ export default function MySessionsPage() {
   if (loading) return <CandleLoader text="Opening your quest log..." />;
 
   const handleCancel = async (regId: string) => {
-    if (!confirm('Abandon this quest?')) return;
+    const ok = await confirm({ title: 'Abandon Quest?', message: 'Are you sure you want to cancel this registration? Your spot will be freed for another adventurer.', confirmLabel: 'Abandon', variant: 'danger' });
+    if (!ok) return;
     const r = await cancelMyRegistration(regId);
     if (r.success) { toast('Quest cancelled', 'success'); refetch(); }
     else toast(r.message || 'Failed', 'error');

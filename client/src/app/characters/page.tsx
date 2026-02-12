@@ -7,6 +7,7 @@ import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import Link from 'next/link';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter'];
@@ -20,6 +21,8 @@ export default function CharactersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+
+  const confirm = useConfirm();
 
   const load = useCallback(() => {
     if (!isLoggedIn) return;
@@ -55,7 +58,8 @@ export default function CharactersPage() {
   };
 
   const handleRetire = async (id: string) => {
-    if (!confirm('Retire this character? This cannot be undone.')) return;
+    const ok = await confirm({ title: 'Retire Character?', message: 'This character will be permanently retired. Their adventures end here. This cannot be undone.', confirmLabel: 'Retire', variant: 'danger' });
+    if (!ok) return;
     await retireMyCharacter(id);
     load();
   };
