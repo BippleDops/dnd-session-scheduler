@@ -2,19 +2,22 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getSessions, type Session } from '@/lib/api';
+import { getSessions, getCampaignsList, type Session, type Campaign } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import { useSwipe } from '@/hooks/useSwipe';
 import { CalendarSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 import CalendarPopover from '@/components/ui/CalendarPopover';
+import WaxSeal from '@/components/ui/WaxSeal';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
+import Link from 'next/link';
 
 export default function CalendarPage() {
   usePageTitle('Quest Board');
   const { isLoggedIn } = useAuth();
   const { data: sessions, loading } = useApi(getSessions);
+  const { data: campaigns } = useApi(getCampaignsList);
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [hoverDate, setHoverDate] = useState<string | null>(null);
@@ -198,6 +201,23 @@ export default function CalendarPage() {
       {/* No sessions */}
       {(!sessions || sessions.length === 0) && (
         <EmptyStateFromPreset preset="sessions" />
+      )}
+
+      {/* Campaigns */}
+      {campaigns && campaigns.length > 0 && (
+        <div className="mt-8">
+          <h2 className="scroll-heading text-xl mb-4">🗺️ Campaigns</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {campaigns.map(c => (
+              <Link key={c.campaign_id} href={`/campaign?slug=${c.slug}`}
+                className="parchment p-4 text-center no-underline hover:shadow-lg transition-shadow group">
+                <WaxSeal campaign={c.name} size={40} />
+                <p className="font-[var(--font-heading)] text-sm text-[var(--ink)] mt-2 group-hover:text-[var(--gold)] transition-colors">{c.name}</p>
+                {c.description && <p className="text-[10px] text-[var(--ink-faded)] mt-1 line-clamp-2">{c.description}</p>}
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
