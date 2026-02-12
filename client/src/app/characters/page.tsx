@@ -6,6 +6,7 @@ import { getMyCharactersV2, createMyCharacter, updateMyCharacter, retireMyCharac
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { useToast } from '@/components/ui/Toast';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import Link from 'next/link';
@@ -23,6 +24,7 @@ export default function CharactersPage() {
   const [form, setForm] = useState<Record<string, string>>({});
 
   const confirm = useConfirm();
+  const { toast } = useToast();
 
   const load = useCallback(() => {
     if (!isLoggedIn) return;
@@ -33,15 +35,21 @@ export default function CharactersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId) {
-      await updateMyCharacter(editId, form);
-    } else {
-      await createMyCharacter(form);
+    try {
+      if (editId) {
+        await updateMyCharacter(editId, form);
+        toast('Character updated!', 'success');
+      } else {
+        await createMyCharacter(form);
+        toast('Character created!', 'success');
+      }
+      setShowForm(false);
+      setEditId(null);
+      setForm({});
+      load();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save character', 'error');
     }
-    setShowForm(false);
-    setEditId(null);
-    setForm({});
-    load();
   };
 
   const startEdit = (c: CharacterSheet) => {
@@ -60,8 +68,13 @@ export default function CharactersPage() {
   const handleRetire = async (id: string) => {
     const ok = await confirm({ title: 'Retire Character?', message: 'This character will be permanently retired. Their adventures end here. This cannot be undone.', confirmLabel: 'Retire', variant: 'danger' });
     if (!ok) return;
-    await retireMyCharacter(id);
-    load();
+    try {
+      await retireMyCharacter(id);
+      toast('Character retired', 'success');
+      load();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to retire character', 'error');
+    }
   };
 
   if (authLoading) return <CandleLoader text="Checking credentials..." />;

@@ -7,6 +7,7 @@ import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useToast } from '@/components/ui/Toast';
 
 export default function RequestsPage() {
   usePageTitle('Session Requests');
@@ -16,6 +17,7 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ campaignId: '', preferredDate: '', message: '' });
+  const { toast } = useToast();
 
   useEffect(() => {
     Promise.all([getSessionRequests(), getCampaignsList()]).then(([r, c]) => {
@@ -25,15 +27,25 @@ export default function RequestsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createSessionRequest(form);
-    setShowForm(false);
-    setForm({ campaignId: '', preferredDate: '', message: '' });
-    getSessionRequests().then(setRequests);
+    try {
+      await createSessionRequest(form);
+      toast('Session request submitted!', 'success');
+      setShowForm(false);
+      setForm({ campaignId: '', preferredDate: '', message: '' });
+      getSessionRequests().then(setRequests);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to submit request', 'error');
+    }
   };
 
   const handleVote = async (id: string) => {
-    await voteSessionRequest(id, []);
-    getSessionRequests().then(setRequests);
+    try {
+      await voteSessionRequest(id, []);
+      toast('Vote recorded!', 'success');
+      getSessionRequests().then(setRequests);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to vote', 'error');
+    }
   };
 
   if (loading) return <CandleLoader text="Loading requests..." />;

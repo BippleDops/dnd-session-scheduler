@@ -7,6 +7,7 @@ import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useToast } from '@/components/ui/Toast';
 
 const TYPES = ['Crafting','Training','Research','Carousing','Working','Exploring','Other'];
 const TYPE_ICONS: Record<string, string> = { Crafting: '🔨', Training: '⚔️', Research: '📚', Carousing: '🍺', Working: '💼', Exploring: '🗺️', Other: '❓' };
@@ -19,6 +20,7 @@ export default function DowntimePage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ characterId: '', campaignId: '', type: 'Other', description: '', goal: '', duration: '' });
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -29,10 +31,15 @@ export default function DowntimePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await submitDowntime(form);
-    setShowForm(false);
-    setForm({ characterId: '', campaignId: '', type: 'Other', description: '', goal: '', duration: '' });
-    getMyDowntime().then(setActions);
+    try {
+      await submitDowntime(form);
+      toast('Downtime action submitted!', 'success');
+      setShowForm(false);
+      setForm({ characterId: '', campaignId: '', type: 'Other', description: '', goal: '', duration: '' });
+      getMyDowntime().then(setActions);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to submit', 'error');
+    }
   };
 
   if (authLoading) return <CandleLoader text="Checking credentials..." />;
