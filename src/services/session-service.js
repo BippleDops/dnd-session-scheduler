@@ -205,9 +205,23 @@ function updateSessionRecord(sessionId, data, adminEmail) {
 
 function cancelSessionRecord(sessionId, notify, adminEmail) {
   const db = getDb();
+  const session = db.prepare('SELECT campaign, date FROM sessions WHERE session_id = ?').get(sessionId);
   db.prepare(`UPDATE sessions SET status = 'Cancelled', modified_at = datetime('now') WHERE session_id = ?`)
     .run(sessionId);
   logAction(ACTION_TYPES.SESSION_CANCELLED, 'Session cancelled', adminEmail, sessionId);
+
+  // Notify registered players about cancellation
+  if (notify && session) {
+    try {
+      const { createNotification } = require('./notification-service');
+      const regs = db.prepare("SELECT player_id FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Waitlisted')").all(sessionId);
+      for (const reg of regs) {
+        createNotification(reg.player_id, 'session_cancelled',
+          `${session.campaign} session on ${normalizeDate(session.date)} has been cancelled.`, sessionId);
+      }
+    } catch { /* best effort */ }
+  }
+
   return { success: true };
 }
 

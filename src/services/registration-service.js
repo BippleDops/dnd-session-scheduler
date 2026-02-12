@@ -5,6 +5,7 @@
 const { getDb, generateUuid, nowTimestamp, normalizeDate, normalizeTime, logAction, getConfigValue } = require('../db');
 const { upsertPlayer, getPlayerByEmail } = require('./player-service');
 const { getTierRange, getTierLabel } = require('./session-service');
+const { createNotification } = require('./notification-service');
 const { checkRateLimit } = require('../middleware/rate-limit');
 const { validateCsrfToken } = require('../middleware/csrf');
 
@@ -154,6 +155,14 @@ function processSignup(formData) {
     } catch (e) { console.error('Confirmation email setup error:', e.message); }
   }
 
+  // Create in-app notification
+  try {
+    const notifMsg = isWaitlisted
+      ? `You've been waitlisted for ${session.campaign} on ${normalizeDate(session.date)}.`
+      : `You're registered for ${session.campaign} on ${normalizeDate(session.date)}!`;
+    createNotification(playerResult.playerId, 'registration', notifMsg, regId);
+  } catch { /* best effort */ }
+
   if (isWaitlisted) {
     return {
       success: true,
@@ -214,6 +223,17 @@ function promoteNextWaitlisted(sessionId) {
   logAction(ACTION_TYPES.REGISTRATION_CREATED,
     'Waitlisted player auto-promoted: ' + waitlisted.char_name_snapshot,
     'System', waitlisted.registration_id);
+
+  // Notify the promoted player
+  try {
+    const session = db.prepare('SELECT campaign, date FROM sessions WHERE session_id = ?').get(sessionId);
+    if (session) {
+      createNotification(waitlisted.player_id, 'waitlist_promoted',
+        `A spot opened up! You're now confirmed for ${session.campaign} on ${normalizeDate(session.date)}.`,
+        waitlisted.registration_id);
+    }
+  } catch { /* best effort */ }
+
   return waitlisted;
 }
 

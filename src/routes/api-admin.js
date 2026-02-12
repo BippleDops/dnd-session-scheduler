@@ -172,11 +172,15 @@ router.get('/dashboard', (req, res) => {
     const sessionsThisMonth = db.prepare(`SELECT COUNT(*) AS c FROM sessions WHERE date >= ? AND date <= ? AND status = 'Scheduled'`).get(today, monthEndStr).c;
 
     const thisWeekSessions = db.prepare(`
-      SELECT * FROM sessions WHERE date >= ? AND date <= ? AND status = 'Scheduled' ORDER BY date, start_time
-    `).all(today, weekEndStr).map(s => {
-      const count = db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Attended')`).get(s.session_id).c;
-      return { sessionId: s.session_id, date: s.date, startTime: s.start_time, campaign: s.campaign, title: s.title, maxPlayers: s.max_players, registeredCount: count };
-    });
+      SELECT s.*,
+        (SELECT COUNT(*) FROM registrations r WHERE r.session_id = s.session_id AND r.status IN ('Confirmed','Attended')) AS registered_count
+      FROM sessions s WHERE s.date >= ? AND s.date <= ? AND s.status = 'Scheduled'
+      ORDER BY s.date, s.start_time
+    `).all(today, weekEndStr).map(s => ({
+      sessionId: s.session_id, date: s.date, startTime: s.start_time,
+      campaign: s.campaign, title: s.title, maxPlayers: s.max_players,
+      registeredCount: s.registered_count,
+    }));
 
     const recentLogs = db.prepare('SELECT * FROM admin_log ORDER BY timestamp DESC LIMIT 10').all().map(l => ({
       ActionType: l.action_type, Timestamp: l.timestamp, Details: l.details,
