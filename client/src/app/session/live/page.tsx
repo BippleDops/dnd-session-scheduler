@@ -3,6 +3,8 @@ import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getInitiativeEntries, addInitiativeEntry, updateInitiativeEntry, deleteInitiativeEntry, clearInitiative, getDiceHistory, getSessionComments, postSessionComment, type InitiativeEntry, type DiceRoll, type Comment } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { useSSEContext } from '@/hooks/useSSEContext';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -12,15 +14,16 @@ const CONDITIONS = ['Blinded','Charmed','Deafened','Frightened','Grappled','Inca
 export default function LiveSessionPage() { return <Suspense><LiveSessionInner /></Suspense>; }
 
 function LiveSessionInner() {
+  usePageTitle('Live Session');
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') || '';
   const { isAdmin } = useAuth();
+  const { setSessionId, subscribe, presence } = useSSEContext();
   const [entries, setEntries] = useState<InitiativeEntry[]>([]);
   const [diceHistory, setDiceHistory] = useState<DiceRoll[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [currentTurn, setCurrentTurn] = useState(0);
   const [round, setRound] = useState(1);
-  const [presence, setPresence] = useState(0);
   const [addForm, setAddForm] = useState({ name: '', initiative: '', hp: '', maxHp: '', isNpc: false });
   const [commentText, setCommentText] = useState('');
 
@@ -33,22 +36,24 @@ function LiveSessionInner() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // SSE for real-time
+  // Connect shared SSE to this session
   useEffect(() => {
     if (!sessionId) return;
-    const base = process.env.NEXT_PUBLIC_API_URL || '';
-    const es = new EventSource(`${base}/api/sse/${sessionId}`, { withCredentials: true });
-    es.addEventListener('initiative_update', (e: MessageEvent) => {
-      try { setEntries(JSON.parse(e.data)); } catch {}
+    setSessionId(sessionId);
+    return () => setSessionId(null);
+  }, [sessionId, setSessionId]);
+
+  // Subscribe to SSE events via shared context
+  useEffect(() => {
+    if (!sessionId) return;
+    const unsub1 = subscribe('initiative_update', (data) => {
+      setEntries(data as InitiativeEntry[]);
     });
-    es.addEventListener('dice_roll', (e: MessageEvent) => {
-      try { setDiceHistory(prev => [JSON.parse(e.data), ...prev].slice(0, 30)); } catch {}
+    const unsub2 = subscribe('dice_roll', (data) => {
+      setDiceHistory(prev => [data as DiceRoll, ...prev].slice(0, 30));
     });
-    es.addEventListener('presence', (e: MessageEvent) => {
-      try { setPresence(JSON.parse(e.data).count); } catch {}
-    });
-    return () => es.close();
-  }, [sessionId]);
+    return () => { unsub1(); unsub2(); };
+  }, [sessionId, subscribe]);
 
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +107,6 @@ function LiveSessionInner() {
         {/* Initiative Tracker — main column */}
         <div className="lg:col-span-2 space-y-4">
           <ParchmentPanel title="Initiative Order">
-            {/* Turn controls */}
             {isAdmin && entries.length > 0 && (
               <div className="flex gap-2 mb-4">
                 <WoodButton onClick={prevTurn} variant="secondary">◀ Prev</WoodButton>
@@ -129,23 +133,23 @@ function LiveSessionInner() {
                           {entry.is_npc ? <span className="text-xs bg-red-900/30 text-red-400 px-1 rounded">NPC</span> : null}
                         </div>
                         {isAdmin && (
-                          <button onClick={() => deleteInitiativeEntry(entry.entry_id).then(loadData)} className="text-red-400 text-xs hover:text-red-300">✕</button>
+                          <button onClick={() => deleteInitiativeEntry(entry.entry_id).then(loadData)} className="text-red-400 text-xs hover:text-red-300" aria-label={`Remove ${entry.name}`}>✕</button>
                         )}
                       </div>
 
-                      {/* HP bar */}
                       <div className="mt-2">
                         <div className="flex justify-between text-xs mb-1">
                           <span>❤️ {entry.hp}/{entry.max_hp}</span>
                           <span>{hpPct}%</span>
                         </div>
-                        <div className="h-2 bg-[var(--wood)] rounded overflow-hidden">
+                        <div className="h-2 bg-[var(--wood)] rounded overflow-hidden" role="progressbar" aria-valuenow={entry.hp} aria-valuemax={entry.max_hp} aria-label={`${entry.name} health`}>
                           <div className={`h-full transition-all ${hpPct > 50 ? 'bg-green-500' : hpPct > 25 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${hpPct}%` }} />
                         </div>
                         {isAdmin && (
                           <div className="flex gap-1 mt-1">
                             {[-10, -5, -1, 1, 5, 10].map(n => (
                               <button key={n} onClick={() => handleDamage(entry, n)}
+                                aria-label={`${n > 0 ? 'Heal' : 'Damage'} ${entry.name} by ${Math.abs(n)}`}
                                 className={`text-xs px-2 py-0.5 rounded ${n < 0 ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'}`}>
                                 {n > 0 ? `+${n}` : n}
                               </button>
@@ -154,11 +158,11 @@ function LiveSessionInner() {
                         )}
                       </div>
 
-                      {/* Conditions */}
                       {(conditions.length > 0 || isAdmin) && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           {isAdmin ? CONDITIONS.map(c => (
                             <button key={c} onClick={() => toggleCondition(entry, c)}
+                              aria-pressed={conditions.includes(c)}
                               className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${conditions.includes(c) ? 'bg-purple-700 text-white' : 'bg-[var(--wood)] text-[var(--ink-faded)]'}`}>
                               {c}
                             </button>
@@ -173,7 +177,6 @@ function LiveSessionInner() {
               </div>
             )}
 
-            {/* Add entry form (admin only) */}
             {isAdmin && (
               <form onSubmit={handleAddEntry} className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2">
                 <input required placeholder="Name" className="parchment-input" value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })} />
@@ -225,4 +228,3 @@ function LiveSessionInner() {
     </div>
   );
 }
-
