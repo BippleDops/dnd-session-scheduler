@@ -363,6 +363,20 @@ router.put('/plot-threads/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// ── Guest Invites ──
+router.post('/sessions/:id/invite', (req, res) => {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(16).toString('hex');
+  const maxUses = parseInt(req.body.maxUses, 10) || 5;
+  const expiresIn = parseInt(req.body.expiresInDays, 10) || 7;
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + expiresIn);
+  getDb().prepare('INSERT INTO guest_tokens (token, session_id, created_by, max_uses, expires_at) VALUES (?, ?, ?, ?, ?)')
+    .run(token, req.params.id, req.user.email, maxUses, expiresAt.toISOString());
+  const url = `${process.env.BASE_URL || ''}/signup?sessionId=${req.params.id}&invite=${token}`;
+  res.json({ success: true, token, url, maxUses, expiresAt: expiresAt.toISOString() });
+});
+
 // ── Email Log ──
 router.get('/emails', (req, res) => {
   const db = getDb();

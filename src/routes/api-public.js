@@ -299,6 +299,45 @@ router.post('/me/notifications/read-all', (req, res) => {
   res.json({ success: true });
 });
 
+// ── Gallery ──
+router.get('/gallery', (req, res) => {
+  const db = getDb();
+  const campaignId = req.query.campaignId;
+  const items = campaignId
+    ? db.prepare('SELECT g.*, p.name as player_name FROM gallery_items g LEFT JOIN players p ON g.player_id = p.player_id WHERE g.campaign_id = ? ORDER BY g.upvotes DESC, g.created_at DESC').all(campaignId)
+    : db.prepare('SELECT g.*, p.name as player_name FROM gallery_items g LEFT JOIN players p ON g.player_id = p.player_id ORDER BY g.upvotes DESC, g.created_at DESC LIMIT 50').all();
+  res.json(items);
+});
+
+router.post('/me/gallery', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  const { title, description, imageUrl, campaignId } = req.body;
+  if (!imageUrl) return res.status(400).json({ error: 'Image URL required' });
+  const id = generateUuid();
+  getDb().prepare('INSERT INTO gallery_items (item_id, campaign_id, player_id, title, description, image_url) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, campaignId || null, player.player_id, title || '', description || '', imageUrl);
+  res.json({ success: true, itemId: id });
+});
+
+router.post('/gallery/:id/upvote', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  getDb().prepare('UPDATE gallery_items SET upvotes = upvotes + 1 WHERE item_id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// ── Guest Invite Links ──
+router.get('/invite/:token', (req, res) => {
+  const db = getDb();
+  const invite = db.prepare('SELECT * FROM guest_tokens WHERE token = ?').get(req.params.token);
+  if (!invite) return res.status(404).json({ error: 'Invalid invite link' });
+  if (invite.expires_at && new Date(invite.expires_at) < new Date()) return res.status(410).json({ error: 'Invite expired' });
+  if (invite.max_uses > 0 && invite.uses >= invite.max_uses) return res.status(410).json({ error: 'Invite used up' });
+  const session = db.prepare('SELECT * FROM sessions WHERE session_id = ?').get(invite.session_id);
+  res.json({ session, invite });
+});
+
 // ── RSVP one-click (no login required, uses signed token) ──
 router.get('/rsvp', (req, res) => {
   const { token, response } = req.query;
