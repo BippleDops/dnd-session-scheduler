@@ -52,6 +52,24 @@ export default function MySessionsPage() {
         <WoodButton variant="sm" onClick={handleSubscribe}>📅 Subscribe My Calendar</WoodButton>
       </div>
 
+      {/* Quick stats */}
+      {data && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="parchment p-3 text-center">
+            <div className="text-2xl font-bold text-[var(--gold)]">{data.upcoming.length}</div>
+            <div className="text-[10px] text-[var(--ink-faded)] uppercase">Upcoming</div>
+          </div>
+          <div className="parchment p-3 text-center">
+            <div className="text-2xl font-bold text-[var(--gold)]">{data.past.length}</div>
+            <div className="text-[10px] text-[var(--ink-faded)] uppercase">Past</div>
+          </div>
+          <div className="parchment p-3 text-center">
+            <div className="text-2xl font-bold text-[var(--gold)]">{data.characters.length}</div>
+            <div className="text-[10px] text-[var(--ink-faded)] uppercase">Characters</div>
+          </div>
+        </div>
+      )}
+
       {/* Upcoming */}
       <h2 className="scroll-heading text-xl mb-3">Upcoming Adventures</h2>
       {data?.upcoming.length === 0 ? (

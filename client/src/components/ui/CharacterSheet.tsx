@@ -97,11 +97,14 @@ export default function VisualCharacterSheet({ character: c }: Props) {
       </div>
 
       {/* Gold */}
-      <div className="mt-4 flex items-center gap-4 text-sm">
+      <div className="mt-4 flex items-center gap-4 text-sm flex-wrap">
         <span className="font-semibold text-[var(--ink)]">💰 Wealth:</span>
         <span className="text-[var(--gold)]">{c.gold}g</span>
         <span className="text-gray-400">{c.silver}s</span>
         <span className="text-amber-700">{c.copper}c</span>
+        <span className="text-[10px] text-[var(--ink-faded)]">
+          (≈ {(c.gold + (c.silver || 0) / 10 + (c.copper || 0) / 100).toFixed(1)}g total)
+        </span>
       </div>
 
       {/* Proficiencies & Equipment */}

@@ -70,6 +70,16 @@ function ProfileInner() {
         </div>
       )}
 
+      {/* Profile quick links */}
+      {hasProfile && (
+        <div className="flex gap-3 mb-4 flex-wrap">
+          <a href="/stats" className="text-xs text-[var(--gold)] hover:underline no-underline">📊 My Stats</a>
+          <a href="/characters" className="text-xs text-[var(--gold)] hover:underline no-underline">🗡️ My Characters</a>
+          <a href="/my-sessions" className="text-xs text-[var(--gold)] hover:underline no-underline">🎒 My Quests</a>
+          <a href={`/player?id=${name}`} className="text-xs text-[var(--gold)] hover:underline no-underline">🌐 Public Profile</a>
+        </div>
+      )}
+
       {!hasProfile ? (
         <ParchmentPanel className="text-center py-10">
           <p className="text-[var(--ink-faded)]">No profile found. <a href="/sessions" className="text-[var(--gold)] underline">Sign up for a quest</a> to create one.</p>

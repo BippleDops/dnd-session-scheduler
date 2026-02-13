@@ -159,6 +159,21 @@ function SignupInner() {
         })()}
       </ParchmentPanel>
 
+      {/* Current roster */}
+      {session.roster.length > 0 && (
+        <ParchmentPanel>
+          <p className="text-xs font-semibold text-[var(--ink-faded)] uppercase tracking-wide mb-2">⚔️ Current Adventuring Party ({session.roster.length}/{session.maxPlayers})</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+            {session.roster.map((r, i) => (
+              <div key={i} className="text-xs p-1.5 rounded bg-[rgba(0,0,0,0.03)]">
+                <span className="font-semibold text-[var(--ink)]">{r.characterName}</span>
+                <span className="text-[var(--ink-faded)] ml-1">{r.characterClass} Lv.{r.characterLevel}</span>
+              </div>
+            ))}
+          </div>
+        </ParchmentPanel>
+      )}
+
       {/* Character picker */}
       {characters.length > 0 && (
         <ParchmentPanel>

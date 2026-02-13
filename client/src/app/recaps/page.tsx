@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getRecaps, getCampaigns } from '@/lib/api';
@@ -40,7 +40,7 @@ export default function RecapsPage() {
                 </div>
                 <WaxSeal campaign={r.campaign} />
               </div>
-              <div className="mt-3 text-[var(--ink)] text-sm leading-relaxed whitespace-pre-wrap">{r.recap}</div>
+              <RecapText text={r.recap} />
               {r.attendees && (
                 <p className="mt-3 text-xs text-[var(--ink-faded)]">Adventurers: {r.attendees}</p>
               )}
@@ -48,6 +48,27 @@ export default function RecapsPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function RecapText({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > 300;
+  const displayText = isLong && !expanded ? text.slice(0, 300) + '...' : text;
+  const readTime = Math.max(1, Math.ceil(text.split(/\s+/).length / 200));
+
+  return (
+    <div className="mt-3">
+      <p className="text-[var(--ink)] text-sm leading-relaxed whitespace-pre-wrap">{displayText}</p>
+      <div className="flex items-center gap-3 mt-2">
+        {isLong && (
+          <button onClick={() => setExpanded(!expanded)} className="text-xs text-[var(--gold)] hover:underline bg-transparent border-none cursor-pointer">
+            {expanded ? 'Show less' : 'Read more'}
+          </button>
+        )}
+        <span className="text-[10px] text-[var(--ink-faded)]">~{readTime} min read</span>
+      </div>
     </div>
   );
 }
