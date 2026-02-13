@@ -30,14 +30,23 @@ function formatTimeForEmail(timeStr) {
   return String(timeStr);
 }
 
-function wrapEmailTemplate(title, content) {
+/**
+ * @param {string} title
+ * @param {string} content
+ * @param {string} [unsubscribeUrl] — one-click unsubscribe link
+ */
+function wrapEmailTemplate(title, content, unsubscribeUrl) {
+  const unsubLine = unsubscribeUrl
+    ? `<p style="margin-top:8px;"><a href="${unsubscribeUrl}" style="color:#999;text-decoration:underline;">Unsubscribe from this type of email</a></p>`
+    : '';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#f5f0e1;color:#2c2c2c;">
 <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
 <div style="background:#8b0000;padding:20px 30px;"><h1 style="margin:0;color:#fff;font-size:20px;">D&D Session Scheduler</h1></div>
 <div style="padding:30px;">${content}</div>
 <div style="background:#f5f0e1;padding:15px 30px;font-size:12px;color:#888;text-align:center;">
-This is an automated message from the D&D Session Scheduler.
+This is an automated message from the D&D Session Scheduler.${unsubLine}
+<p style="margin-top:4px;"><a href="${process.env.BASE_URL || ''}/profile" style="color:#999;">Manage email preferences</a></p>
 </div></div></body></html>`;
 }
 

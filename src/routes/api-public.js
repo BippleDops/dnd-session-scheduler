@@ -299,6 +299,36 @@ router.post('/me/notifications/read-all', (req, res) => {
   res.json({ success: true });
 });
 
+// ── One-click email unsubscribe (no login required, uses signed token) ──
+router.get('/unsubscribe', (req, res) => {
+  const { token, category } = req.query;
+  if (!token || !category) return res.status(400).send('Invalid unsubscribe link.');
+  const crypto = require('crypto');
+  const validCategories = ['reminders', 'confirmations', 'cancellations', 'updates', 'digest', 'achievements'];
+  if (!validCategories.includes(category)) return res.status(400).send('Invalid category.');
+
+  // Verify token: token = hmac(playerId + category)
+  const db = getDb();
+  const players = db.prepare('SELECT player_id FROM players').all();
+  let matchedPlayerId = null;
+  const secret = process.env.SESSION_SECRET || 'unsubscribe-secret';
+  for (const p of players) {
+    const expected = crypto.createHmac('sha256', secret).update(p.player_id + category).digest('hex').slice(0, 32);
+    if (expected === token) { matchedPlayerId = p.player_id; break; }
+  }
+  if (!matchedPlayerId) return res.status(400).send('Invalid or expired unsubscribe link.');
+
+  // Disable this category
+  db.prepare(`INSERT INTO email_preferences (player_id, ${category}) VALUES (?, 0)
+    ON CONFLICT(player_id) DO UPDATE SET ${category} = 0, updated_at = datetime('now')`)
+    .run(matchedPlayerId);
+
+  res.send(`<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#f5f0e1;">
+    <h2>✅ Unsubscribed</h2><p>You've been unsubscribed from <strong>${category}</strong> emails.</p>
+    <p><a href="${process.env.BASE_URL || ''}/profile">Manage all email preferences</a></p>
+  </body></html>`);
+});
+
 // ── Email Preferences ──
 router.get('/me/email-preferences', (req, res) => {
   if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });

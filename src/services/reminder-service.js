@@ -131,6 +131,16 @@ function hasEmailBeenSent(playerId, sessionId, emailType) {
  * Check if a player has opted in to a specific email category.
  * Returns true if they want to receive it (default: yes).
  */
+/**
+ * Generate a one-click unsubscribe URL for a player + email category.
+ */
+function getUnsubscribeUrl(playerId, category) {
+  const crypto = require('crypto');
+  const secret = process.env.SESSION_SECRET || 'unsubscribe-secret';
+  const token = crypto.createHmac('sha256', secret).update(playerId + category).digest('hex').slice(0, 32);
+  return `${process.env.BASE_URL || ''}/api/unsubscribe?token=${token}&category=${category}`;
+}
+
 function playerWantsEmail(playerId, category) {
   if (!playerId) return true;
   const db = getDb();
@@ -298,6 +308,7 @@ module.exports = {
   hasEmailBeenSent,
   markEmailSent,
   playerWantsEmail,
+  getUnsubscribeUrl,
   draftPlayerReminders,
   draftDMInfoSheet,
   draftDMRecapReminder,
