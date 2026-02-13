@@ -1,6 +1,7 @@
 'use client';
 import { type Session } from '@/lib/api';
 import { formatTime, campaignColor } from '@/lib/utils';
+import { theme, type TierKey } from '@/lib/theme';
 
 interface Props {
   sessions: Session[];
@@ -29,6 +30,10 @@ export default function CalendarPopover({ sessions, position }: Props) {
             <p className="text-xs text-[var(--parchment-dark)] mt-0.5">
               {formatTime(s.startTime)} — {formatTime(s.endTime)}
             </p>
+            {s.levelTier && s.levelTier !== 'any' && (() => {
+              const t = theme.tiers[(s.levelTier || 'any') as TierKey];
+              return <span className="text-[10px] mt-0.5 block" style={{ color: t?.color }}>🛡️ {t?.label} (Lv {t?.range})</span>;
+            })()}
             <div className="flex justify-between items-center mt-1">
               <span className={`text-[10px] ${full ? 'text-red-400' : 'text-[var(--parchment-dark)]'}`}>
                 {full ? 'Full' : `${s.spotsRemaining} spots open`}

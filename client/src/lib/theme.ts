@@ -23,11 +23,11 @@ export const theme = {
     'Two Cities': { color: '#b8860b', label: 'Two Cities' },
   },
   tiers: {
-    any: { label: 'Any Level', range: '1-20' },
-    tier1: { label: 'Tier 1', range: '1-4', name: 'Local Heroes' },
-    tier2: { label: 'Tier 2', range: '5-10', name: 'Heroes of the Realm' },
-    tier3: { label: 'Tier 3', range: '11-16', name: 'Masters of the Realm' },
-    tier4: { label: 'Tier 4', range: '17-20', name: 'Masters of the World' },
+    any: { label: 'Any Level', range: '1-20', min: 1, max: 20, color: '#c9a959', name: 'All Adventurers' },
+    tier1: { label: 'Tier 1', range: '1-4', min: 1, max: 4, color: '#22c55e', name: 'Local Heroes' },
+    tier2: { label: 'Tier 2', range: '5-10', min: 5, max: 10, color: '#3b82f6', name: 'Heroes of the Realm' },
+    tier3: { label: 'Tier 3', range: '11-16', min: 11, max: 16, color: '#a855f7', name: 'Masters of the Realm' },
+    tier4: { label: 'Tier 4', range: '17-20', min: 17, max: 20, color: '#ef4444', name: 'Masters of the World' },
   },
 } as const;
 
