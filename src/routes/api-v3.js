@@ -115,7 +115,10 @@ router.get('/players/:id', (req, res) => {
 router.get('/me/stats', (req, res) => {
   if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
   const player = getPlayerByEmail(req.user.email);
-  if (!player) return res.json({});
+  if (!player) return res.json({
+    totalSessions: 0, attendanceRate: 0, streak: 0,
+    campaignDistribution: [], levelProgression: [], mostPlayedCharacter: 'None',
+  });
   const db = getDb();
   const total = db.prepare("SELECT COUNT(*) as c FROM registrations WHERE player_id = ? AND status IN ('Confirmed','Attended')").get(player.player_id);
   const attended = db.prepare('SELECT COUNT(*) as c FROM registrations WHERE player_id = ? AND attendance_confirmed = 1').get(player.player_id);
@@ -133,23 +136,31 @@ router.get('/me/stats', (req, res) => {
 
 // ── Admin Analytics ──
 router.get('/admin/analytics', requireAdmin, (req, res) => {
-  const db = getDb();
-  const sessionsPerMonth = db.prepare(`SELECT strftime('%Y-%m', date) as month, COUNT(*) as count FROM sessions GROUP BY month ORDER BY month DESC LIMIT 12`).all();
-  const avgAtt = db.prepare(`SELECT AVG(cnt) as avg FROM (SELECT COUNT(*) as cnt FROM registrations WHERE status IN ('Confirmed','Attended') GROUP BY session_id)`).get();
-  const campaignDist = db.prepare(`SELECT campaign, COUNT(*) as count FROM sessions GROUP BY campaign ORDER BY count DESC`).all();
-  const busiest = db.prepare(`SELECT strftime('%w', date) as dow, COUNT(*) as count FROM sessions GROUP BY dow ORDER BY count DESC LIMIT 1`).get();
-  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const topPlayers = db.prepare(`SELECT p.name, COUNT(r.registration_id) as sessions FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.status IN ('Confirmed','Attended') GROUP BY p.player_id ORDER BY sessions DESC LIMIT 10`).all();
-  const totalPlayers = db.prepare('SELECT COUNT(*) as c FROM players').get();
-  const activePlayers = db.prepare("SELECT COUNT(DISTINCT player_id) as c FROM registrations WHERE signup_timestamp > datetime('now', '-90 days')").get();
-  res.json({
-    sessionsPerMonth: sessionsPerMonth.reverse(),
-    avgAttendance: Math.round(avgAtt?.avg || 0),
-    campaignDistribution: campaignDist,
-    busiestDay: busiest ? days[parseInt(busiest.dow)] : 'N/A',
-    playerRetention: totalPlayers?.c > 0 ? Math.round((activePlayers?.c || 0) / totalPlayers.c * 100) : 0,
-    topPlayers,
-  });
+  try {
+    const db = getDb();
+    const sessionsPerMonth = db.prepare(`SELECT strftime('%Y-%m', date) as month, COUNT(*) as count FROM sessions GROUP BY month ORDER BY month DESC LIMIT 12`).all();
+    const avgAtt = db.prepare(`SELECT AVG(cnt) as avg FROM (SELECT COUNT(*) as cnt FROM registrations WHERE status IN ('Confirmed','Attended') GROUP BY session_id)`).get();
+    const campaignDist = db.prepare(`SELECT campaign, COUNT(*) as count FROM sessions WHERE campaign IS NOT NULL AND campaign != '' GROUP BY campaign ORDER BY count DESC`).all();
+    const busiest = db.prepare(`SELECT strftime('%w', date) as dow, COUNT(*) as count FROM sessions GROUP BY dow ORDER BY count DESC LIMIT 1`).get();
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const topPlayers = db.prepare(`SELECT p.name, COUNT(r.registration_id) as sessions FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.status IN ('Confirmed','Attended') GROUP BY p.player_id ORDER BY sessions DESC LIMIT 10`).all();
+    const totalPlayers = db.prepare('SELECT COUNT(*) as c FROM players').get();
+    const activePlayers = db.prepare("SELECT COUNT(DISTINCT player_id) as c FROM registrations WHERE signup_timestamp > datetime('now', '-90 days')").get();
+    res.json({
+      sessionsPerMonth: (sessionsPerMonth || []).reverse(),
+      avgAttendance: Math.round(avgAtt?.avg || 0),
+      campaignDistribution: campaignDist || [],
+      busiestDay: busiest?.dow != null ? days[parseInt(busiest.dow)] || 'N/A' : 'N/A',
+      playerRetention: totalPlayers?.c > 0 ? Math.round((activePlayers?.c || 0) / totalPlayers.c * 100) : 0,
+      topPlayers: topPlayers || [],
+    });
+  } catch (e) {
+    console.error('Analytics error:', e.message);
+    res.json({
+      sessionsPerMonth: [], avgAttendance: 0, campaignDistribution: [],
+      busiestDay: 'N/A', playerRetention: 0, topPlayers: [],
+    });
+  }
 });
 
 module.exports = router;
