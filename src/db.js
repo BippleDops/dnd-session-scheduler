@@ -508,6 +508,7 @@ function initializeDatabase() {
     { version: 5, desc: 'Add campaign recurring_schedule', sql: "ALTER TABLE campaigns ADD COLUMN recurring_schedule TEXT" },
     { version: 6, desc: 'Add campaign recurring_exceptions', sql: "ALTER TABLE campaigns ADD COLUMN recurring_exceptions TEXT" },
     { version: 7, desc: 'Add session map_url', sql: "ALTER TABLE sessions ADD COLUMN map_url TEXT" },
+    { version: 8, desc: 'Add registration rsvp_status', sql: "ALTER TABLE registrations ADD COLUMN rsvp_status TEXT DEFAULT NULL" },
   ];
 
   for (const m of migrations) {

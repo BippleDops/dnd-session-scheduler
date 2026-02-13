@@ -147,6 +147,23 @@ ${session.title ? `<tr><td style="padding:10px;font-weight:bold;">Session</td><t
   return wrapEmailTemplate('Waitlist Promotion', content);
 }
 
+function buildRsvpEmail(session, playerName, characterName, yesUrl, noUrl) {
+  const content = `<h2 style="color:#8b0000;">Are You Still Coming? 🎲</h2>
+<p>Hey ${playerName},</p>
+<p>Your session is coming up soon! Please confirm your attendance for <strong>${characterName}</strong>:</p>
+<table style="width:100%;border-collapse:collapse;margin:20px 0;background:#f9f6ef;border-radius:8px;">
+<tr><td style="padding:10px;font-weight:bold;width:120px;">Date</td><td style="padding:10px;">${formatDateForEmail(session.date)}</td></tr>
+<tr><td style="padding:10px;font-weight:bold;">Time</td><td style="padding:10px;">${formatTimeForEmail(session.startTime)} — ${formatTimeForEmail(session.endTime)}</td></tr>
+<tr><td style="padding:10px;font-weight:bold;">Campaign</td><td style="padding:10px;">${session.campaign}</td></tr>
+</table>
+<div style="text-align:center;margin:24px 0;">
+<a href="${yesUrl}" style="display:inline-block;padding:12px 32px;background:#006600;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;margin:0 8px;">✅ Yes, I'm Coming!</a>
+<a href="${noUrl}" style="display:inline-block;padding:12px 32px;background:#8b0000;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;margin:0 8px;">❌ Can't Make It</a>
+</div>
+<p style="font-size:13px;color:#666;">If we don't hear from you, we'll assume you're coming. See you there!</p>`;
+  return wrapEmailTemplate('RSVP Confirmation', content);
+}
+
 function buildSessionUpdateEmail(session, changes, playerName) {
   const changeRows = changes.map(c =>
     `<tr><td style="padding:8px;font-weight:bold;width:120px;">${c.field}</td><td style="padding:8px;text-decoration:line-through;color:#999;">${c.oldValue}</td><td style="padding:8px;color:#006600;font-weight:bold;">${c.newValue}</td></tr>`
@@ -175,6 +192,7 @@ function getEmailSubject(type, session) {
     case 'dm-recap': return `[DM] Recap Reminder — ${campaign} — ${date}`;
     case 'waitlist-promotion': return `${prefix} — You're In! — ${campaign} — ${date}`;
     case 'update': return `${prefix} Updated — ${campaign} — ${date}`;
+    case 'rsvp': return `${prefix} — Are you coming? — ${campaign} — ${date}`;
     default: return `${prefix} — ${campaign}`;
   }
 }
@@ -187,6 +205,7 @@ module.exports = {
   buildCancellationEmail,
   buildWaitlistPromotionEmail,
   buildSessionUpdateEmail,
+  buildRsvpEmail,
   getEmailSubject,
   formatDateForEmail,
   formatTimeForEmail,

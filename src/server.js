@@ -198,6 +198,44 @@ cron.schedule(`0 ${triggerHour} * * *`, async () => {
   } catch (e) { console.error('Cron reminder error:', e); }
 }, { timezone: 'America/Chicago' });
 
+// RSVP confirmation emails: 48h before sessions (runs at 9 AM)
+cron.schedule('0 9 * * *', async () => {
+  console.log('[Cron] Sending RSVP confirmation emails');
+  try {
+    const { getDb } = require('./db');
+    const { normalizeDate, normalizeTime } = require('./db');
+    const db = getDb();
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + 2);
+    const dateStr = targetDate.toISOString().slice(0, 10);
+
+    const sessions = db.prepare("SELECT * FROM sessions WHERE date = ? AND status = 'Scheduled'").all(dateStr);
+    const { sendEmail, hasEmailBeenSent, markEmailSent, playerWantsEmail } = require('./services/reminder-service');
+    const { buildRsvpEmail, getEmailSubject } = require('./email/templates');
+    const crypto = require('crypto');
+    const secret = process.env.SESSION_SECRET || 'rsvp-secret';
+    let sent = 0;
+
+    for (const session of sessions) {
+      const regs = db.prepare(`SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id
+        WHERE r.session_id = ? AND r.status = 'Confirmed' AND r.rsvp_status IS NULL`).all(session.session_id);
+      const sessionData = { date: session.date, startTime: normalizeTime(session.start_time), endTime: normalizeTime(session.end_time), campaign: session.campaign, title: session.title };
+
+      for (const reg of regs) {
+        if (!reg.email || hasEmailBeenSent(reg.player_id, session.session_id, 'rsvp')) continue;
+        if (!playerWantsEmail(reg.player_id, 'reminders')) continue;
+        const token = crypto.createHmac('sha256', secret).update(reg.registration_id + 'rsvp').digest('hex').slice(0, 32);
+        const yesUrl = `${process.env.BASE_URL || ''}/api/rsvp?token=${token}&response=yes`;
+        const noUrl = `${process.env.BASE_URL || ''}/api/rsvp?token=${token}&response=no`;
+        const html = buildRsvpEmail(sessionData, reg.name, reg.char_name_snapshot || 'your character', yesUrl, noUrl);
+        const result = await sendEmail(reg.email, getEmailSubject('rsvp', sessionData), html);
+        if (result) { markEmailSent(reg.player_id, session.session_id, 'rsvp'); sent++; }
+      }
+    }
+    if (sent > 0) console.log(`[Cron] Sent ${sent} RSVP emails`);
+  } catch (e) { console.error('Cron RSVP error:', e); }
+}, { timezone: 'America/Chicago' });
+
 // Generate recurring sessions daily at midnight
 cron.schedule('0 0 * * *', () => {
   console.log('[Cron] Generating recurring sessions');

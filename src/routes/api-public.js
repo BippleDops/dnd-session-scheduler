@@ -299,6 +299,40 @@ router.post('/me/notifications/read-all', (req, res) => {
   res.json({ success: true });
 });
 
+// ── RSVP one-click (no login required, uses signed token) ──
+router.get('/rsvp', (req, res) => {
+  const { token, response } = req.query;
+  if (!token || !['yes', 'no'].includes(response)) return res.status(400).send('Invalid RSVP link.');
+  const crypto = require('crypto');
+  const secret = process.env.SESSION_SECRET || 'rsvp-secret';
+  const db = getDb();
+  // Find the registration by verifying token
+  const regs = db.prepare("SELECT registration_id, player_id, session_id FROM registrations WHERE status = 'Confirmed'").all();
+  let matched = null;
+  for (const r of regs) {
+    const expected = crypto.createHmac('sha256', secret).update(r.registration_id + 'rsvp').digest('hex').slice(0, 32);
+    if (expected === token) { matched = r; break; }
+  }
+  if (!matched) return res.status(400).send('Invalid or expired RSVP link.');
+
+  const rsvpStatus = response === 'yes' ? 'confirmed' : 'declined';
+  db.prepare('UPDATE registrations SET rsvp_status = ? WHERE registration_id = ?').run(rsvpStatus, matched.registration_id);
+
+  // If declined, auto-cancel and promote waitlist
+  if (rsvpStatus === 'declined') {
+    db.prepare("UPDATE registrations SET status = 'Cancelled' WHERE registration_id = ?").run(matched.registration_id);
+    const { promoteNextWaitlisted } = require('../services/registration-service');
+    promoteNextWaitlisted(matched.session_id);
+  }
+
+  const emoji = response === 'yes' ? '✅' : '👋';
+  const msg = response === 'yes' ? 'See you at the table!' : "We'll miss you! Your spot has been freed for another adventurer.";
+  res.send(`<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#f5f0e1;">
+    <h2>${emoji} RSVP ${response === 'yes' ? 'Confirmed' : 'Declined'}</h2><p>${msg}</p>
+    <p><a href="${process.env.BASE_URL || ''}">Back to Quest Board</a></p>
+  </body></html>`);
+});
+
 // ── One-click email unsubscribe (no login required, uses signed token) ──
 router.get('/unsubscribe', (req, res) => {
   const { token, category } = req.query;
