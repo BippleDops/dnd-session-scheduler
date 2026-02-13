@@ -434,6 +434,15 @@ function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_moments_session ON session_moments(session_id);
     CREATE INDEX IF NOT EXISTS idx_homework_player ON homework_progress(player_id);
 
+    -- Email deduplication: track which emails were sent per player per session
+    CREATE TABLE IF NOT EXISTS email_sent_tracker (
+      player_id TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      email_type TEXT NOT NULL,
+      sent_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (player_id, session_id, email_type)
+    );
+
     -- Composite indexes for frequent query patterns
     CREATE INDEX IF NOT EXISTS idx_registrations_session_status ON registrations(session_id, status);
     CREATE INDEX IF NOT EXISTS idx_registrations_player_status ON registrations(player_id, status);

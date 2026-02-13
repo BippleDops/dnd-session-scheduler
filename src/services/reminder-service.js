@@ -115,6 +115,26 @@ async function sendEmail(to, subject, htmlBody) {
   return null;
 }
 
+/**
+ * Check if an email of this type has already been sent for this player+session.
+ * Returns true if already sent (should skip), false if not yet sent.
+ */
+function hasEmailBeenSent(playerId, sessionId, emailType) {
+  if (!playerId || !sessionId) return false;
+  const db = getDb();
+  const row = db.prepare('SELECT 1 FROM email_sent_tracker WHERE player_id = ? AND session_id = ? AND email_type = ?')
+    .get(playerId, sessionId, emailType);
+  return !!row;
+}
+
+/** Mark an email type as sent for this player+session. */
+function markEmailSent(playerId, sessionId, emailType) {
+  if (!playerId || !sessionId) return;
+  const db = getDb();
+  db.prepare('INSERT OR IGNORE INTO email_sent_tracker (player_id, session_id, email_type) VALUES (?, ?, ?)')
+    .run(playerId, sessionId, emailType);
+}
+
 async function sendConfirmationEmail(playerEmail, playerName, session, characterName) {
   const { buildConfirmationEmail } = require('../email/templates');
   const html = buildConfirmationEmail(session, { name: characterName }, playerName);
@@ -142,10 +162,15 @@ async function draftPlayerReminders(sessionId) {
   let draftCount = 0;
   for (const reg of regs) {
     if (!reg.player_email) continue;
+    // Skip if already sent a reminder for this session
+    if (hasEmailBeenSent(reg.player_id, sessionId, 'reminder')) continue;
     const html = buildPlayerReminderEmail(sessionData, roster, reg.char_name_snapshot);
     const subject = getEmailSubject('reminder', sessionData);
     const result = await sendEmail(reg.player_email, subject, html);
-    if (result) draftCount++;
+    if (result) {
+      markEmailSent(reg.player_id, sessionId, 'reminder');
+      draftCount++;
+    }
   }
   return { success: true, draftCount };
 }
@@ -258,6 +283,8 @@ module.exports = {
   sendEmail,
   sendConfirmationEmail,
   verifySmtp,
+  hasEmailBeenSent,
+  markEmailSent,
   draftPlayerReminders,
   draftDMInfoSheet,
   draftDMRecapReminder,
