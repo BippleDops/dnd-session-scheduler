@@ -198,6 +198,16 @@ cron.schedule(`0 ${triggerHour} * * *`, async () => {
   } catch (e) { console.error('Cron reminder error:', e); }
 }, { timezone: 'America/Chicago' });
 
+// Generate recurring sessions daily at midnight
+cron.schedule('0 0 * * *', () => {
+  console.log('[Cron] Generating recurring sessions');
+  try {
+    const { generateAllRecurringSessions } = require('./services/recurring-service');
+    const result = generateAllRecurringSessions();
+    if (result.totalCreated > 0) console.log(`[Cron] Created ${result.totalCreated} recurring sessions across ${result.campaignsChecked} campaigns`);
+  } catch (e) { console.error('Cron recurring error:', e); }
+}, { timezone: 'America/Chicago' });
+
 // Auto-complete past sessions at 1 AM
 cron.schedule('0 1 * * *', () => {
   console.log('[Cron] Auto-completing past sessions');

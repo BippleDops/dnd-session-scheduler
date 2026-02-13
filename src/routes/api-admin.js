@@ -245,6 +245,22 @@ router.put('/campaigns/:id', (req, res) => {
   res.json(result);
 });
 
+// ── Recurring Sessions ──
+router.put('/campaigns/:id/recurring', (req, res) => {
+  const db = getDb();
+  const { schedule, exceptions } = req.body;
+  db.prepare('UPDATE campaigns SET recurring_schedule = ?, recurring_exceptions = ? WHERE campaign_id = ?')
+    .run(schedule ? JSON.stringify(schedule) : null, exceptions ? JSON.stringify(exceptions) : '[]', req.params.id);
+  logAction('RECURRING_UPDATED', `Recurring schedule updated for campaign ${req.params.id}`, req.user.email, req.params.id);
+  res.json({ success: true });
+});
+
+router.post('/campaigns/:id/generate-sessions', (req, res) => {
+  const { generateRecurringSessions } = require('../services/recurring-service');
+  const result = generateRecurringSessions(req.params.id, parseInt(req.body.weeks, 10) || 4);
+  res.json({ success: true, ...result });
+});
+
 // ── Health Dashboard (detailed, admin-only) ──
 router.get('/health-detail', (req, res) => {
   const db = getDb();
