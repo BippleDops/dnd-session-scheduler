@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getMyProfile, updateMyProfile, getCampaigns } from '@/lib/api';
+import { getMyProfile, updateMyProfile, getCampaigns, getMyEmailPreferences, updateMyEmailPreferences, type EmailPreferences } from '@/lib/api';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
@@ -27,10 +27,12 @@ function ProfileInner() {
   const [playedBefore, setPlayedBefore] = useState('');
   const [characters, setCharacters] = useState<{characterName:string;characterClass:string;characterLevel:number;characterRace?:string}[]>([]);
   const [hasProfile, setHasProfile] = useState(false);
+  const [emailPrefs, setEmailPrefs] = useState<EmailPreferences>({ reminders: 1, confirmations: 1, cancellations: 1, updates: 1, digest: 1, achievements: 1 });
 
   useEffect(() => {
     if (!isLoggedIn) { setLoading(false); return; }
-    Promise.all([getMyProfile(), getCampaigns()]).then(([p, c]) => {
+    Promise.all([getMyProfile(), getCampaigns(), getMyEmailPreferences()]).then(([p, c, ep]) => {
+      setEmailPrefs(ep);
       setCampaigns(c);
       if (p) {
         setHasProfile(true); setName(p.name); setEmail(p.email);
@@ -126,6 +128,39 @@ function ProfileInner() {
             ))}
             {characters.length === 0 && <p className="text-[var(--ink-faded)] italic col-span-full">No characters yet. Sign up for a quest!</p>}
           </div>
+
+          <h2 className="scroll-heading text-xl mb-3 mt-6">📧 Email Preferences</h2>
+          <ParchmentPanel>
+            <p className="text-sm text-[var(--ink-faded)] mb-4">Choose which emails you&apos;d like to receive. You can also unsubscribe from individual categories via the link in any email.</p>
+            <div className="space-y-3 max-w-lg">
+              {([
+                { key: 'reminders', label: 'Session Reminders', desc: 'Reminder emails 2 days before your sessions' },
+                { key: 'confirmations', label: 'Signup Confirmations', desc: 'Confirmation when you register for a session' },
+                { key: 'cancellations', label: 'Cancellation Notices', desc: 'Notification when a session you registered for is cancelled' },
+                { key: 'updates', label: 'Session Updates', desc: 'When date, time, or location changes for a session you joined' },
+                { key: 'digest', label: 'Weekly Digest', desc: 'Sunday summary of upcoming sessions and recent activity' },
+                { key: 'achievements', label: 'Achievement Unlocks', desc: 'Email when you earn a new achievement' },
+              ] as const).map(cat => (
+                <label key={cat.key} className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!emailPrefs[cat.key]}
+                    onChange={async (e) => {
+                      const updated = { ...emailPrefs, [cat.key]: e.target.checked ? 1 : 0 };
+                      setEmailPrefs(updated);
+                      await updateMyEmailPreferences(updated);
+                      toast(`${cat.label} ${e.target.checked ? 'enabled' : 'disabled'}`, 'success');
+                    }}
+                    className="accent-[var(--gold)] mt-1"
+                  />
+                  <div>
+                    <span className="text-sm font-semibold text-[var(--ink)]">{cat.label}</span>
+                    <p className="text-xs text-[var(--ink-faded)]">{cat.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </ParchmentPanel>
         </>
       )}
     </div>
