@@ -205,21 +205,41 @@ function updateSessionRecord(sessionId, data, adminEmail) {
 
 function cancelSessionRecord(sessionId, notify, adminEmail) {
   const db = getDb();
-  const session = db.prepare('SELECT campaign, date FROM sessions WHERE session_id = ?').get(sessionId);
+  const session = db.prepare('SELECT * FROM sessions WHERE session_id = ?').get(sessionId);
   db.prepare(`UPDATE sessions SET status = 'Cancelled', modified_at = datetime('now') WHERE session_id = ?`)
     .run(sessionId);
   logAction(ACTION_TYPES.SESSION_CANCELLED, 'Session cancelled', adminEmail, sessionId);
 
-  // Notify registered players about cancellation
+  // Notify + email registered players about cancellation
   if (notify && session) {
-    try {
-      const { createNotification } = require('./notification-service');
-      const regs = db.prepare("SELECT player_id FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Waitlisted')").all(sessionId);
-      for (const reg of regs) {
+    const regs = db.prepare(`
+      SELECT r.player_id, r.char_name_snapshot, p.name, p.email
+      FROM registrations r JOIN players p ON r.player_id = p.player_id
+      WHERE r.session_id = ? AND r.status IN ('Confirmed','Waitlisted')
+    `).all(sessionId);
+
+    const { createNotification } = require('./notification-service');
+    const sessionData = {
+      date: normalizeDate(session.date), startTime: normalizeTime(session.start_time),
+      endTime: normalizeTime(session.end_time), campaign: session.campaign, title: session.title,
+    };
+
+    for (const reg of regs) {
+      // In-app notification
+      try {
         createNotification(reg.player_id, 'session_cancelled',
           `${session.campaign} session on ${normalizeDate(session.date)} has been cancelled.`, sessionId);
-      }
-    } catch { /* best effort */ }
+      } catch {}
+
+      // Email notification (async, best-effort)
+      try {
+        const { sendEmail } = require('./reminder-service');
+        const { buildCancellationEmail, getEmailSubject } = require('../email/templates');
+        const html = buildCancellationEmail(sessionData, reg.name, reg.char_name_snapshot || 'your character');
+        const subject = getEmailSubject('cancellation', sessionData);
+        sendEmail(reg.email, subject, html).catch(e => console.error('Cancel email error:', e.message));
+      } catch {}
+    }
   }
 
   return { success: true };
