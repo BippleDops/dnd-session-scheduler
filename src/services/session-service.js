@@ -126,6 +126,7 @@ function getSessionById(sessionId, includePrivate = false) {
       accessibilityNeeds: r.accessibility_needs || '',
       dmNotes: r.player_dm_notes || '',
       playedBefore: r.played_before || '',
+      rsvpStatus: r.rsvp_status || null,
     }));
   }
 

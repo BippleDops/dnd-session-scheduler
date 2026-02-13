@@ -218,6 +218,7 @@ export interface Registration {
   characterName: string; characterClass: string; characterLevel: number;
   characterRace?: string; status: string; attendanceConfirmed: boolean;
   accessibilityNeeds?: string; dmNotes?: string; playedBefore?: string;
+  rsvpStatus?: string;
 }
 export interface UserRole { email: string; isAdmin: boolean; name: string; photo: string }
 export interface PlayerProfile {

@@ -160,7 +160,7 @@ function AdminSessionsInner() {
           <h2 className="scroll-heading text-xl mb-3">Registrations</h2>
           <div className="parchment overflow-x-auto mb-4">
             <table className="w-full text-sm text-[var(--ink)]">
-              <thead><tr className="border-b-2 border-[var(--parchment-dark)]"><th className="text-left p-2">Player</th><th className="text-left p-2">Character</th><th className="text-left p-2">Class</th><th className="p-2">Lv</th><th className="text-left p-2">Status</th><th className="p-2">Attended</th><th className="p-2"></th></tr></thead>
+              <thead><tr className="border-b-2 border-[var(--parchment-dark)]"><th className="text-left p-2">Player</th><th className="text-left p-2">Character</th><th className="text-left p-2">Class</th><th className="p-2">Lv</th><th className="p-2">RSVP</th><th className="text-left p-2">Status</th><th className="p-2">Attended</th><th className="p-2"></th></tr></thead>
               <tbody>
                 {(detail.registrations || []).map(r => (
                   <tr key={r.registrationId} className="border-b border-[rgba(0,0,0,0.05)]">
@@ -168,6 +168,7 @@ function AdminSessionsInner() {
                     <td className="p-2 font-semibold">{r.characterName}</td>
                     <td className="p-2">{r.characterClass}</td>
                     <td className="p-2 text-center">{r.characterLevel}</td>
+                    <td className="p-2 text-center">{r.rsvpStatus === 'confirmed' ? '✅' : r.rsvpStatus === 'declined' ? '❌' : '—'}</td>
                     <td className="p-2">{r.status}</td>
                     <td className="p-2 text-center"><input type="checkbox" checked={r.attendanceConfirmed} onChange={e => { markAttendance(r.registrationId, e.target.checked); toast('Updated', 'success'); }} className="accent-[var(--gold)]" /></td>
                     <td className="p-2">{r.status === 'Confirmed' && <WoodButton variant="sm" onClick={async () => { await cancelAdminRegistration(r.registrationId); toast('Cancelled', 'success'); refetchDetail(); }}>Cancel</WoodButton>}</td>
