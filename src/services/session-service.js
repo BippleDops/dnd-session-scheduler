@@ -195,11 +195,54 @@ function updateSessionRecord(sessionId, data, adminEmail) {
   }
   updates.modified_at = nowTimestamp();
 
+  // Detect material changes that registered players should know about
+  const materialFields = { date: 'Date', start_time: 'Start Time', end_time: 'End Time', location: 'Location' };
+  const changes = [];
+  for (const [col, label] of Object.entries(materialFields)) {
+    if (updates[col] !== undefined && updates[col] !== s[col]) {
+      const oldVal = col.includes('time') ? normalizeTime(s[col]) : (s[col] || 'Not set');
+      const newVal = col.includes('time') ? normalizeTime(updates[col]) : (updates[col] || 'Not set');
+      if (col === 'date') {
+        changes.push({ field: label, oldValue: normalizeDate(s[col]), newValue: normalizeDate(updates[col]) });
+      } else {
+        changes.push({ field: label, oldValue: oldVal, newValue: newVal });
+      }
+    }
+  }
+
   const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
   db.prepare(`UPDATE sessions SET ${setClauses} WHERE session_id = ?`)
     .run(...Object.values(updates), sessionId);
 
   logAction(ACTION_TYPES.SESSION_UPDATED, `Session updated: ${sessionId}`, adminEmail, sessionId);
+
+  // Notify registered players of material changes via email
+  if (changes.length > 0 && s.status === 'Scheduled') {
+    try {
+      const regs = db.prepare(`
+        SELECT r.player_id, p.name, p.email FROM registrations r
+        JOIN players p ON r.player_id = p.player_id
+        WHERE r.session_id = ? AND r.status IN ('Confirmed','Waitlisted')
+      `).all(sessionId);
+
+      const { sendEmail } = require('./reminder-service');
+      const { buildSessionUpdateEmail, getEmailSubject } = require('../email/templates');
+      const updatedSession = db.prepare('SELECT * FROM sessions WHERE session_id = ?').get(sessionId);
+      const sessionData = {
+        date: normalizeDate(updatedSession.date), startTime: normalizeTime(updatedSession.start_time),
+        endTime: normalizeTime(updatedSession.end_time), campaign: updatedSession.campaign, title: updatedSession.title,
+      };
+
+      for (const reg of regs) {
+        if (!reg.email) continue;
+        const html = buildSessionUpdateEmail(sessionData, changes, reg.name);
+        sendEmail(reg.email, getEmailSubject('update', sessionData), html)
+          .catch(e => console.error('Update email error:', e.message));
+      }
+      logAction('SESSION_UPDATE_NOTIFIED', `${regs.length} players notified of changes: ${changes.map(c => c.field).join(', ')}`, adminEmail, sessionId);
+    } catch (e) { console.error('Session update notification error:', e.message); }
+  }
+
   return { success: true };
 }
 
