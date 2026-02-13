@@ -224,13 +224,27 @@ function promoteNextWaitlisted(sessionId) {
     'Waitlisted player auto-promoted: ' + waitlisted.char_name_snapshot,
     'System', waitlisted.registration_id);
 
-  // Notify the promoted player
+  // Notify + email the promoted player
   try {
-    const session = db.prepare('SELECT campaign, date FROM sessions WHERE session_id = ?').get(sessionId);
+    const session = db.prepare('SELECT * FROM sessions WHERE session_id = ?').get(sessionId);
+    const player = db.prepare('SELECT name, email FROM players WHERE player_id = ?').get(waitlisted.player_id);
     if (session) {
       createNotification(waitlisted.player_id, 'waitlist_promoted',
         `A spot opened up! You're now confirmed for ${session.campaign} on ${normalizeDate(session.date)}.`,
         waitlisted.registration_id);
+
+      // Send promotion email
+      if (player?.email) {
+        const { sendEmail } = require('./reminder-service');
+        const { buildWaitlistPromotionEmail, getEmailSubject } = require('../email/templates');
+        const sessionData = {
+          date: normalizeDate(session.date), startTime: normalizeTime(session.start_time),
+          endTime: normalizeTime(session.end_time), campaign: session.campaign, title: session.title,
+        };
+        const html = buildWaitlistPromotionEmail(sessionData, player.name, waitlisted.char_name_snapshot || 'your character');
+        sendEmail(player.email, getEmailSubject('waitlist-promotion', sessionData), html)
+          .catch(e => console.error('Waitlist email error:', e.message));
+      }
     }
   } catch { /* best effort */ }
 

@@ -124,6 +124,36 @@ function buildCancellationEmail(session, playerName, characterName) {
   return wrapEmailTemplate('Session Cancelled', content);
 }
 
+function buildWaitlistPromotionEmail(session, playerName, characterName) {
+  const content = `<h2 style="color:#8b0000;">You're In! 🎉</h2>
+<p>Hey ${playerName},</p>
+<p>A spot just opened up! <strong>${characterName}</strong> has been promoted from the waitlist and is now confirmed for:</p>
+<table style="width:100%;border-collapse:collapse;margin:20px 0;background:#f0f9e8;border-radius:8px;">
+<tr><td style="padding:10px;font-weight:bold;width:120px;">Date</td><td style="padding:10px;">${formatDateForEmail(session.date)}</td></tr>
+<tr><td style="padding:10px;font-weight:bold;">Time</td><td style="padding:10px;">${formatTimeForEmail(session.startTime)} — ${formatTimeForEmail(session.endTime)}</td></tr>
+<tr><td style="padding:10px;font-weight:bold;">Campaign</td><td style="padding:10px;">${session.campaign}</td></tr>
+${session.title ? `<tr><td style="padding:10px;font-weight:bold;">Session</td><td style="padding:10px;">${session.title}</td></tr>` : ''}
+</table>
+<p>Make sure your character sheet is up to date. See you at the table!</p>`;
+  return wrapEmailTemplate('Waitlist Promotion', content);
+}
+
+function buildSessionUpdateEmail(session, changes, playerName) {
+  const changeRows = changes.map(c =>
+    `<tr><td style="padding:8px;font-weight:bold;width:120px;">${c.field}</td><td style="padding:8px;text-decoration:line-through;color:#999;">${c.oldValue}</td><td style="padding:8px;color:#006600;font-weight:bold;">${c.newValue}</td></tr>`
+  ).join('');
+  const content = `<h2 style="color:#8b0000;">Session Updated</h2>
+<p>Hey ${playerName},</p>
+<p>The following session you're registered for has been updated:</p>
+<p style="font-weight:bold;font-size:16px;">${session.title || session.campaign} — ${formatDateForEmail(session.date)}</p>
+<table style="width:100%;border-collapse:collapse;margin:20px 0;background:#fffbe6;border-radius:8px;">
+<tr style="background:#f5f0e1;"><th style="padding:8px;text-align:left;">Field</th><th style="padding:8px;text-align:left;">Was</th><th style="padding:8px;text-align:left;">Now</th></tr>
+${changeRows}
+</table>
+<p>Please update your calendar accordingly. See you there!</p>`;
+  return wrapEmailTemplate('Session Updated', content);
+}
+
 function getEmailSubject(type, session) {
   const campaign = session.campaign || '';
   const date = session.date || '';
@@ -134,6 +164,8 @@ function getEmailSubject(type, session) {
     case 'cancellation': return `${prefix} Cancelled — ${campaign} — ${date}`;
     case 'dm-info': return `[DM] Session Info Sheet — ${campaign} — ${date}`;
     case 'dm-recap': return `[DM] Recap Reminder — ${campaign} — ${date}`;
+    case 'waitlist-promotion': return `${prefix} — You're In! — ${campaign} — ${date}`;
+    case 'update': return `${prefix} Updated — ${campaign} — ${date}`;
     default: return `${prefix} — ${campaign}`;
   }
 }
@@ -144,6 +176,8 @@ module.exports = {
   buildPlayerReminderEmail,
   buildDMInfoSheetEmail,
   buildCancellationEmail,
+  buildWaitlistPromotionEmail,
+  buildSessionUpdateEmail,
   getEmailSubject,
   formatDateForEmail,
   formatTimeForEmail,
