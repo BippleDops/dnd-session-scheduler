@@ -295,6 +295,34 @@ body {
   .dice-tray { bottom: 94px !important; }
 }
 
+/* Mobile nav active indicator */
+@media (max-width: 768px) {
+  .mobile-nav-active {
+    position: relative;
+  }
+  .mobile-nav-active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 25%;
+    right: 25%;
+    height: 2px;
+    background: var(--gold);
+    border-radius: 1px;
+  }
+}
+
+/* Sticky calendar header */
+.calendar-sticky {
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  background: var(--parchment);
+  margin: -20px -20px 0;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--parchment-dark);
+}
+
 /* Safe area for notched phones */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);

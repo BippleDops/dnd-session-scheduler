@@ -81,10 +81,10 @@ export default function MobileNav() {
                 key={tab.page}
                 href={tab.href}
                 className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full no-underline transition-colors ${
-                  active ? 'text-[var(--gold)]' : 'text-[var(--parchment-dark)]'
+                  active ? 'text-[var(--gold)] mobile-nav-active' : 'text-[var(--parchment-dark)]'
                 }`}
               >
-                <span className={`text-lg ${active ? 'scale-110' : ''} transition-transform`}>{tab.icon}</span>
+                <span className={`text-lg transition-transform ${active ? 'scale-110' : ''}`}>{tab.icon}</span>
                 <span className="text-[9px] font-medium">{tab.label}</span>
               </Link>
             );

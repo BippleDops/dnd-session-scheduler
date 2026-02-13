@@ -95,7 +95,7 @@ function DiscussionsInner() {
                   <span className="font-bold text-sm truncate">{t.title}</span>
                 </div>
                 <div className="flex justify-between text-[10px] text-[var(--ink-faded)] mt-1">
-                  <span>{t.author_name}</span>
+                  <span>{t.author_name} · {t.last_post_at ? new Date(t.last_post_at).toLocaleDateString() : 'No replies'}</span>
                   <span>{t.post_count} posts</span>
                 </div>
               </button>
