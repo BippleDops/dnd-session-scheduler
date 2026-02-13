@@ -29,9 +29,9 @@ export default function QuestCard({ session: s, showSignup = true, index = 0 }: 
       {/* Header */}
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
-          <h3 className="font-[var(--font-heading)] text-lg text-[var(--ink)] mb-1">
+          <a href={`/session?id=${s.sessionId}`} className="font-[var(--font-heading)] text-lg text-[var(--ink)] mb-1 hover:text-[var(--gold)] transition-colors no-underline block">
             {s.title || s.campaign}
-          </h3>
+          </a>
           <p className="text-sm text-[var(--ink-faded)]">
             {formatDate(s.date)} &bull; {formatTime(s.startTime)} — {formatTime(s.endTime)}
           </p>

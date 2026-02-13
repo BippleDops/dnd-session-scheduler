@@ -76,6 +76,24 @@ export default function MySessionsPage() {
         </div>
       )}
 
+      {/* Recap prompts for recent past sessions */}
+      {data?.past && data.past.length > 0 && data.past.length <= 5 && (
+        <div className="mb-6">
+          {data.past.slice(0, 2).map(r => (
+            <div key={`recap-${r.registrationId}`} className="parchment p-4 mb-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📖</span>
+                <div>
+                  <p className="text-sm text-[var(--ink)]">How did <strong>{r.characterName}</strong> experience <strong>{r.title || r.campaign}</strong>?</p>
+                  <p className="text-[10px] text-[var(--ink-faded)]">{formatDate(r.date)} · Write a recap from your character&apos;s perspective</p>
+                </div>
+              </div>
+              <a href={`/session?id=${r.sessionId}`} className="wood-btn text-xs py-1 px-3 no-underline flex-shrink-0">Write Recap</a>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Past */}
       <h2 className="scroll-heading text-xl mb-3 mt-6">Past Adventures</h2>
       {data?.past.length === 0 ? (
