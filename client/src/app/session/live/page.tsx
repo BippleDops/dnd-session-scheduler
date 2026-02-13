@@ -1,12 +1,13 @@
 'use client';
 import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getInitiativeEntries, addInitiativeEntry, updateInitiativeEntry, deleteInitiativeEntry, clearInitiative, getDiceHistory, getSessionComments, postSessionComment, type InitiativeEntry, type DiceRoll, type Comment } from '@/lib/api';
+import { getInitiativeEntries, addInitiativeEntry, updateInitiativeEntry, deleteInitiativeEntry, clearInitiative, getDiceHistory, getSessionComments, postSessionComment, rollDice, saveSessionPrep, getSessionPrep, type InitiativeEntry, type DiceRoll, type Comment } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useSSEContext } from '@/hooks/useSSEContext';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
+import { useToast } from '@/components/ui/Toast';
 
 const CONDITIONS = ['Blinded','Charmed','Deafened','Frightened','Grappled','Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious','Concentrating'];
 
@@ -25,6 +26,16 @@ function LiveSessionInner() {
   const [round, setRound] = useState(1);
   const [addForm, setAddForm] = useState({ name: '', initiative: '', hp: '', maxHp: '', isNpc: false });
   const [commentText, setCommentText] = useState('');
+  const { toast } = useToast();
+
+  // Session timer
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [breakMode, setBreakMode] = useState(false);
+
+  // Quick notes
+  const [quickNotes, setQuickNotes] = useState('');
+  const [notesSaved, setNotesSaved] = useState(true);
 
   const loadData = useCallback(() => {
     if (!sessionId) return;
@@ -53,6 +64,46 @@ function LiveSessionInner() {
     });
     return () => { unsub1(); unsub2(); };
   }, [sessionId, subscribe]);
+
+  // Session timer tick
+  useEffect(() => {
+    if (!timerRunning) return;
+    const interval = setInterval(() => setTimerSeconds(s => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, [timerRunning]);
+
+  // Load quick notes from prep
+  useEffect(() => {
+    if (!sessionId || !isAdmin) return;
+    getSessionPrep(sessionId).then(p => { if (p?.secrets) setQuickNotes(p.secrets); }).catch(() => {});
+  }, [sessionId, isAdmin]);
+
+  // Auto-save notes (debounced)
+  useEffect(() => {
+    if (notesSaved || !sessionId || !isAdmin) return;
+    const timeout = setTimeout(() => {
+      saveSessionPrep(sessionId, { secrets: quickNotes }).then(() => setNotesSaved(true)).catch(() => {});
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, [quickNotes, notesSaved, sessionId, isAdmin]);
+
+  const formatTimer = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return h > 0 ? `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}` : `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const quickRoll = async (expression: string, label: string) => {
+    try {
+      const result = await rollDice(expression, sessionId);
+      if (result.success) {
+        const roll = { ...result, session_id: sessionId, player_id: '' } as unknown as DiceRoll;
+        setDiceHistory(prev => [roll, ...prev].slice(0, 30));
+        toast(`${label}: ${result.total}`, 'info');
+      }
+    } catch {}
+  };
 
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,11 +145,26 @@ function LiveSessionInner() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-2">
         <h1 className="font-[var(--font-heading)] text-2xl text-[var(--gold)]">⚔️ Live Session</h1>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3 text-sm flex-wrap">
           <span className="text-green-400">● {presence} online</span>
           <span className="text-[var(--gold)]">Round {round}</span>
+          {/* Session Timer */}
+          <div className={`flex items-center gap-1 px-2 py-1 rounded ${breakMode ? 'bg-amber-900/30 text-[var(--candle)]' : 'bg-[var(--wood-dark)]'}`}>
+            <span className="font-mono text-sm">{breakMode ? '☕ ' : '⏱ '}{formatTimer(timerSeconds)}</span>
+            <button onClick={() => setTimerRunning(!timerRunning)} className="text-xs bg-transparent border-none cursor-pointer" aria-label={timerRunning ? 'Pause timer' : 'Start timer'}>
+              {timerRunning ? '⏸' : '▶'}
+            </button>
+            {isAdmin && (
+              <>
+                <button onClick={() => { setBreakMode(!breakMode); }} className="text-xs bg-transparent border-none cursor-pointer" aria-label="Toggle break mode">
+                  {breakMode ? '⚔️' : '☕'}
+                </button>
+                <button onClick={() => { setTimerSeconds(0); setTimerRunning(false); }} className="text-xs bg-transparent border-none cursor-pointer" aria-label="Reset timer">↺</button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -191,8 +257,29 @@ function LiveSessionInner() {
           </ParchmentPanel>
         </div>
 
-        {/* Sidebar: dice history + chat */}
+        {/* Sidebar */}
         <div className="space-y-4">
+          {/* DM Quick Rolls */}
+          {isAdmin && (
+            <ParchmentPanel title="⚡ Quick Rolls">
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  { expr: '1d20', label: 'Ability Check', icon: '🎯' },
+                  { expr: '1d100', label: 'Percentile', icon: '🎰' },
+                  { expr: '2d6', label: 'NPC Reaction', icon: '🗣️' },
+                  { expr: '1d100', label: 'Random Enc.', icon: '👹' },
+                  { expr: '4d6', label: 'Stats Roll', icon: '📊' },
+                  { expr: '1d12', label: 'Wandering', icon: '🧭' },
+                ].map(r => (
+                  <button key={r.label} onClick={() => quickRoll(r.expr, r.label)}
+                    className="flex items-center gap-1 p-1.5 rounded text-xs bg-[var(--wood-dark)] hover:bg-[var(--gold)] hover:text-[var(--wood-dark)] transition-colors text-left">
+                    <span>{r.icon}</span><span className="truncate">{r.label}</span>
+                  </button>
+                ))}
+              </div>
+            </ParchmentPanel>
+          )}
+
           <ParchmentPanel title="🎲 Dice Rolls">
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {diceHistory.length === 0 ? (
@@ -222,6 +309,21 @@ function LiveSessionInner() {
               <WoodButton type="submit">Send</WoodButton>
             </form>
           </ParchmentPanel>
+
+          {/* DM Quick Notes */}
+          {isAdmin && (
+            <ParchmentPanel title="📝 Quick Notes">
+              <textarea
+                className="parchment-input w-full h-24 text-xs"
+                placeholder="Jot notes during play..."
+                value={quickNotes}
+                onChange={e => { setQuickNotes(e.target.value); setNotesSaved(false); }}
+              />
+              <p className={`text-[10px] mt-1 ${notesSaved ? 'text-green-400' : 'text-[var(--candle)]'}`}>
+                {notesSaved ? '✓ Saved' : '● Saving...'}
+              </p>
+            </ParchmentPanel>
+          )}
         </div>
       </div>
     </div>
