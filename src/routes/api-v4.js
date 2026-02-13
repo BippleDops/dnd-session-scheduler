@@ -472,5 +472,58 @@ router.post('/session-requests/:id/vote', (req, res) => {
   res.json({ success: true });
 });
 
+// ══════════════════════════════════════════════════════
+// V7: Character Goals & Relationships
+// ══════════════════════════════════════════════════════
+
+router.get('/characters/:id/goals', (req, res) => {
+  res.json(getDb().prepare('SELECT * FROM character_goals WHERE character_id = ? ORDER BY status, created_at DESC').all(req.params.id));
+});
+
+router.post('/me/characters/:id/goals', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  const { title, description, type } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title required' });
+  const id = generateUuid();
+  getDb().prepare('INSERT INTO character_goals (goal_id, character_id, title, description, type) VALUES (?, ?, ?, ?, ?)')
+    .run(id, req.params.id, title, description || '', type || 'short');
+  res.json({ success: true, goalId: id });
+});
+
+router.put('/admin/goals/:id', requireAdmin, (req, res) => {
+  const { status, reward } = req.body;
+  const updates = [];
+  const params = [];
+  if (status) { updates.push('status = ?'); params.push(status); }
+  if (reward !== undefined) { updates.push('reward = ?'); params.push(reward); }
+  if (status === 'completed') { updates.push("completed_at = datetime('now')"); }
+  if (updates.length === 0) return res.json({ success: false });
+  params.push(req.params.id);
+  getDb().prepare(`UPDATE character_goals SET ${updates.join(', ')} WHERE goal_id = ?`).run(...params);
+  res.json({ success: true });
+});
+
+router.get('/characters/:id/relationships', (req, res) => {
+  res.json(getDb().prepare('SELECT * FROM character_relationships WHERE character_id = ? ORDER BY disposition, target_name').all(req.params.id));
+});
+
+router.post('/me/characters/:id/relationships', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  const { targetName, targetType, disposition, description } = req.body;
+  if (!targetName) return res.status(400).json({ error: 'Target name required' });
+  const id = generateUuid();
+  getDb().prepare('INSERT INTO character_relationships (relationship_id, character_id, target_name, target_type, disposition, description) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, req.params.id, targetName, targetType || 'npc', disposition || 'neutral', description || '');
+  res.json({ success: true, relationshipId: id });
+});
+
+router.delete('/me/characters/relationships/:id', (req, res) => {
+  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+  getDb().prepare('DELETE FROM character_relationships WHERE relationship_id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 module.exports = router;
 

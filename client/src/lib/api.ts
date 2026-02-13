@@ -105,6 +105,12 @@ export const getPlayerPublicProfile = (id: string) => fetchJson<PlayerPublicProf
 export const getAdminAnalytics = () => fetchJson<AnalyticsData>('/api/admin/analytics');
 export const getMyStats = () => fetchJson<PlayerStats>('/api/me/stats');
 
+// ── V7: Character Goals & Relationships ──
+export const getCharacterGoals = (id: string) => fetchJson<CharacterGoal[]>(`/api/characters/${id}/goals`);
+export const addCharacterGoal = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/me/characters/${id}/goals`, { method: 'POST', body: JSON.stringify(data) });
+export const getCharacterRelationships = (id: string) => fetchJson<CharacterRelationship[]>(`/api/characters/${id}/relationships`);
+export const addCharacterRelationship = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/me/characters/${id}/relationships`, { method: 'POST', body: JSON.stringify(data) });
+
 // ── V4: Obsidian Bridge ──
 export const getSessionPrep = (id: string) => fetchJson<SessionPrep>(`/api/admin/sessions/${id}/prep`);
 export const saveSessionPrep = (id: string, data: Record<string, unknown>) => fetchJson<ApiResult>(`/api/admin/sessions/${id}/prep`, { method: 'PUT', body: JSON.stringify(data) });
@@ -233,6 +239,16 @@ export interface AdminDashboard {
   sessionsThisMonth: number; lastBackup: string;
   thisWeekSessions: { sessionId: string; date: string; startTime: string; campaign: string; title: string; maxPlayers: number; registeredCount: number }[];
   recentLogs: { ActionType: string; Timestamp: string; Details: string }[];
+}
+export interface CharacterGoal {
+  goal_id: string; character_id: string; title: string; description: string;
+  type: 'short' | 'long'; status: 'active' | 'completed' | 'abandoned';
+  reward: string; completed_at: string; created_at: string;
+}
+export interface CharacterRelationship {
+  relationship_id: string; character_id: string; target_name: string;
+  target_type: 'npc' | 'pc' | 'faction' | 'deity'; disposition: string; description: string;
+  created_at: string;
 }
 export interface EmailLogEntry {
   log_id: string; timestamp: string; type: string; recipient: string; subject: string; status: string;

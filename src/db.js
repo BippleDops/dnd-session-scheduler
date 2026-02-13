@@ -509,6 +509,61 @@ function initializeDatabase() {
     { version: 6, desc: 'Add campaign recurring_exceptions', sql: "ALTER TABLE campaigns ADD COLUMN recurring_exceptions TEXT" },
     { version: 7, desc: 'Add session map_url', sql: "ALTER TABLE sessions ADD COLUMN map_url TEXT" },
     { version: 8, desc: 'Add registration rsvp_status', sql: "ALTER TABLE registrations ADD COLUMN rsvp_status TEXT DEFAULT NULL" },
+    { version: 9, desc: 'Add character goals table', sql: `CREATE TABLE IF NOT EXISTS character_goals (
+      goal_id TEXT PRIMARY KEY, character_id TEXT NOT NULL REFERENCES characters(character_id),
+      title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'short' CHECK(type IN ('short','long')),
+      status TEXT DEFAULT 'active' CHECK(status IN ('active','completed','abandoned')),
+      reward TEXT, completed_at TEXT, created_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { version: 10, desc: 'Add character relationships table', sql: `CREATE TABLE IF NOT EXISTS character_relationships (
+      relationship_id TEXT PRIMARY KEY, character_id TEXT NOT NULL REFERENCES characters(character_id),
+      target_name TEXT NOT NULL, target_type TEXT DEFAULT 'npc' CHECK(target_type IN ('npc','pc','faction','deity')),
+      disposition TEXT DEFAULT 'neutral' CHECK(disposition IN ('allied','friendly','neutral','unfriendly','hostile')),
+      description TEXT, created_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { version: 11, desc: 'Add monsters table', sql: `CREATE TABLE IF NOT EXISTS monsters (
+      monster_id TEXT PRIMARY KEY, name TEXT NOT NULL, size TEXT, type TEXT, alignment TEXT,
+      ac INTEGER DEFAULT 10, hp INTEGER DEFAULT 1, speed TEXT,
+      str INTEGER DEFAULT 10, dex INTEGER DEFAULT 10, con INTEGER DEFAULT 10,
+      int_ INTEGER DEFAULT 10, wis INTEGER DEFAULT 10, cha INTEGER DEFAULT 10,
+      challenge_rating REAL DEFAULT 0, xp INTEGER DEFAULT 0,
+      abilities TEXT, actions TEXT, source TEXT DEFAULT 'custom',
+      created_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { version: 12, desc: 'Add NPCs table', sql: `CREATE TABLE IF NOT EXISTS npcs (
+      npc_id TEXT PRIMARY KEY, campaign_id TEXT REFERENCES campaigns(campaign_id),
+      name TEXT NOT NULL, description TEXT, location TEXT, disposition TEXT,
+      portrait_url TEXT, voice_notes TEXT, sessions TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { version: 13, desc: 'Add locations table', sql: `CREATE TABLE IF NOT EXISTS locations (
+      location_id TEXT PRIMARY KEY, campaign_id TEXT REFERENCES campaigns(campaign_id),
+      name TEXT NOT NULL, description TEXT, type TEXT, discovered_session_id TEXT,
+      notes TEXT, created_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { version: 14, desc: 'Add plot threads table', sql: `CREATE TABLE IF NOT EXISTS plot_threads (
+      thread_id TEXT PRIMARY KEY, campaign_id TEXT REFERENCES campaigns(campaign_id),
+      title TEXT NOT NULL, description TEXT, status TEXT DEFAULT 'active' CHECK(status IN ('active','resolved','abandoned')),
+      priority TEXT DEFAULT 'normal', related_sessions TEXT,
+      created_at TEXT DEFAULT (datetime('now')), resolved_at TEXT
+    )` },
+    { version: 15, desc: 'Add gallery table', sql: `CREATE TABLE IF NOT EXISTS gallery_items (
+      item_id TEXT PRIMARY KEY, campaign_id TEXT REFERENCES campaigns(campaign_id),
+      player_id TEXT REFERENCES players(player_id), type TEXT DEFAULT 'art',
+      title TEXT, description TEXT, image_url TEXT NOT NULL,
+      upvotes INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { version: 16, desc: 'Add guest tokens table', sql: `CREATE TABLE IF NOT EXISTS guest_tokens (
+      token TEXT PRIMARY KEY, session_id TEXT REFERENCES sessions(session_id),
+      created_by TEXT, max_uses INTEGER DEFAULT 1, uses INTEGER DEFAULT 0,
+      expires_at TEXT, created_at TEXT DEFAULT (datetime('now'))
+    )` },
+    { version: 17, desc: 'Add engagement scores table', sql: `CREATE TABLE IF NOT EXISTS engagement_scores (
+      player_id TEXT PRIMARY KEY REFERENCES players(player_id),
+      attendance_score REAL DEFAULT 0, journal_score REAL DEFAULT 0,
+      downtime_score REAL DEFAULT 0, discussion_score REAL DEFAULT 0,
+      overall_score REAL DEFAULT 0, updated_at TEXT DEFAULT (datetime('now'))
+    )` },
   ];
 
   for (const m of migrations) {

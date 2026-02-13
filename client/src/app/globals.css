@@ -389,6 +389,80 @@ body {
   animation: urgentPulse 1.5s ease-in-out infinite;
 }
 
+/* ── Class-themed borders ── */
+.class-theme-barbarian { border-image: linear-gradient(180deg, #8b4513, #654321, #8b4513) 1; border-width: 3px; border-style: solid; }
+.class-theme-bard { border-image: linear-gradient(180deg, #9b59b6, #8e44ad, #9b59b6) 1; border-width: 3px; border-style: solid; }
+.class-theme-cleric { border-image: linear-gradient(180deg, #f1c40f, #e8b84a, #f1c40f) 1; border-width: 3px; border-style: solid; }
+.class-theme-druid { border-image: linear-gradient(180deg, #27ae60, #2ecc71, #27ae60) 1; border-width: 3px; border-style: solid; }
+.class-theme-fighter { border-image: linear-gradient(180deg, #7f8c8d, #95a5a6, #7f8c8d) 1; border-width: 3px; border-style: solid; }
+.class-theme-monk { border-image: linear-gradient(180deg, #f39c12, #e67e22, #f39c12) 1; border-width: 3px; border-style: solid; }
+.class-theme-paladin { border-image: linear-gradient(180deg, #3498db, #f1c40f, #3498db) 1; border-width: 3px; border-style: solid; }
+.class-theme-ranger { border-image: linear-gradient(180deg, #2d5016, #4a7c2e, #2d5016) 1; border-width: 3px; border-style: solid; }
+.class-theme-rogue { border-image: linear-gradient(180deg, #2c3e50, #34495e, #2c3e50) 1; border-width: 3px; border-style: solid; }
+.class-theme-sorcerer { border-image: linear-gradient(180deg, #e74c3c, #c0392b, #e74c3c) 1; border-width: 3px; border-style: solid; }
+.class-theme-warlock { border-image: linear-gradient(180deg, #8e44ad, #6c3483, #8e44ad) 1; border-width: 3px; border-style: solid; }
+.class-theme-wizard { border-image: linear-gradient(180deg, #2980b9, #3498db, #2980b9) 1; border-width: 3px; border-style: solid; }
+.class-theme-artificer { border-image: linear-gradient(180deg, #d35400, #e67e22, #d35400) 1; border-width: 3px; border-style: solid; }
+
+/* ── Ability score hex badge ── */
+.ability-hex {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--parchment);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  border: none;
+}
+
+.ability-hex::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: var(--gold);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  z-index: -1;
+}
+
+/* ── HP heart bar ── */
+.hp-heart-bar {
+  position: relative;
+  height: 24px;
+  background: var(--wood-dark);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hp-heart-fill {
+  height: 100%;
+  border-radius: 12px;
+  transition: width 0.5s ease;
+  background: linear-gradient(90deg, #cc0000, #ff3333);
+}
+
+.hp-heart-fill.healthy { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.hp-heart-fill.wounded { background: linear-gradient(90deg, #eab308, #facc15); }
+.hp-heart-fill.critical { background: linear-gradient(90deg, #cc0000, #ff3333); animation: urgentPulse 1s ease-in-out infinite; }
+
+/* ── AC shield ── */
+.ac-shield {
+  width: 48px;
+  height: 56px;
+  background: linear-gradient(180deg, var(--gold), var(--amber));
+  clip-path: polygon(50% 0%, 100% 15%, 100% 65%, 50% 100%, 0% 65%, 0% 15%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--wood-dark);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+}
+
 /* ── Reduced motion: disable all custom animations ── */
 @media (prefers-reduced-motion: reduce) {
   .page-enter,
