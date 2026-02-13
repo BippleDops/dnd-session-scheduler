@@ -10,6 +10,7 @@ import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
 import { useToast } from '@/components/ui/Toast';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
 
 export default function SessionDetailPage() { return <Suspense><SessionDetailInner /></Suspense>; }
 
@@ -63,6 +64,8 @@ function SessionDetailInner() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Sessions', href: '/sessions' }, { label: session.title || session.campaign }]} />
+
       {/* Header */}
       <ParchmentPanel>
         <div className="flex justify-between items-start">

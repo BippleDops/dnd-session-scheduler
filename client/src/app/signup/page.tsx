@@ -12,6 +12,7 @@ import WoodButton from '@/components/ui/WoodButton';
 import TierShield, { isLevelValidForTier, getTierRange } from '@/components/ui/TierShield';
 import { useToast } from '@/components/ui/Toast';
 import Confetti from '@/components/ui/Confetti';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter','Other'];
 const CLASS_ICONS: Record<string, string> = {
@@ -127,6 +128,8 @@ function SignupInner() {
 
   return (
     <div>
+      <Breadcrumbs items={[{ label: 'Sessions', href: '/sessions' }, { label: session.title || session.campaign }]} />
+
       {/* Session summary */}
       <ParchmentPanel>
         <div className="flex justify-between items-start">

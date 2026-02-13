@@ -52,13 +52,14 @@ export default function QuestCard({ session: s, showSignup = true, index = 0 }: 
         <p className="mt-2 text-[10px] text-[var(--candle)]">⏰ Signup closes {new Date(s.signupDeadline).toLocaleDateString()}</p>
       )}
 
-      {/* Tier + Description */}
+      {/* Meta badges */}
       <div className="mt-3 flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-[var(--ink-faded)]" style={{ color: campaignColor(s.campaign) }}>{s.campaign}</span>
         {s.levelTier && s.levelTier !== 'any' && <TierShield tier={s.levelTier} />}
         {s.location && <span className="text-xs text-[var(--ink-faded)]">📍 {s.location}</span>}
       </div>
       {s.description && (
-        <p className="mt-2 text-sm text-[var(--ink-faded)] italic">{s.description}</p>
+        <p className="mt-2 text-sm text-[var(--ink-faded)] italic line-clamp-2">{s.description}</p>
       )}
 
       {/* Roster */}

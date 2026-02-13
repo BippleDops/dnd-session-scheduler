@@ -10,6 +10,7 @@ import Footer from '@/components/layout/Footer';
 import { DiceRoller } from '@/components/ui/DiceRoller';
 import InstallPrompt from '@/components/ui/InstallPrompt';
 import KeyboardHelp from '@/components/ui/KeyboardHelp';
+import ScrollToTop from '@/components/ui/ScrollToTop';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <Footer />
           <MobileNav />
           <DiceRoller />
+          <ScrollToTop />
           <KeyboardHelp open={showHelp} onClose={() => setShowHelp(false)} />
         </ConfirmProvider>
         </ToastProvider>

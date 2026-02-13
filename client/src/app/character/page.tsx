@@ -8,6 +8,7 @@ import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import VisualCharacterSheet from '@/components/ui/CharacterSheet';
 import CandleLoader from '@/components/ui/CandleLoader';
 import WoodButton from '@/components/ui/WoodButton';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { useToast } from '@/components/ui/Toast';
 import { formatDate } from '@/lib/utils';
 
@@ -59,6 +60,8 @@ function CharacterDetailInner() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Characters', href: '/characters' }, { label: char.name }]} />
+
       {/* Visual Character Sheet */}
       <VisualCharacterSheet character={char} />
 
