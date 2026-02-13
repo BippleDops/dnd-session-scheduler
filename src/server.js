@@ -26,6 +26,7 @@ const PORT = parseInt(process.env.PORT, 10) || 3000;
 
 // ── Database ──
 initializeDatabase();
+try { require('./services/encounter-service').seedMonsters(); } catch (e) { console.error('Monster seed error:', e.message); }
 
 // ── Compression ──
 app.use(compression());

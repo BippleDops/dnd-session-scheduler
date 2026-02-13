@@ -261,6 +261,108 @@ router.post('/campaigns/:id/generate-sessions', (req, res) => {
   res.json({ success: true, ...result });
 });
 
+// ── Encounter Builder ──
+router.get('/monsters', (req, res) => {
+  const { searchMonsters } = require('../services/encounter-service');
+  res.json(searchMonsters(req.query.q || '', parseInt(req.query.limit, 10) || 30));
+});
+
+router.post('/monsters', (req, res) => {
+  const db = getDb();
+  const id = generateUuid();
+  const m = req.body;
+  db.prepare(`INSERT INTO monsters (monster_id, name, size, type, ac, hp, str, dex, con, int_, wis, cha, challenge_rating, xp, actions, source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom')`)
+    .run(id, m.name, m.size||'Medium', m.type||'', parseInt(m.ac,10)||10, parseInt(m.hp,10)||1,
+      parseInt(m.str,10)||10, parseInt(m.dex,10)||10, parseInt(m.con,10)||10, parseInt(m.int,10)||10,
+      parseInt(m.wis,10)||10, parseInt(m.cha,10)||10, parseFloat(m.cr)||0, parseInt(m.xp,10)||0, m.actions||'');
+  res.json({ success: true, monsterId: id });
+});
+
+router.post('/encounter/calculate', (req, res) => {
+  const { calculateDifficulty } = require('../services/encounter-service');
+  const { partyLevels, monsterXPs } = req.body;
+  if (!partyLevels?.length || !monsterXPs?.length) return res.json({ difficulty: 'Unknown', adjustedXP: 0, thresholds: {} });
+  res.json(calculateDifficulty(partyLevels, monsterXPs));
+});
+
+// ── NPCs ──
+router.get('/npcs', (req, res) => {
+  const campaignId = req.query.campaignId;
+  const npcs = campaignId
+    ? getDb().prepare('SELECT * FROM npcs WHERE campaign_id = ? ORDER BY name').all(campaignId)
+    : getDb().prepare('SELECT * FROM npcs ORDER BY name').all();
+  res.json(npcs);
+});
+
+router.post('/npcs', (req, res) => {
+  const id = generateUuid();
+  const n = req.body;
+  getDb().prepare('INSERT INTO npcs (npc_id, campaign_id, name, description, location, disposition, portrait_url, voice_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, n.campaignId||null, n.name, n.description||'', n.location||'', n.disposition||'neutral', n.portraitUrl||'', n.voiceNotes||'');
+  res.json({ success: true, npcId: id });
+});
+
+router.put('/npcs/:id', (req, res) => {
+  const n = req.body;
+  getDb().prepare('UPDATE npcs SET name=?, description=?, location=?, disposition=?, portrait_url=?, voice_notes=? WHERE npc_id=?')
+    .run(n.name, n.description||'', n.location||'', n.disposition||'neutral', n.portraitUrl||'', n.voiceNotes||'', req.params.id);
+  res.json({ success: true });
+});
+
+router.delete('/npcs/:id', (req, res) => {
+  getDb().prepare('DELETE FROM npcs WHERE npc_id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// ── Locations ──
+router.get('/locations', (req, res) => {
+  const campaignId = req.query.campaignId;
+  const locs = campaignId
+    ? getDb().prepare('SELECT * FROM locations WHERE campaign_id = ? ORDER BY name').all(campaignId)
+    : getDb().prepare('SELECT * FROM locations ORDER BY name').all();
+  res.json(locs);
+});
+
+router.post('/locations', (req, res) => {
+  const id = generateUuid();
+  const l = req.body;
+  getDb().prepare('INSERT INTO locations (location_id, campaign_id, name, description, type, notes) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, l.campaignId||null, l.name, l.description||'', l.type||'', l.notes||'');
+  res.json({ success: true, locationId: id });
+});
+
+// ── Plot Threads ──
+router.get('/plot-threads', (req, res) => {
+  const campaignId = req.query.campaignId;
+  const threads = campaignId
+    ? getDb().prepare('SELECT * FROM plot_threads WHERE campaign_id = ? ORDER BY status, priority DESC, created_at DESC').all(campaignId)
+    : getDb().prepare('SELECT * FROM plot_threads ORDER BY status, priority DESC, created_at DESC').all();
+  res.json(threads);
+});
+
+router.post('/plot-threads', (req, res) => {
+  const id = generateUuid();
+  const t = req.body;
+  getDb().prepare('INSERT INTO plot_threads (thread_id, campaign_id, title, description, priority) VALUES (?, ?, ?, ?, ?)')
+    .run(id, t.campaignId||null, t.title, t.description||'', t.priority||'normal');
+  res.json({ success: true, threadId: id });
+});
+
+router.put('/plot-threads/:id', (req, res) => {
+  const t = req.body;
+  const updates = [];
+  const params = [];
+  if (t.title !== undefined) { updates.push('title=?'); params.push(t.title); }
+  if (t.description !== undefined) { updates.push('description=?'); params.push(t.description); }
+  if (t.status) { updates.push('status=?'); params.push(t.status); if (t.status === 'resolved') updates.push("resolved_at=datetime('now')"); }
+  if (t.priority) { updates.push('priority=?'); params.push(t.priority); }
+  if (updates.length === 0) return res.json({ success: false });
+  params.push(req.params.id);
+  getDb().prepare(`UPDATE plot_threads SET ${updates.join(', ')} WHERE thread_id = ?`).run(...params);
+  res.json({ success: true });
+});
+
 // ── Email Log ──
 router.get('/emails', (req, res) => {
   const db = getDb();
