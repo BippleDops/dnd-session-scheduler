@@ -147,6 +147,50 @@ ${session.title ? `<tr><td style="padding:10px;font-weight:bold;">Session</td><t
   return wrapEmailTemplate('Waitlist Promotion', content);
 }
 
+function buildNoShowEmail(session, playerName) {
+  const content = `<h2 style="color:#8b0000;">We Missed You! 😔</h2>
+<p>Hey ${playerName},</p>
+<p>We noticed you weren't able to make it to the session:</p>
+<table style="width:100%;border-collapse:collapse;margin:20px 0;background:#f9f6ef;border-radius:8px;">
+<tr><td style="padding:10px;font-weight:bold;width:120px;">Date</td><td style="padding:10px;">${formatDateForEmail(session.date)}</td></tr>
+<tr><td style="padding:10px;font-weight:bold;">Campaign</td><td style="padding:10px;">${session.campaign}</td></tr>
+</table>
+<p>Everything okay? If something came up, no worries at all — we just wanted to check in.</p>
+<p>Here are some upcoming sessions you might want to join:</p>
+<p style="margin-top:16px;"><a href="${process.env.BASE_URL || ''}/sessions" style="display:inline-block;padding:10px 24px;background:#8b0000;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">Browse Upcoming Sessions</a></p>`;
+  return wrapEmailTemplate('We Missed You', content);
+}
+
+function buildAchievementEmail(playerName, achievement) {
+  const content = `<h2 style="color:#8b0000;">🏆 Achievement Unlocked!</h2>
+<p>Congratulations, ${playerName}!</p>
+<div style="text-align:center;margin:24px 0;padding:20px;background:#fffbe6;border-radius:8px;border:2px solid #c9a959;">
+<span style="font-size:48px;display:block;margin-bottom:8px;">${achievement.icon}</span>
+<h3 style="margin:0;color:#8b0000;font-size:20px;">${achievement.name}</h3>
+<p style="margin:4px 0 0;color:#666;">${achievement.description}</p>
+</div>
+<p>Keep adventuring — more achievements await!</p>
+<p style="margin-top:16px;"><a href="${process.env.BASE_URL || ''}/stats" style="display:inline-block;padding:10px 24px;background:#8b0000;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">View All Achievements</a></p>`;
+  return wrapEmailTemplate('Achievement Unlocked', content);
+}
+
+function buildInactivityEmail(playerName, upcomingSessions) {
+  let sessionsList = '';
+  if (upcomingSessions.length > 0) {
+    sessionsList = `<h3 style="color:#8b0000;">Upcoming Adventures</h3><ul style="margin:10px 0;">`;
+    for (const s of upcomingSessions) {
+      sessionsList += `<li style="margin:6px 0;"><strong>${s.title || s.campaign}</strong> — ${formatDateForEmail(s.date)} (${s.spotsRemaining > 0 ? s.spotsRemaining + ' spots' : 'FULL'})</li>`;
+    }
+    sessionsList += `</ul>`;
+  }
+  const content = `<h2 style="color:#8b0000;">We Miss You, Adventurer! 🗡️</h2>
+<p>Hey ${playerName},</p>
+<p>It's been a while since your last adventure. The party isn't the same without you!</p>
+${sessionsList || '<p>Check the quest board for new sessions.</p>'}
+<p style="margin-top:16px;"><a href="${process.env.BASE_URL || ''}" style="display:inline-block;padding:10px 24px;background:#8b0000;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">Return to the Quest Board</a></p>`;
+  return wrapEmailTemplate('We Miss You', content);
+}
+
 function buildWeeklyDigestEmail(playerName, upcomingSessions, recentRecaps, achievementsEarned) {
   let sessionsList = '';
   if (upcomingSessions.length > 0) {
@@ -236,6 +280,9 @@ module.exports = {
   buildCancellationEmail,
   buildWaitlistPromotionEmail,
   buildSessionUpdateEmail,
+  buildNoShowEmail,
+  buildAchievementEmail,
+  buildInactivityEmail,
   buildWeeklyDigestEmail,
   buildRsvpEmail,
   getEmailSubject,

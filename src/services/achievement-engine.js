@@ -71,12 +71,25 @@ function evaluateAchievements(playerId) {
 
         newlyEarned.push(achievement);
 
-        // Notify the player
+        // Notify the player (in-app)
         createNotification(
           playerId, 'achievement',
           `🏆 Achievement Unlocked: ${achievement.icon} ${achievement.name} — ${achievement.description}`,
           achievement.achievement_id
         );
+
+        // Send achievement email (async, best-effort)
+        try {
+          const { sendEmail, playerWantsEmail } = require('./reminder-service');
+          const { buildAchievementEmail } = require('../email/templates');
+          if (playerWantsEmail(playerId, 'achievements')) {
+            const player = db.prepare('SELECT name, email FROM players WHERE player_id = ?').get(playerId);
+            if (player?.email) {
+              sendEmail(player.email, `🏆 Achievement Unlocked: ${achievement.name}`, buildAchievementEmail(player.name, achievement))
+                .catch(e => console.error('Achievement email error:', e.message));
+            }
+          }
+        } catch {}
 
         logAction('ACHIEVEMENT_EARNED', `${achievement.name} earned by ${playerId}`, 'System', achievement.achievement_id);
       }

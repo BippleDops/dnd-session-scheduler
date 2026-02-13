@@ -299,6 +299,70 @@ cron.schedule('0 2 * * *', () => {
   } catch (e) { console.error('Cron backup error:', e); }
 }, { timezone: 'America/Chicago' });
 
+// No-show follow-up: 24h after completed sessions
+cron.schedule('0 12 * * *', async () => {
+  console.log('[Cron] Checking for no-show follow-ups');
+  try {
+    const { getDb, normalizeDate } = require('./db');
+    const db = getDb();
+    const { sendEmail, hasEmailBeenSent, markEmailSent, playerWantsEmail } = require('./services/reminder-service');
+    const { buildNoShowEmail } = require('./email/templates');
+
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().slice(0, 10);
+
+    const noShows = db.prepare(`SELECT r.player_id, r.session_id, p.name, p.email, s.campaign, s.date
+      FROM registrations r JOIN players p ON r.player_id = p.player_id JOIN sessions s ON r.session_id = s.session_id
+      WHERE r.status = 'No-Show' AND s.date = ? AND s.status = 'Completed'`).all(dateStr);
+
+    let sent = 0;
+    for (const ns of noShows) {
+      if (!ns.email || hasEmailBeenSent(ns.player_id, ns.session_id, 'noshow') || !playerWantsEmail(ns.player_id, 'reminders')) continue;
+      const html = buildNoShowEmail({ date: normalizeDate(ns.date), campaign: ns.campaign }, ns.name);
+      const result = await sendEmail(ns.email, `We missed you — ${ns.campaign}`, html);
+      if (result) { markEmailSent(ns.player_id, ns.session_id, 'noshow'); sent++; }
+    }
+    if (sent > 0) console.log(`[Cron] Sent ${sent} no-show follow-up emails`);
+  } catch (e) { console.error('Cron no-show error:', e); }
+}, { timezone: 'America/Chicago' });
+
+// Inactivity re-engagement: monthly check for inactive players
+cron.schedule('0 14 1 * *', async () => {
+  console.log('[Cron] Checking for inactive player re-engagement');
+  try {
+    const { getDb, normalizeDate, normalizeTime } = require('./db');
+    const db = getDb();
+    const { sendEmail, playerWantsEmail } = require('./services/reminder-service');
+    const { buildInactivityEmail } = require('./email/templates');
+
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+    const inactivePlayers = db.prepare(`
+      SELECT p.player_id, p.name, p.email FROM players p
+      WHERE p.active_status = 'Active' AND p.email IS NOT NULL
+      AND p.player_id NOT IN (
+        SELECT DISTINCT r.player_id FROM registrations r
+        JOIN sessions s ON r.session_id = s.session_id
+        WHERE s.date >= ? AND r.status IN ('Confirmed','Attended')
+      )
+    `).all(cutoff.toISOString().slice(0, 10));
+
+    const upcoming = db.prepare("SELECT * FROM sessions WHERE date >= date('now') AND status = 'Scheduled' ORDER BY date LIMIT 5").all();
+    const upcomingSessions = upcoming.map(s => ({
+      title: s.title, campaign: s.campaign, date: normalizeDate(s.date),
+      spotsRemaining: Math.max(0, (s.max_players || 6) - (db.prepare("SELECT COUNT(*) as c FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Attended')").get(s.session_id).c)),
+    }));
+
+    let sent = 0;
+    for (const p of inactivePlayers) {
+      if (!playerWantsEmail(p.player_id, 'digest')) continue;
+      const html = buildInactivityEmail(p.name, upcomingSessions);
+      const result = await sendEmail(p.email, '🗡️ We miss you, adventurer!', html);
+      if (result) sent++;
+    }
+    if (sent > 0) console.log(`[Cron] Sent ${sent} inactivity re-engagement emails`);
+  } catch (e) { console.error('Cron inactivity error:', e); }
+}, { timezone: 'America/Chicago' });
+
 // Auto-briefing: 48h before sessions, send briefing emails
 cron.schedule('0 10 * * *', async () => {
   console.log('[Cron] Checking for sessions needing auto-briefing');
