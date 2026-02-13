@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSession, getCsrfToken, submitSignup, getMyCharacters, getCampaigns, type Session, type Character } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -10,15 +11,22 @@ import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
 import TierShield from '@/components/ui/TierShield';
 import { useToast } from '@/components/ui/Toast';
+import Confetti from '@/components/ui/Confetti';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter','Other'];
+const CLASS_ICONS: Record<string, string> = {
+  Barbarian: '🪓', Bard: '🎵', Cleric: '✝️', Druid: '🌿', Fighter: '⚔️', Monk: '👊',
+  Paladin: '🛡️', Ranger: '🏹', Rogue: '🗡️', Sorcerer: '✨', Warlock: '👁️', Wizard: '🧙',
+  Artificer: '⚙️', 'Blood Hunter': '🩸', Other: '⚔️',
+};
 const RACES = ['Human','Elf','Half-Elf','Dwarf','Halfling','Gnome','Half-Orc','Tiefling','Dragonborn','Goliath','Aasimar','Genasi','Tabaxi','Kenku','Firbolg','Tortle','Warforged','Changeling','Kalashtar','Shifter','Harengon','Owlin','Other'];
 
 export default function SignupPage() { return <Suspense><SignupInner /></Suspense>; }
 function SignupInner() {
+  usePageTitle('Sign Up');
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') || '';
-  const { user, isLoggedIn } = useAuth();
+  const { isLoggedIn } = useAuth();
   const { toast } = useToast();
 
   const [session, setSession] = useState<Session | null>(null);
@@ -77,7 +85,7 @@ function SignupInner() {
       });
       if (result.success) { setDone(true); setResultMsg(result.message || ''); }
       else { toast(result.message || 'Failed', 'error'); }
-    } catch (e) { toast('An error occurred', 'error'); }
+    } catch { toast('An error occurred', 'error'); }
     setSubmitting(false);
   };
 
@@ -104,14 +112,17 @@ function SignupInner() {
     </ParchmentPanel>
   );
   if (done) return (
-    <ParchmentPanel className="text-center py-10">
-      <h2 className="font-[var(--font-heading)] text-xl text-green-700">🎉 You&apos;re Registered!</h2>
-      <p className="text-[var(--ink)] mt-2">{resultMsg}</p>
-      <div className="flex gap-3 justify-center mt-4">
-        <WoodButton variant="primary" href="/">Quest Board</WoodButton>
-        <WoodButton href="/my-sessions">My Quests</WoodButton>
-      </div>
-    </ParchmentPanel>
+    <>
+      <Confetti count={35} />
+      <ParchmentPanel className="text-center py-10">
+        <h2 className="font-[var(--font-heading)] text-xl text-green-700">🎉 You&apos;re Registered!</h2>
+        <p className="text-[var(--ink)] mt-2">{resultMsg}</p>
+        <div className="flex gap-3 justify-center mt-4">
+          <WoodButton variant="primary" href="/">Quest Board</WoodButton>
+          <WoodButton href="/my-sessions">My Quests</WoodButton>
+        </div>
+      </ParchmentPanel>
+    </>
   );
 
   return (
@@ -132,14 +143,32 @@ function SignupInner() {
       {/* Character picker */}
       {characters.length > 0 && (
         <ParchmentPanel>
-          <p className="text-sm font-semibold text-[var(--ink)] mb-2">Your Characters</p>
-          <div className="flex flex-wrap gap-2">
-            {characters.map((c, i) => (
-              <button key={i} onClick={() => fillCharacter(c)} className="wood-btn text-xs py-1 px-3">
-                {c.characterName} <span className="opacity-60">({c.characterClass} Lv{c.characterLevel})</span>
-              </button>
-            ))}
-            <button onClick={() => { setCharName(''); setCharLevel(''); setCharClasses([]); setCharRace(''); }} className="wood-btn text-xs py-1 px-3">+ New Character</button>
+          <p className="text-sm font-semibold text-[var(--ink)] mb-2">Quick Select a Character</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {characters.map((c, i) => {
+              const isSelected = charName === c.characterName;
+              const classIcon = CLASS_ICONS[c.characterClass.split(',')[0].trim()] || '⚔️';
+              return (
+                <button key={i} onClick={() => fillCharacter(c)}
+                  className={`flex items-center gap-2 p-3 rounded-lg text-left transition-all border ${
+                    isSelected
+                      ? 'border-[var(--gold)] bg-[rgba(201,169,89,0.15)] shadow-md'
+                      : 'border-[var(--parchment-dark)] bg-[var(--parchment)] hover:border-[var(--gold)] hover:shadow-sm'
+                  }`}
+                >
+                  <span className="text-2xl">{classIcon}</span>
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold truncate ${isSelected ? 'text-[var(--gold)]' : 'text-[var(--ink)]'}`}>{c.characterName}</p>
+                    <p className="text-[10px] text-[var(--ink-faded)]">{c.characterClass} · Lv{c.characterLevel}</p>
+                  </div>
+                </button>
+              );
+            })}
+            <button onClick={() => { setCharName(''); setCharLevel(''); setCharClasses([]); setCharRace(''); }}
+              className="flex items-center gap-2 p-3 rounded-lg text-left border border-dashed border-[var(--parchment-dark)] bg-[var(--parchment)] hover:border-[var(--gold)] transition-colors">
+              <span className="text-2xl opacity-40">➕</span>
+              <p className="text-sm text-[var(--ink-faded)]">New Character</p>
+            </button>
           </div>
         </ParchmentPanel>
       )}

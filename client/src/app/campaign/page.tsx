@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getCampaignDetail, getCampaignRoster, getCampaignTimeline, type Campaign, type CampaignRosterEntry, type CampaignTimelineEntry } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -15,6 +16,8 @@ function CampaignHubInner() {
   const [roster, setRoster] = useState<CampaignRosterEntry[]>([]);
   const [timeline, setTimeline] = useState<CampaignTimelineEntry[]>([]);
   const [tab, setTab] = useState<'overview' | 'roster' | 'timeline'>('overview');
+
+  usePageTitle(campaign?.name || 'Campaign');
 
   useEffect(() => {
     if (!slug) return;

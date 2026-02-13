@@ -163,6 +163,16 @@ function updatePlayerRecord(playerId, updates) {
   return { success: true };
 }
 
+/**
+ * Returns a lightweight list of all active players (id + name only).
+ * Safe for non-admin users — used for message recipient picker.
+ */
+function getPlayerContacts() {
+  return getDb().prepare(
+    "SELECT player_id AS id, name FROM players WHERE active_status = 'Active' ORDER BY name"
+  ).all();
+}
+
 module.exports = {
   getPlayerByEmail,
   getPlayerById,
@@ -172,5 +182,6 @@ module.exports = {
   getPlayerSessionHistory,
   setPlayerStatus,
   updatePlayerRecord,
+  getPlayerContacts,
 };
 

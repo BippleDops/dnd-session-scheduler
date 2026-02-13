@@ -2,14 +2,18 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getPolls, getPollDetail, votePoll, createPoll, getCampaignsList, type AvailabilityPoll, type AvailabilityPollDetail, type Campaign } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useToast } from '@/components/ui/Toast';
 
 export default function PollsPage() { return <Suspense><PollsInner /></Suspense>; }
 
 function PollsInner() {
+  usePageTitle('Availability Polls');
   const searchParams = useSearchParams();
   const pollId = searchParams.get('poll') || '';
   const { isLoggedIn, isAdmin } = useAuth();
@@ -20,6 +24,7 @@ function PollsInner() {
   const [createForm, setCreateForm] = useState({ campaignId: '', title: '', options: '' });
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     Promise.all([getPolls(), getCampaignsList()]).then(([p, c]) => { setPolls(p); setCampaigns(c); }).finally(() => setLoading(false));
@@ -28,16 +33,22 @@ function PollsInner() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const options = createForm.options.split('\n').map(o => o.trim()).filter(Boolean);
-    await createPoll({ campaignId: createForm.campaignId || undefined, title: createForm.title, options });
-    setShowCreate(false);
-    getPolls().then(setPolls);
+    try {
+      const options = createForm.options.split('\n').map(o => o.trim()).filter(Boolean);
+      await createPoll({ campaignId: createForm.campaignId || undefined, title: createForm.title, options });
+      toast('Poll created!', 'success');
+      setShowCreate(false);
+      getPolls().then(setPolls);
+    } catch (err) { toast(err instanceof Error ? err.message : 'Failed', 'error'); }
   };
 
   const handleVote = async () => {
     if (!detail) return;
-    await votePoll(detail.poll_id, selected);
-    getPollDetail(detail.poll_id).then(setDetail);
+    try {
+      await votePoll(detail.poll_id, selected);
+      toast('Vote submitted!', 'success');
+      getPollDetail(detail.poll_id).then(setDetail);
+    } catch (err) { toast(err instanceof Error ? err.message : 'Failed', 'error'); }
   };
 
   const toggleOption = (opt: string) => {
@@ -84,7 +95,7 @@ function PollsInner() {
         {/* Poll list */}
         <div className="space-y-2">
           {polls.length === 0 ? (
-            <ParchmentPanel><p className="text-[var(--ink-faded)] text-center text-sm">No polls yet.</p></ParchmentPanel>
+            <EmptyStateFromPreset preset="polls" />
           ) : polls.map(p => (
             <button key={p.poll_id} onClick={() => { getPollDetail(p.poll_id).then(setDetail); setSelected([]); }}
               className={`w-full text-left p-3 rounded transition-colors ${detail?.poll_id === p.poll_id ? 'bg-[var(--gold)]/20 border border-[var(--gold)]' : 'bg-[var(--wood-dark)] hover:bg-[var(--wood)]'}`}>

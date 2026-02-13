@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getCharacterDetail, getCharacterSessions, getCharacterLoot, type CharacterSheet, type CharacterSessionEntry, type LootEntry } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -18,6 +19,8 @@ function CharacterDetailInner() {
   const [sessions, setSessions] = useState<CharacterSessionEntry[]>([]);
   const [loot, setLoot] = useState<LootEntry[]>([]);
   const [tab, setTab] = useState<'sheet' | 'history' | 'inventory'>('sheet');
+
+  usePageTitle(char?.name || 'Character');
 
   useEffect(() => {
     if (!id) return;

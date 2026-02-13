@@ -2,7 +2,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { getAdminSessionDetail, getSessionPrep, exportSessionNotes, addLoot, setCharacterLevel, addWorldState, type SessionPrep, type SessionDetail } from '@/lib/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { getAdminSessionDetail, getSessionPrep, exportSessionNotes, type SessionPrep, type SessionDetail } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -12,12 +13,13 @@ const STEPS = ['Recap', 'Attendance', 'Loot', 'Leveling', 'NPCs & World', 'Expor
 export default function RecapWizardPage() { return <Suspense><RecapWizardInner /></Suspense>; }
 
 function RecapWizardInner() {
+  usePageTitle('Recap Wizard');
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') || '';
   const { isAdmin } = useAuth();
   const [step, setStep] = useState(0);
   const [session, setSession] = useState<SessionDetail | null>(null);
-  const [prep, setPrep] = useState<SessionPrep | null>(null);
+  const [, setPrep] = useState<SessionPrep | null>(null);
   const [recap, setRecap] = useState('');
   const [lootItems, setLootItems] = useState<{name: string; rarity: string; characterId: string}[]>([]);
   const [npcs, setNpcs] = useState('');
@@ -114,7 +116,7 @@ function RecapWizardInner() {
           {session.registrations?.map(r => (
             <div key={r.registrationId} className="flex items-center justify-between p-2 bg-[var(--wood-dark)] rounded mb-1">
               <span>{r.characterName} — Level {r.characterLevel}</span>
-              <WoodButton variant="sm" onClick={() => { /* TODO: setCharacterLevel call */ }}>Level Up</WoodButton>
+              <WoodButton variant="sm" href={`/admin/players`}>Level Up →</WoodButton>
             </div>
           ))}
         </ParchmentPanel>

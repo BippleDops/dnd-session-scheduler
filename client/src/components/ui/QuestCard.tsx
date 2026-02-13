@@ -1,6 +1,7 @@
 'use client';
 import { type Session } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
+import { useCountdown } from '@/hooks/useCountdown';
 import WaxSeal from './WaxSeal';
 import TierShield from './TierShield';
 import WoodButton from './WoodButton';
@@ -8,26 +9,43 @@ import WoodButton from './WoodButton';
 interface Props {
   session: Session;
   showSignup?: boolean;
+  index?: number; // for stagger animation
 }
 
-export default function QuestCard({ session: s, showSignup = true }: Props) {
+export default function QuestCard({ session: s, showSignup = true, index = 0 }: Props) {
   const spotsLow = s.spotsRemaining > 0 && s.spotsRemaining <= 2;
   const full = s.spotsRemaining <= 0;
+  const capacityPct = s.maxPlayers > 0 ? Math.round((s.registeredCount / s.maxPlayers) * 100) : 0;
+  const countdown = useCountdown(s.date, s.startTime);
 
   return (
-    <div className="quest-card p-5 pt-6" style={{ borderLeft: `4px solid ${campaignColor(s.campaign)}` }}>
+    <div
+      className="quest-card p-5 pt-6 card-enter"
+      style={{
+        borderLeft: `4px solid ${campaignColor(s.campaign)}`,
+        animationDelay: `${index * 60}ms`,
+      }}
+    >
       {/* Header */}
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
-          <h3 className="font-[var(--font-heading)] text-lg text-[var(--ink)] mb-1">
+          <a href={`/session?id=${s.sessionId}`} className="font-[var(--font-heading)] text-lg text-[var(--ink)] mb-1 hover:text-[var(--gold)] transition-colors no-underline block">
             {s.title || s.campaign}
-          </h3>
+          </a>
           <p className="text-sm text-[var(--ink-faded)]">
             {formatDate(s.date)} &bull; {formatTime(s.startTime)} — {formatTime(s.endTime)}
           </p>
         </div>
         <WaxSeal campaign={s.campaign} />
       </div>
+
+      {/* Countdown */}
+      {countdown && !countdown.isPast && (
+        <div className={`mt-2 text-xs font-semibold flex items-center gap-1 ${countdown.isUrgent ? 'text-[var(--candle)]' : 'text-[var(--gold)]'}`}>
+          <span>⏳</span>
+          <span>Starts in {countdown.label}</span>
+        </div>
+      )}
 
       {/* Tier + Description */}
       <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -51,23 +69,38 @@ export default function QuestCard({ session: s, showSignup = true }: Props) {
         </div>
       )}
 
-      {/* Capacity + Action */}
-      <div className="mt-3 flex justify-between items-center">
-        <span className={`text-sm ${spotsLow ? 'text-[var(--candle)] font-bold' : 'text-[var(--ink-faded)]'}`}>
-          {spotsLow && '⚠️ '}{s.registeredCount} / {s.maxPlayers} spots filled
-        </span>
-        <div className="flex gap-2">
-          <WoodButton variant="sm" onClick={() => window.location.href = `/api/sessions/${s.sessionId}/ics`}>
-            📅
-          </WoodButton>
-          {showSignup && (
-            full
-              ? <span className="text-xs text-red-400 font-semibold uppercase">Full</span>
-              : <WoodButton variant="primary" href={`/signup?sessionId=${s.sessionId}`}>Sign Up</WoodButton>
-          )}
+      {/* Capacity bar */}
+      <div className="mt-3">
+        <div className="flex justify-between items-center text-xs mb-1">
+          <span className={spotsLow ? 'text-[var(--candle)] font-bold' : 'text-[var(--ink-faded)]'}>
+            {spotsLow && '⚠️ '}{s.registeredCount} / {s.maxPlayers} spots
+          </span>
+          {full && <span className="text-red-500 font-bold uppercase text-[10px]">Full</span>}
         </div>
+        <div className="h-1.5 bg-[var(--parchment-dark)] rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full capacity-bar-fill ${
+              full ? 'bg-red-500 capacity-urgent' :
+              spotsLow ? 'bg-[var(--candle)]' :
+              'bg-[var(--gold)]'
+            }`}
+            style={{ width: `${Math.min(capacityPct, 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-3 flex justify-end gap-2">
+        <WoodButton variant="sm" onClick={() => window.location.href = `/api/sessions/${s.sessionId}/ics`}>
+          📅
+        </WoodButton>
+        {countdown && countdown.isUrgent && (
+          <WoodButton variant="sm" href={`/session/live?sessionId=${s.sessionId}`}>⚡ Live</WoodButton>
+        )}
+        {showSignup && !full && (
+          <WoodButton variant="primary" href={`/signup?sessionId=${s.sessionId}`}>Sign Up</WoodButton>
+        )}
       </div>
     </div>
   );
 }
-

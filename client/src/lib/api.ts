@@ -3,13 +3,32 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, {
-    credentials: 'include',
-    ...opts,
-    headers: { 'Content-Type': 'application/json', ...opts?.headers },
-  });
-  if (!res.ok && res.status === 401) throw new Error('Not authenticated');
-  return res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${url}`, {
+      credentials: 'include',
+      ...opts,
+      headers: { 'Content-Type': 'application/json', ...opts?.headers },
+    });
+  } catch {
+    throw new Error('Network error — please check your connection.');
+  }
+
+  if (res.status === 401) throw new Error('Not authenticated');
+  if (res.status === 429) throw new Error('Too many requests — please slow down.');
+
+  // Try to parse JSON; fall back to text error message
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    if (!res.ok) throw new Error(`Server error (${res.status})`);
+    throw new Error('Unexpected response format');
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `Request failed (${res.status})`);
+  }
+  return data;
 }
 
 // ── Public ──
@@ -28,6 +47,7 @@ export const getMyRegistrations = () => fetchJson<MyRegistrations>('/api/me/regi
 export const cancelMyRegistration = (id: string) => fetchJson<ApiResult>(`/api/me/registrations/${id}`, { method: 'DELETE' });
 export const getMyCharacters = () => fetchJson<Character[]>('/api/me/characters');
 export const getMyFeedToken = () => fetchJson<{ token: string; url: string }>('/api/me/feed-token');
+export const getMyContacts = () => fetchJson<{ id: string; name: string }[]>('/api/me/contacts');
 export const getMyNotifications = () => fetchJson<{ notifications: Notification[]; unread: number }>('/api/me/notifications');
 export const markAllNotificationsRead = () => fetchJson<ApiResult>('/api/me/notifications/read-all', { method: 'POST' });
 export const cancelByToken = (token: string) => fetchJson<ApiResult>('/api/cancel-by-token', { method: 'POST', body: JSON.stringify({ token }) });
@@ -44,7 +64,7 @@ export const updateMyCharacter = (id: string, data: Record<string, unknown>) => 
 export const retireMyCharacter = (id: string) => fetchJson<ApiResult>(`/api/me/characters/${id}`, { method: 'DELETE' });
 
 // ── Campaigns V2 ──
-export const getCampaignsList = () => fetchJson<Campaign[]>('/api/campaigns');
+export const getCampaignsList = () => fetchJson<Campaign[]>('/api/campaigns-list');
 export const getCampaignDetail = (slug: string) => fetchJson<Campaign>(`/api/campaigns/${slug}`);
 export const getCampaignRoster = (slug: string) => fetchJson<CampaignRosterEntry[]>(`/api/campaigns/${slug}/roster`);
 export const getCampaignTimeline = (slug: string) => fetchJson<CampaignTimelineEntry[]>(`/api/campaigns/${slug}/timeline`);
@@ -142,6 +162,7 @@ export const voteSessionRequest = (id: string, availableDates: string[]) => fetc
 
 // ── Admin ──
 export const getAdminDashboard = () => fetchJson<AdminDashboard>('/api/admin/dashboard');
+export const getAdminHealthDetail = () => fetchJson<HealthDetail>('/api/admin/health-detail');
 export const getAdminSessions = (params?: Record<string, string>) => {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return fetchJson<AdminSession[]>(`/api/admin/sessions${qs}`);
@@ -202,6 +223,14 @@ export interface AdminDashboard {
   sessionsThisMonth: number; lastBackup: string;
   thisWeekSessions: { sessionId: string; date: string; startTime: string; campaign: string; title: string; maxPlayers: number; registeredCount: number }[];
   recentLogs: { ActionType: string; Timestamp: string; Details: string }[];
+}
+export interface HealthDetail {
+  status: string; uptime: number; uptimeHuman: string;
+  memory: { heapUsedMB: number; heapTotalMB: number; rssMB: number };
+  database: { sizeMB: number; tables: Record<string, number> };
+  lastBackup: string;
+  system: { nodeVersion: string; platform: string; cpus: number; totalMemMB: number; freeMemMB: number };
+  timestamp: string;
 }
 export interface AdminSession { sessionId: string; date: string; startTime: string; endTime: string; campaign: string; title: string; maxPlayers: number; registeredCount: number; status: string }
 export interface AdminPlayer {

@@ -1,22 +1,30 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyCharactersV2, createMyCharacter, updateMyCharacter, retireMyCharacter, type CharacterSheet } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { useToast } from '@/components/ui/Toast';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import Link from 'next/link';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter'];
 const RACES = ['Human','Elf','Dwarf','Halfling','Gnome','Half-Elf','Half-Orc','Tiefling','Dragonborn','Goliath','Aasimar','Genasi','Tabaxi','Firbolg','Kenku','Lizardfolk','Changeling','Shifter','Warforged'];
 
 export default function CharactersPage() {
-  const { isLoggedIn } = useAuth();
+  usePageTitle('Characters');
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [chars, setChars] = useState<CharacterSheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+
+  const confirm = useConfirm();
+  const { toast } = useToast();
 
   const load = useCallback(() => {
     if (!isLoggedIn) return;
@@ -27,15 +35,21 @@ export default function CharactersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId) {
-      await updateMyCharacter(editId, form);
-    } else {
-      await createMyCharacter(form);
+    try {
+      if (editId) {
+        await updateMyCharacter(editId, form);
+        toast('Character updated!', 'success');
+      } else {
+        await createMyCharacter(form);
+        toast('Character created!', 'success');
+      }
+      setShowForm(false);
+      setEditId(null);
+      setForm({});
+      load();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save character', 'error');
     }
-    setShowForm(false);
-    setEditId(null);
-    setForm({});
-    load();
   };
 
   const startEdit = (c: CharacterSheet) => {
@@ -52,11 +66,18 @@ export default function CharactersPage() {
   };
 
   const handleRetire = async (id: string) => {
-    if (!confirm('Retire this character? This cannot be undone.')) return;
-    await retireMyCharacter(id);
-    load();
+    const ok = await confirm({ title: 'Retire Character?', message: 'This character will be permanently retired. Their adventures end here. This cannot be undone.', confirmLabel: 'Retire', variant: 'danger' });
+    if (!ok) return;
+    try {
+      await retireMyCharacter(id);
+      toast('Character retired', 'success');
+      load();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to retire character', 'error');
+    }
   };
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return <ParchmentPanel title="Sign In Required"><p>Please sign in to manage characters.</p></ParchmentPanel>;
   if (loading) return <CandleLoader text="Loading characters..." />;
 
@@ -148,7 +169,7 @@ export default function CharactersPage() {
       )}
 
       {chars.length === 0 && !showForm && (
-        <ParchmentPanel><p className="text-center text-[var(--ink-faded)]">No characters yet. Create your first hero!</p></ParchmentPanel>
+        <EmptyStateFromPreset preset="characters" action={{ label: '+ Create Character', href: '#' }} />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

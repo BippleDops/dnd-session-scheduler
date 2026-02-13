@@ -1,12 +1,14 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getMyNotifications, markAllNotificationsRead, type Notification } from '@/lib/api';
 import { formatTimestamp } from '@/lib/utils';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const dropdownRef = useClickOutside<HTMLDivElement>(useCallback(() => setOpen(false), []));
 
   useEffect(() => {
     getMyNotifications().then(d => {
@@ -24,9 +26,9 @@ export default function NotificationBell() {
   };
 
   return (
-    <div className="relative">
-      <button onClick={() => setOpen(!open)} className="text-lg bg-transparent border-none cursor-pointer relative">
-        🔔
+    <div className="relative" ref={dropdownRef}>
+      <button onClick={() => setOpen(!open)} className="text-lg bg-transparent border-none cursor-pointer relative" aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}>
+        <span className={unread > 0 && !open ? 'bell-swing inline-block' : 'inline-block'}>🔔</span>
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
             {unread}
@@ -49,12 +51,21 @@ export default function NotificationBell() {
               The messenger has nothing for you, adventurer.
             </p>
           ) : (
-            notifications.map(n => (
-              <div key={n.notification_id} className="px-2 py-2 border-b border-[rgba(255,255,255,0.05)] text-sm">
-                <p className="text-[var(--parchment)]">{n.message}</p>
-                <p className="text-xs text-[var(--ink-faded)] mt-1">{formatTimestamp(n.created_at)}</p>
-              </div>
-            ))
+            notifications.map(n => {
+              const icon = n.type === 'registration' ? '⚔️' :
+                n.type === 'waitlist_promoted' ? '🎉' :
+                n.type === 'session_cancelled' ? '❌' :
+                n.type === 'reminder' ? '🔔' : '📜';
+              return (
+                <div key={n.notification_id} className="px-2 py-2 border-b border-[rgba(255,255,255,0.05)] text-sm flex gap-2">
+                  <span className="text-base flex-shrink-0">{icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-[var(--parchment)]">{n.message}</p>
+                    <p className="text-[10px] text-[var(--ink-faded)] mt-0.5">{formatTimestamp(n.created_at)}</p>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       )}

@@ -1,15 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getMyMessages, sendMessage, markMessageRead, getAdminPlayers, type Message, type AdminPlayer } from '@/lib/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { getMyMessages, sendMessage, markMessageRead, getMyContacts, type Message } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 export default function MessagesPage() {
-  const { isLoggedIn, user } = useAuth();
+  usePageTitle('Messages');
+  const { isLoggedIn, loading: authLoading, user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [players, setPlayers] = useState<AdminPlayer[]>([]);
+  const [players, setPlayers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCompose, setShowCompose] = useState(false);
   const [form, setForm] = useState({ toPlayerId: '', subject: '', body: '' });
@@ -17,7 +20,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    Promise.all([getMyMessages(), getAdminPlayers()]).then(([m, p]) => {
+    Promise.all([getMyMessages(), getMyContacts()]).then(([m, p]) => {
       setMessages(m);
       setPlayers(p);
     }).finally(() => setLoading(false));
@@ -39,6 +42,7 @@ export default function MessagesPage() {
     }
   };
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return <ParchmentPanel title="Sign In Required"><p>Please sign in to view messages.</p></ParchmentPanel>;
   if (loading) return <CandleLoader text="Loading messages..." />;
 
@@ -58,7 +62,7 @@ export default function MessagesPage() {
               <label className="block text-xs font-bold mb-1">To</label>
               <select required className="parchment-input w-full" value={form.toPlayerId} onChange={e => setForm({ ...form, toPlayerId: e.target.value })}>
                 <option value="">Select player...</option>
-                {players.map(p => <option key={p.PlayerID} value={p.PlayerID}>{p.Name}</option>)}
+                {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
@@ -78,7 +82,7 @@ export default function MessagesPage() {
         {/* Message list */}
         <div className="md:col-span-1 space-y-1">
           {messages.length === 0 ? (
-            <ParchmentPanel><p className="text-[var(--ink-faded)] text-center">No messages.</p></ParchmentPanel>
+            <EmptyStateFromPreset preset="messages" />
           ) : messages.map(m => (
             <button key={m.message_id} onClick={() => openMessage(m)}
               className={`w-full text-left p-3 rounded transition-colors ${selected?.message_id === m.message_id ? 'bg-[var(--gold)]/20 border border-[var(--gold)]' : 'bg-[var(--wood-dark)] hover:bg-[var(--wood)]'} ${!m.read ? 'font-bold' : ''}`}>

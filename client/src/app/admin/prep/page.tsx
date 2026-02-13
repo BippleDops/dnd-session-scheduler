@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessionPrep, saveSessionPrep, getSessionChecklist, saveSessionChecklist, getAdminSessionDetail, type SessionPrep, type SessionChecklist, type SessionDetail } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
@@ -10,6 +11,7 @@ import CandleLoader from '@/components/ui/CandleLoader';
 export default function PrepPage() { return <Suspense><PrepInner /></Suspense>; }
 
 function PrepInner() {
+  usePageTitle('DM Prep');
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId') || '';
   const { isAdmin } = useAuth();

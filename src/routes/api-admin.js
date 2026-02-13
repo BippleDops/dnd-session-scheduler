@@ -172,11 +172,15 @@ router.get('/dashboard', (req, res) => {
     const sessionsThisMonth = db.prepare(`SELECT COUNT(*) AS c FROM sessions WHERE date >= ? AND date <= ? AND status = 'Scheduled'`).get(today, monthEndStr).c;
 
     const thisWeekSessions = db.prepare(`
-      SELECT * FROM sessions WHERE date >= ? AND date <= ? AND status = 'Scheduled' ORDER BY date, start_time
-    `).all(today, weekEndStr).map(s => {
-      const count = db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Attended')`).get(s.session_id).c;
-      return { sessionId: s.session_id, date: s.date, startTime: s.start_time, campaign: s.campaign, title: s.title, maxPlayers: s.max_players, registeredCount: count };
-    });
+      SELECT s.*,
+        (SELECT COUNT(*) FROM registrations r WHERE r.session_id = s.session_id AND r.status IN ('Confirmed','Attended')) AS registered_count
+      FROM sessions s WHERE s.date >= ? AND s.date <= ? AND s.status = 'Scheduled'
+      ORDER BY s.date, s.start_time
+    `).all(today, weekEndStr).map(s => ({
+      sessionId: s.session_id, date: s.date, startTime: s.start_time,
+      campaign: s.campaign, title: s.title, maxPlayers: s.max_players,
+      registeredCount: s.registered_count,
+    }));
 
     const recentLogs = db.prepare('SELECT * FROM admin_log ORDER BY timestamp DESC LIMIT 10').all().map(l => ({
       ActionType: l.action_type, Timestamp: l.timestamp, Details: l.details,
@@ -240,6 +244,56 @@ router.put('/campaigns/:id', (req, res) => {
   const result = updateCampaign(req.params.id, req.body);
   res.json(result);
 });
+
+// ── Health Dashboard (detailed, admin-only) ──
+router.get('/health-detail', (req, res) => {
+  const db = getDb();
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+
+  const tables = ['sessions', 'players', 'registrations', 'characters', 'campaigns',
+    'session_history', 'notifications', 'messages', 'dice_rolls', 'admin_log'];
+  const rowCounts = {};
+  for (const t of tables) {
+    try { rowCounts[t] = db.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get().c; } catch { rowCounts[t] = 0; }
+  }
+
+  const dbPath = path.join(__dirname, '..', '..', 'data', 'scheduler.db');
+  let dbSizeMB = 0;
+  try { dbSizeMB = Math.round(fs.statSync(dbPath).size / 1024 / 1024 * 10) / 10; } catch {}
+
+  const mem = process.memoryUsage();
+  const { getPresenceCount } = require('./api-sse');
+
+  res.json({
+    status: 'ok',
+    uptime: Math.round(process.uptime()),
+    uptimeHuman: formatUptime(process.uptime()),
+    memory: {
+      heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+      rssMB: Math.round(mem.rss / 1024 / 1024),
+    },
+    database: { sizeMB: dbSizeMB, tables: rowCounts },
+    lastBackup: getLastBackupTimestamp(),
+    system: {
+      nodeVersion: process.version,
+      platform: os.platform(),
+      cpus: os.cpus().length,
+      totalMemMB: Math.round(os.totalmem() / 1024 / 1024),
+      freeMemMB: Math.round(os.freemem() / 1024 / 1024),
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+function formatUptime(seconds) {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${d}d ${h}h ${m}m`;
+}
 
 // ── Character Admin (level adjustment, etc.) ──
 const { getCharacterById, updateCharacter: updateCharAdmin } = require('../services/character-service');

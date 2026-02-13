@@ -3,7 +3,8 @@
  * Ported from SessionService.gs + parts of Code.gs.
  */
 const { getDb, generateUuid, nowTimestamp, normalizeDate, normalizeTime, logAction, getConfigValue } = require('../db');
-const { postToDiscord } = require('./reminder-service');
+// Lazy-require to avoid circular dependency: session-service → reminder-service → registration-service → session-service
+function postToDiscord(msg) { return require('./reminder-service').postToDiscord(msg); }
 
 const ACTION_TYPES = {
   SESSION_CREATED: 'SESSION_CREATED',
@@ -15,21 +16,37 @@ const ACTION_TYPES = {
 function getUpcomingSessions() {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
+
+  // Single query: join sessions with registrations to avoid N+1
   const sessions = db.prepare(`
     SELECT * FROM sessions
     WHERE date >= ? AND status = 'Scheduled'
     ORDER BY date, start_time
   `).all(today);
 
-  return sessions.map(s => {
-    const regs = db.prepare(`
-      SELECT char_name_snapshot AS characterName,
-             class_snapshot AS characterClass,
-             level_snapshot AS characterLevel
-      FROM registrations
-      WHERE session_id = ? AND status IN ('Confirmed','Attended')
-    `).all(s.session_id);
+  if (sessions.length === 0) return [];
 
+  // Batch-fetch all registrations for upcoming sessions in one query
+  const sessionIds = sessions.map(s => s.session_id);
+  const placeholders = sessionIds.map(() => '?').join(',');
+  const allRegs = db.prepare(`
+    SELECT session_id,
+           char_name_snapshot AS characterName,
+           class_snapshot AS characterClass,
+           level_snapshot AS characterLevel
+    FROM registrations
+    WHERE session_id IN (${placeholders}) AND status IN ('Confirmed','Attended')
+  `).all(...sessionIds);
+
+  // Group registrations by session_id
+  const regsBySession = {};
+  for (const reg of allRegs) {
+    if (!regsBySession[reg.session_id]) regsBySession[reg.session_id] = [];
+    regsBySession[reg.session_id].push(reg);
+  }
+
+  return sessions.map(s => {
+    const regs = regsBySession[s.session_id] || [];
     const registeredCount = regs.length;
     const maxPlayers = s.max_players || 6;
 
@@ -188,9 +205,23 @@ function updateSessionRecord(sessionId, data, adminEmail) {
 
 function cancelSessionRecord(sessionId, notify, adminEmail) {
   const db = getDb();
+  const session = db.prepare('SELECT campaign, date FROM sessions WHERE session_id = ?').get(sessionId);
   db.prepare(`UPDATE sessions SET status = 'Cancelled', modified_at = datetime('now') WHERE session_id = ?`)
     .run(sessionId);
   logAction(ACTION_TYPES.SESSION_CANCELLED, 'Session cancelled', adminEmail, sessionId);
+
+  // Notify registered players about cancellation
+  if (notify && session) {
+    try {
+      const { createNotification } = require('./notification-service');
+      const regs = db.prepare("SELECT player_id FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Waitlisted')").all(sessionId);
+      for (const reg of regs) {
+        createNotification(reg.player_id, 'session_cancelled',
+          `${session.campaign} session on ${normalizeDate(session.date)} has been cancelled.`, sessionId);
+      }
+    } catch { /* best effort */ }
+  }
+
   return { success: true };
 }
 
@@ -217,38 +248,44 @@ function completeSessionRecord(sessionId, adminEmail) {
   `).run(sessionId, normalizeDate(s.date), s.campaign, charNames, regs.length);
 
   logAction(ACTION_TYPES.SESSION_COMPLETED, `Session completed with ${regs.length} attendees`, adminEmail, sessionId);
+
+  // Evaluate achievements for all attending players
+  try {
+    const { evaluateAchievements } = require('./achievement-engine');
+    const attendees = db.prepare("SELECT DISTINCT player_id FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Attended')").all(sessionId);
+    for (const a of attendees) { evaluateAchievements(a.player_id); }
+  } catch {}
+
   return { success: true };
 }
 
 function getAllSessionsAdmin(filters = {}) {
   const db = getDb();
-  let sql = 'SELECT * FROM sessions WHERE 1=1';
+  let sql = `
+    SELECT s.*,
+      (SELECT COUNT(*) FROM registrations r
+       WHERE r.session_id = s.session_id AND r.status IN ('Confirmed','Attended')
+      ) AS registered_count
+    FROM sessions s WHERE 1=1`;
   const params = [];
 
-  if (filters.status) { sql += ' AND status = ?'; params.push(filters.status); }
-  if (filters.campaign) { sql += ' AND campaign = ?'; params.push(filters.campaign); }
+  if (filters.status) { sql += ' AND s.status = ?'; params.push(filters.status); }
+  if (filters.campaign) { sql += ' AND s.campaign = ?'; params.push(filters.campaign); }
 
-  sql += ' ORDER BY date DESC, start_time';
+  sql += ' ORDER BY s.date DESC, s.start_time';
   const sessions = db.prepare(sql).all(...params);
 
-  return sessions.map(s => {
-    const count = db.prepare(`
-      SELECT COUNT(*) AS c FROM registrations
-      WHERE session_id = ? AND status IN ('Confirmed','Attended')
-    `).get(s.session_id).c;
-
-    return {
-      sessionId: s.session_id,
-      date: normalizeDate(s.date),
-      startTime: normalizeTime(s.start_time),
-      endTime: normalizeTime(s.end_time),
-      campaign: s.campaign || '',
-      title: s.title || '',
-      maxPlayers: s.max_players || 6,
-      registeredCount: count,
-      status: s.status,
-    };
-  });
+  return sessions.map(s => ({
+    sessionId: s.session_id,
+    date: normalizeDate(s.date),
+    startTime: normalizeTime(s.start_time),
+    endTime: normalizeTime(s.end_time),
+    campaign: s.campaign || '',
+    title: s.title || '',
+    maxPlayers: s.max_players || 6,
+    registeredCount: s.registered_count,
+    status: s.status,
+  }));
 }
 
 function getSessionHistoryRecords(filters = {}) {

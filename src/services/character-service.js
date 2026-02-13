@@ -3,6 +3,20 @@
  */
 const { getDb, generateUuid, nowTimestamp, logAction } = require('../db');
 
+/** Validate a URL is HTTPS (or empty). Rejects non-https, javascript:, data: URIs. */
+function sanitizeUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (trimmed === '') return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'https:') return '';
+    return trimmed.slice(0, 2000);
+  } catch {
+    return '';
+  }
+}
+
 function getCharactersByPlayer(playerId) {
   return getDb().prepare(`SELECT * FROM characters WHERE player_id = ? AND status != 'Retired' ORDER BY name`).all(playerId);
 }
@@ -18,12 +32,16 @@ function createCharacter(playerId, data) {
     backstory, portrait_url, hp, max_hp, ac, str, dex, con, int_, wis, cha, proficiencies, equipment, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
     .run(id, playerId, data.name, data.class || '', data.subclass || '', parseInt(data.level,10)||1,
-      data.race || '', data.backstory || '', data.portraitUrl || '',
+      data.race || '', data.backstory || '', sanitizeUrl(data.portraitUrl),
       parseInt(data.hp,10)||0, parseInt(data.maxHp,10)||0, parseInt(data.ac,10)||10,
       parseInt(data.str,10)||10, parseInt(data.dex,10)||10, parseInt(data.con,10)||10,
       parseInt(data.int,10)||10, parseInt(data.wis,10)||10, parseInt(data.cha,10)||10,
       data.proficiencies || '', data.equipment || '');
   logAction('CHARACTER_CREATED', `${data.name} created`, '', id);
+
+  // Evaluate achievements after character creation
+  try { require('./achievement-engine').evaluateAchievements(playerId); } catch {}
+
   return { success: true, characterId: id };
 }
 
@@ -38,7 +56,9 @@ function updateCharacter(characterId, playerId, data) {
   const updates = { modified_at: nowTimestamp() };
 
   for (const [k, col] of Object.entries(fields)) {
-    if (data[k] !== undefined) updates[col] = String(data[k]).slice(0, 2000);
+    if (data[k] !== undefined) {
+      updates[col] = col === 'portrait_url' ? sanitizeUrl(data[k]) : String(data[k]).slice(0, 2000);
+    }
   }
   for (const [k, col] of Object.entries(intFields)) {
     if (data[k] !== undefined) updates[col] = parseInt(data[k], 10) || 0;

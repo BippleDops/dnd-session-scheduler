@@ -180,18 +180,25 @@ async function dailyReminderCheck() {
   recapDate.setDate(recapDate.getDate() - followDays);
   const recapDateStr = recapDate.toISOString().slice(0, 10);
 
-  const sessions = db.prepare('SELECT * FROM sessions').all();
   let draftCount = 0;
 
-  for (const s of sessions) {
-    const sDate = normalizeDate(s.date);
-    if (sDate === reminderDateStr && s.status === 'Scheduled') {
-      try { const r = await draftPlayerReminders(s.session_id); draftCount += r.draftCount || 0; } catch (e) { console.error('Reminder error:', e); }
-      try { await draftDMInfoSheet(s.session_id); draftCount++; } catch (e) { console.error('Info sheet error:', e); }
-    }
-    if (sDate === recapDateStr && (s.status === 'Scheduled' || s.status === 'Completed')) {
-      try { await draftDMRecapReminder(s.session_id); draftCount++; } catch (e) { console.error('Recap error:', e); }
-    }
+  // Query only sessions that need reminders (upcoming on reminder date)
+  const reminderSessions = db.prepare(
+    "SELECT * FROM sessions WHERE date = ? AND status = 'Scheduled'"
+  ).all(reminderDateStr);
+
+  for (const s of reminderSessions) {
+    try { const r = await draftPlayerReminders(s.session_id); draftCount += r.draftCount || 0; } catch (e) { console.error('Reminder error:', e); }
+    try { await draftDMInfoSheet(s.session_id); draftCount++; } catch (e) { console.error('Info sheet error:', e); }
+  }
+
+  // Query only sessions that need recap reminders (past on recap date)
+  const recapSessions = db.prepare(
+    "SELECT * FROM sessions WHERE date = ? AND status IN ('Scheduled','Completed')"
+  ).all(recapDateStr);
+
+  for (const s of recapSessions) {
+    try { await draftDMRecapReminder(s.session_id); draftCount++; } catch (e) { console.error('Recap error:', e); }
   }
 
   logAction('REMINDER_DRAFTED', `Daily check completed. ${draftCount} emails processed.`, 'System', '');

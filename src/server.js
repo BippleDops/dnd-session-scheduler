@@ -9,9 +9,11 @@ const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const passport = require('passport');
 const helmet = require('helmet');
+const compression = require('compression');
 const path = require('path');
 const cron = require('node-cron');
 
+const rateLimit = require('express-rate-limit');
 const { initializeDatabase, getConfigValue } = require('./db');
 const { router: authRouter, initPassport } = require('./routes/auth');
 const pageRoutes = require('./routes/pages');
@@ -25,20 +27,43 @@ const PORT = parseInt(process.env.PORT, 10) || 3000;
 // ── Database ──
 initializeDatabase();
 
+// ── Compression ──
+app.use(compression());
+
 // ── Security ──
 app.use(helmet({
-  contentSecurityPolicy: false, // EJS templates use inline scripts
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'", 'https://accounts.google.com'],
+    },
+  },
   crossOriginEmbedderPolicy: false,
 }));
+
+// ── Trust proxy (Cloudflare Tunnel) — must be set before session middleware ──
+app.set('trust proxy', 1);
 
 // ── Body parsing ──
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── Sessions ──
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret || sessionSecret.length < 32) {
+  console.warn('[SECURITY] SESSION_SECRET is missing or too short. Set a random 64+ character string in .env');
+}
 app.use(session({
   store: new SQLiteStore({ dir: path.join(__dirname, '..', 'data'), db: 'sessions.sqlite' }),
-  secret: process.env.SESSION_SECRET || 'change-me-please-' + Date.now(),
+  secret: sessionSecret || 'change-me-please-' + Date.now(),
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -61,26 +86,50 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 
-// ── Static files ──
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// ── Static files (with caching) ──
+app.use('/_next/static', express.static(path.join(__dirname, '..', 'public', '_next', 'static'), {
+  maxAge: '1y',
+  immutable: true,
+}));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    // HTML files get shorter cache + revalidation
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    }
+  },
+}));
 
 // ── Inject user into all templates ──
 app.use(injectUser);
 
-// ── Trust proxy (Cloudflare Tunnel) ──
-app.set('trust proxy', 1);
-
-// ── Request logging ──
+// ── Request logging (skip static assets and health checks) ──
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
+    // Skip logging for static assets, health checks, and SSE keepalives
+    if (req.path.startsWith('/health') || req.path.startsWith('/_next/') ||
+        req.path.startsWith('/styles') || req.path.endsWith('.js') ||
+        req.path.endsWith('.css') || req.path.endsWith('.ico') ||
+        req.path.endsWith('.png') || req.path.endsWith('.svg') ||
+        req.path.endsWith('.woff') || req.path.endsWith('.woff2')) return;
     const ms = Date.now() - start;
-    if (!req.path.startsWith('/health') && !req.path.startsWith('/styles')) {
-      console.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${req.user ? req.user.email : 'anon'}`);
-    }
+    console.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${req.user ? req.user.email : 'anon'}`);
   });
   next();
 });
+
+// ── API Rate Limiting ──
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120, // 120 requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down.' },
+  skip: (req) => req.path === '/health',
+});
+app.use('/api/', apiLimiter);
 
 // ── Routes ──
 app.use('/auth', authRouter);
@@ -97,26 +146,45 @@ app.use('/api', require('./routes/api-v4'));
 app.use('/', pageRoutes);
 
 // React SPA fallback: serve .html files for client-side routes
+// Pre-build the set of available HTML files at startup to avoid sync fs checks per request
+const _staticHtmlFiles = new Map();
+(function buildHtmlFileSet(dir, prefix) {
+  const fs = require('fs');
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      const urlPath = prefix + '/' + entry.name;
+      if (entry.isDirectory()) {
+        buildHtmlFileSet(fullPath, urlPath);
+      } else if (entry.name.endsWith('.html')) {
+        _staticHtmlFiles.set(urlPath, fullPath);
+        // Also map /foo to /foo.html and /foo/ to /foo/index.html
+        if (entry.name === 'index.html') {
+          _staticHtmlFiles.set(prefix || '/', fullPath);
+        } else {
+          _staticHtmlFiles.set(urlPath.replace(/\.html$/, ''), fullPath);
+        }
+      }
+    }
+  } catch { /* directory doesn't exist yet during build */ }
+})(path.join(__dirname, '..', 'public'), '');
+
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) return next();
-  const htmlPath = path.join(__dirname, '..', 'public', req.path + '.html');
-  const fs = require('fs');
-  if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
-  const indexPath = path.join(__dirname, '..', 'public', req.path, 'index.html');
-  if (fs.existsSync(indexPath)) return res.sendFile(indexPath);
+  const htmlFile = _staticHtmlFiles.get(req.path);
+  if (htmlFile) return res.sendFile(htmlFile);
   next();
 });
 
 // ── Health check ──
 app.get('/health', (req, res) => {
-  const db = require('./db').getDb();
-  const playerCount = db.prepare('SELECT COUNT(*) AS c FROM players').get().c;
-  const sessionCount = db.prepare('SELECT COUNT(*) AS c FROM sessions').get().c;
-  res.json({
-    status: 'ok',
-    playerCount, sessionCount,
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    // Verify DB is accessible with a lightweight query
+    require('./db').getDb().prepare('SELECT 1').get();
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'error', timestamp: new Date().toISOString() });
+  }
 });
 
 // ── Cron jobs ──
@@ -128,6 +196,16 @@ cron.schedule(`0 ${triggerHour} * * *`, async () => {
     const { dailyReminderCheck } = require('./services/reminder-service');
     await dailyReminderCheck();
   } catch (e) { console.error('Cron reminder error:', e); }
+}, { timezone: 'America/Chicago' });
+
+// Auto-complete past sessions at 1 AM
+cron.schedule('0 1 * * *', () => {
+  console.log('[Cron] Auto-completing past sessions');
+  try {
+    const { autoCompletePastSessions } = require('./services/session-service');
+    const result = autoCompletePastSessions();
+    if (result.count > 0) console.log(`[Cron] Auto-completed ${result.count} past sessions`);
+  } catch (e) { console.error('Cron auto-complete error:', e); }
 }, { timezone: 'America/Chicago' });
 
 // Daily backup at 2 AM
@@ -155,7 +233,7 @@ cron.schedule('0 10 * * *', async () => {
 
     const { sendEmail, wrapEmailTemplate } = require('./services/reminder-service');
     for (const session of upcoming) {
-      const regs = db.prepare(`SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.session_id = ? AND r.status = 'registered'`).all(session.session_id);
+      const regs = db.prepare(`SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.session_id = ? AND r.status IN ('Confirmed','Attended')`).all(session.session_id);
       if (regs.length === 0) continue;
 
       // Get previous session recap

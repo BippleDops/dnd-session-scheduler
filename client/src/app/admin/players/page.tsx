@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminPlayers, getAdminPlayerHistory, setPlayerStatus } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -9,6 +10,7 @@ import WoodButton from '@/components/ui/WoodButton';
 import { useToast } from '@/components/ui/Toast';
 
 export default function AdminPlayersPage() {
+  usePageTitle('Manage Players');
   const [status, setStatus] = useState('Active');
   const [search, setSearch] = useState('');
   const { data: players, loading, refetch } = useApi(() => getAdminPlayers(status), [status]);

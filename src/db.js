@@ -433,6 +433,16 @@ function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_worldstate_campaign ON world_state(campaign_id);
     CREATE INDEX IF NOT EXISTS idx_moments_session ON session_moments(session_id);
     CREATE INDEX IF NOT EXISTS idx_homework_player ON homework_progress(player_id);
+
+    -- Composite indexes for frequent query patterns
+    CREATE INDEX IF NOT EXISTS idx_registrations_session_status ON registrations(session_id, status);
+    CREATE INDEX IF NOT EXISTS idx_registrations_player_status ON registrations(player_id, status);
+    CREATE INDEX IF NOT EXISTS idx_sessions_date_status ON sessions(date, status);
+    CREATE INDEX IF NOT EXISTS idx_session_history_date ON session_history(session_date);
+    CREATE INDEX IF NOT EXISTS idx_notifications_player ON notifications(player_id, read);
+    CREATE INDEX IF NOT EXISTS idx_session_comments_session ON session_comments(session_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_player_id);
+    CREATE INDEX IF NOT EXISTS idx_email_log_timestamp ON email_log(timestamp);
   `);
 
   // Seed default config values
@@ -455,18 +465,37 @@ function initializeDatabase() {
     ['FEATURE_PLAYER_CANCEL', 'TRUE', 'Allow players to self-cancel registrations'],
   ];
 
-  // Schema migrations for existing databases
+  // Versioned schema migrations
+  db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    description TEXT,
+    applied_at TEXT DEFAULT (datetime('now'))
+  )`);
+
+  const appliedVersions = new Set(
+    db.prepare('SELECT version FROM schema_migrations').all().map(r => r.version)
+  );
+
   const migrations = [
-    "ALTER TABLE players ADD COLUMN photo_url TEXT",
-    "ALTER TABLE players ADD COLUMN feed_token TEXT",
-    "ALTER TABLE sessions ADD COLUMN level_tier TEXT DEFAULT 'any'",
-    "ALTER TABLE campaigns ADD COLUMN foundry_url TEXT",
-    "ALTER TABLE campaigns ADD COLUMN recurring_schedule TEXT",
-    "ALTER TABLE campaigns ADD COLUMN recurring_exceptions TEXT",
-    "ALTER TABLE sessions ADD COLUMN map_url TEXT",
+    { version: 1, desc: 'Add player photo_url', sql: "ALTER TABLE players ADD COLUMN photo_url TEXT" },
+    { version: 2, desc: 'Add player feed_token', sql: "ALTER TABLE players ADD COLUMN feed_token TEXT" },
+    { version: 3, desc: 'Add session level_tier', sql: "ALTER TABLE sessions ADD COLUMN level_tier TEXT DEFAULT 'any'" },
+    { version: 4, desc: 'Add campaign foundry_url', sql: "ALTER TABLE campaigns ADD COLUMN foundry_url TEXT" },
+    { version: 5, desc: 'Add campaign recurring_schedule', sql: "ALTER TABLE campaigns ADD COLUMN recurring_schedule TEXT" },
+    { version: 6, desc: 'Add campaign recurring_exceptions', sql: "ALTER TABLE campaigns ADD COLUMN recurring_exceptions TEXT" },
+    { version: 7, desc: 'Add session map_url', sql: "ALTER TABLE sessions ADD COLUMN map_url TEXT" },
   ];
-  for (const sql of migrations) {
-    try { db.exec(sql); } catch (e) { /* column already exists */ }
+
+  for (const m of migrations) {
+    if (appliedVersions.has(m.version)) continue;
+    try {
+      db.exec(m.sql);
+    } catch (e) {
+      // Column may already exist from before versioning was added — that's OK
+      if (!String(e.message).includes('duplicate column')) throw e;
+    }
+    db.prepare('INSERT INTO schema_migrations (version, description) VALUES (?, ?)').run(m.version, m.desc);
+    console.log(`[DB] Applied migration v${m.version}: ${m.desc}`);
   }
 
   const seedTx = db.transaction(() => {

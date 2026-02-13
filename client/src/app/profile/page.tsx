@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyProfile, updateMyProfile, getCampaigns } from '@/lib/api';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
@@ -10,6 +11,7 @@ import { useToast } from '@/components/ui/Toast';
 
 export default function ProfilePage() { return <Suspense><ProfileInner /></Suspense>; }
 function ProfileInner() {
+  usePageTitle('My Profile');
   const { isLoggedIn } = useAuth();
   const searchParams = useSearchParams();
   const needsCompletion = searchParams.get('complete') === '1';

@@ -7,22 +7,21 @@ const express = require('express');
 const router = express.Router();
 const { getDb, generateUuid, logAction } = require('../db');
 const { getPlayerByEmail } = require('../services/player-service');
+const { requireAdmin } = require('../middleware/auth');
 
 // ══════════════════════════════════════════════════════
 // Module 1: Obsidian Vault Bridge
 // ══════════════════════════════════════════════════════
 
 // GET /api/admin/sessions/:id/prep — DM prep notes
-router.get('/admin/sessions/:id/prep', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.get('/admin/sessions/:id/prep', requireAdmin, (req, res) => {
   const db = getDb();
   const prep = db.prepare('SELECT * FROM session_prep WHERE session_id = ?').get(req.params.id);
   res.json(prep || { session_id: req.params.id, previously_on: '', key_npcs: '', scenes_planned: '', secrets: '', possible_loot: '', dm_teaser: '', foundry_scene: '', map_screenshot_url: '' });
 });
 
 // PUT /api/admin/sessions/:id/prep — Save DM prep notes
-router.put('/admin/sessions/:id/prep', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.put('/admin/sessions/:id/prep', requireAdmin, (req, res) => {
   const db = getDb();
   const { previouslyOn, keyNpcs, scenesPlanned, secrets, possibleLoot, dmTeaser, foundryScene, mapScreenshotUrl } = req.body;
   db.prepare(`INSERT INTO session_prep (session_id, previously_on, key_npcs, scenes_planned, secrets, possible_loot, dm_teaser, foundry_scene, map_screenshot_url, modified_at)
@@ -35,8 +34,7 @@ router.put('/admin/sessions/:id/prep', (req, res) => {
 });
 
 // POST /api/admin/sessions/:id/notes — Import markdown (from Obsidian)
-router.post('/admin/sessions/:id/notes', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.post('/admin/sessions/:id/notes', requireAdmin, (req, res) => {
   const db = getDb();
   const { markdown } = req.body;
   if (!markdown) return res.status(400).json({ error: 'Markdown content required' });
@@ -52,13 +50,12 @@ router.post('/admin/sessions/:id/notes', (req, res) => {
 });
 
 // GET /api/admin/sessions/:id/notes?format=md — Export as clean markdown
-router.get('/admin/sessions/:id/notes', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.get('/admin/sessions/:id/notes', requireAdmin, (req, res) => {
   const db = getDb();
   const session = db.prepare('SELECT * FROM sessions WHERE session_id = ?').get(req.params.id);
   const history = db.prepare('SELECT * FROM session_history WHERE session_id = ?').get(req.params.id);
   const prep = db.prepare('SELECT * FROM session_prep WHERE session_id = ?').get(req.params.id);
-  const regs = db.prepare(`SELECT r.*, p.name as player_name FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.session_id = ? AND r.status = 'registered'`).all(req.params.id);
+  const regs = db.prepare(`SELECT r.*, p.name as player_name FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.session_id = ? AND r.status IN ('Confirmed','Attended')`).all(req.params.id);
   const loot = db.prepare('SELECT * FROM loot WHERE session_id = ?').all(req.params.id);
   const journals = db.prepare(`SELECT cj.*, c.name as char_name FROM character_journals cj JOIN characters c ON cj.character_id = c.character_id WHERE cj.session_id = ?`).all(req.params.id);
   const moments = db.prepare('SELECT * FROM session_moments WHERE session_id = ? ORDER BY timestamp').all(req.params.id);
@@ -105,8 +102,7 @@ router.get('/admin/sessions/:id/notes', (req, res) => {
 });
 
 // GET /api/admin/obsidian/export/:campaignSlug — Full campaign export
-router.get('/admin/obsidian/export/:campaignSlug', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.get('/admin/obsidian/export/:campaignSlug', requireAdmin, (req, res) => {
   const db = getDb();
   const campaign = db.prepare('SELECT * FROM campaigns WHERE slug = ?').get(req.params.campaignSlug);
   if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
@@ -145,8 +141,7 @@ router.get('/admin/obsidian/export/:campaignSlug', (req, res) => {
 // ══════════════════════════════════════════════════════
 
 // GET /api/admin/sessions/:id/checklist
-router.get('/admin/sessions/:id/checklist', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.get('/admin/sessions/:id/checklist', requireAdmin, (req, res) => {
   const db = getDb();
   let checklist = db.prepare('SELECT * FROM session_checklists WHERE session_id = ?').get(req.params.id);
   if (!checklist) {
@@ -167,8 +162,7 @@ router.get('/admin/sessions/:id/checklist', (req, res) => {
 });
 
 // PUT /api/admin/sessions/:id/checklist
-router.put('/admin/sessions/:id/checklist', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.put('/admin/sessions/:id/checklist', requireAdmin, (req, res) => {
   const db = getDb();
   const fields = ['recap_written','attendance_confirmed','characters_leveled','foundry_loaded','prep_reviewed','loot_prepared','music_set'];
   const vals = fields.map(f => req.body[f] ? 1 : 0);
@@ -186,8 +180,7 @@ router.get('/polls', (req, res) => {
   res.json(polls.map(p => ({ ...p, options: JSON.parse(p.options || '[]') })));
 });
 
-router.post('/admin/polls', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.post('/admin/polls', requireAdmin, (req, res) => {
   const { campaignId, title, options } = req.body;
   if (!title || !options?.length) return res.status(400).json({ error: 'Title and options required' });
   const id = generateUuid();
@@ -224,8 +217,7 @@ router.get('/sessions/:id/moments', (req, res) => {
   res.json(getDb().prepare('SELECT * FROM session_moments WHERE session_id = ? ORDER BY timestamp').all(req.params.id));
 });
 
-router.post('/admin/sessions/:id/moments', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.post('/admin/sessions/:id/moments', requireAdmin, (req, res) => {
   const { type, description } = req.body;
   if (!type || !description) return res.status(400).json({ error: 'Type and description required' });
   const id = generateUuid();
@@ -236,8 +228,7 @@ router.post('/admin/sessions/:id/moments', (req, res) => {
   res.json({ success: true, momentId: id });
 });
 
-router.delete('/admin/moments/:id', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.delete('/admin/moments/:id', requireAdmin, (req, res) => {
   getDb().prepare('DELETE FROM session_moments WHERE moment_id = ?').run(req.params.id);
   res.json({ success: true });
 });
@@ -263,8 +254,7 @@ router.post('/me/characters/:charId/journals', (req, res) => {
   res.json({ success: true, journalId: id });
 });
 
-router.put('/admin/journals/:id/comment', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.put('/admin/journals/:id/comment', requireAdmin, (req, res) => {
   getDb().prepare('UPDATE character_journals SET dm_comment = ? WHERE journal_id = ?').run(req.body.comment || '', req.params.id);
   res.json({ success: true });
 });
@@ -289,14 +279,12 @@ router.post('/me/downtime', (req, res) => {
   res.json({ success: true, actionId: id });
 });
 
-router.get('/admin/downtime', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.get('/admin/downtime', requireAdmin, (req, res) => {
   const status = req.query.status || 'Pending';
   res.json(getDb().prepare(`SELECT d.*, c.name as character_name, p.name as player_name FROM downtime_actions d JOIN characters c ON d.character_id = c.character_id JOIN players p ON d.player_id = p.player_id WHERE d.status = ? ORDER BY d.created_at`).all(status));
 });
 
-router.put('/admin/downtime/:id', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.put('/admin/downtime/:id', requireAdmin, (req, res) => {
   const { status, dmNotes, reward } = req.body;
   getDb().prepare('UPDATE downtime_actions SET status = ?, dm_notes = ?, reward = ?, resolved_at = datetime(\'now\') WHERE action_id = ?')
     .run(status || 'Resolved', dmNotes || '', reward || '', req.params.id);
@@ -355,8 +343,7 @@ router.post('/discussions/:threadId/reply', (req, res) => {
   res.json({ success: true, postId: id });
 });
 
-router.put('/admin/discussions/:threadId', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.put('/admin/discussions/:threadId', requireAdmin, (req, res) => {
   const { pinned, locked } = req.body;
   const db = getDb();
   if (pinned !== undefined) db.prepare('UPDATE discussion_threads SET pinned = ? WHERE thread_id = ?').run(pinned ? 1 : 0, req.params.threadId);
@@ -365,13 +352,11 @@ router.put('/admin/discussions/:threadId', (req, res) => {
 });
 
 // Questionnaires
-router.get('/admin/questionnaires', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.get('/admin/questionnaires', requireAdmin, (req, res) => {
   res.json(getDb().prepare(`SELECT q.*, c.name as campaign_name FROM questionnaires q LEFT JOIN campaigns c ON q.campaign_id = c.campaign_id ORDER BY q.created_at DESC`).all().map(q => ({ ...q, questions: JSON.parse(q.questions || '[]') })));
 });
 
-router.post('/admin/questionnaires', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.post('/admin/questionnaires', requireAdmin, (req, res) => {
   const { campaignId, title, questions } = req.body;
   if (!title || !questions?.length) return res.status(400).json({ error: 'Title and questions required' });
   const id = generateUuid();
@@ -397,8 +382,7 @@ router.post('/questionnaires/:id/respond', (req, res) => {
   res.json({ success: true });
 });
 
-router.get('/admin/questionnaires/:id/responses', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.get('/admin/questionnaires/:id/responses', requireAdmin, (req, res) => {
   const responses = getDb().prepare(`SELECT r.*, p.name as player_name FROM questionnaire_responses r JOIN players p ON r.player_id = p.player_id WHERE r.questionnaire_id = ? ORDER BY r.created_at`).all(req.params.id);
   res.json(responses.map(r => ({ ...r, answers: JSON.parse(r.answers || '{}') })));
 });
@@ -416,8 +400,7 @@ router.get('/campaigns/:slug/world-state', (req, res) => {
   res.json(states);
 });
 
-router.post('/admin/campaigns/:campaignId/world-state', (req, res) => {
-  if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
+router.post('/admin/campaigns/:campaignId/world-state', requireAdmin, (req, res) => {
   const { fact, value, sessionId } = req.body;
   if (!fact || !value) return res.status(400).json({ error: 'Fact and value required' });
   const id = generateUuid();

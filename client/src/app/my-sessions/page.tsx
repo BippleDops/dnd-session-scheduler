@@ -1,19 +1,25 @@
 'use client';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMyRegistrations, cancelMyRegistration, getMyFeedToken } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 export default function MySessionsPage() {
-  const { isLoggedIn } = useAuth();
+  usePageTitle('My Quests');
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const { data, loading, refetch } = useApi(getMyRegistrations);
   const { toast } = useToast();
+  const confirm = useConfirm();
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return (
     <ParchmentPanel className="text-center py-10">
       <h2 className="font-[var(--font-heading)] text-xl text-[var(--ink)]">Sign In to View Your Quests</h2>
@@ -25,7 +31,8 @@ export default function MySessionsPage() {
   if (loading) return <CandleLoader text="Opening your quest log..." />;
 
   const handleCancel = async (regId: string) => {
-    if (!confirm('Abandon this quest?')) return;
+    const ok = await confirm({ title: 'Abandon Quest?', message: 'Are you sure you want to cancel this registration? Your spot will be freed for another adventurer.', confirmLabel: 'Abandon', variant: 'danger' });
+    if (!ok) return;
     const r = await cancelMyRegistration(regId);
     if (r.success) { toast('Quest cancelled', 'success'); refetch(); }
     else toast(r.message || 'Failed', 'error');
@@ -48,9 +55,7 @@ export default function MySessionsPage() {
       {/* Upcoming */}
       <h2 className="scroll-heading text-xl mb-3">Upcoming Adventures</h2>
       {data?.upcoming.length === 0 ? (
-        <ParchmentPanel className="text-center py-6">
-          <p className="text-[var(--ink-faded)] italic">No upcoming quests. <a href="/sessions" className="text-[var(--gold)] underline">Browse the quest board!</a></p>
-        </ParchmentPanel>
+        <EmptyStateFromPreset preset="quests" action={{ label: 'Browse Quest Board', href: '/sessions' }} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 mb-6">
           {data?.upcoming.map(r => (
@@ -66,6 +71,24 @@ export default function MySessionsPage() {
               <div className="mt-3">
                 <WoodButton variant="danger" onClick={() => handleCancel(r.registrationId)} className="text-xs">Cancel Quest</WoodButton>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recap prompts for recent past sessions */}
+      {data?.past && data.past.length > 0 && data.past.length <= 5 && (
+        <div className="mb-6">
+          {data.past.slice(0, 2).map(r => (
+            <div key={`recap-${r.registrationId}`} className="parchment p-4 mb-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📖</span>
+                <div>
+                  <p className="text-sm text-[var(--ink)]">How did <strong>{r.characterName}</strong> experience <strong>{r.title || r.campaign}</strong>?</p>
+                  <p className="text-[10px] text-[var(--ink-faded)]">{formatDate(r.date)} · Write a recap from your character&apos;s perspective</p>
+                </div>
+              </div>
+              <a href={`/session?id=${r.sessionId}`} className="wood-btn text-xs py-1 px-3 no-underline flex-shrink-0">Write Recap</a>
             </div>
           ))}
         </div>

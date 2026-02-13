@@ -1,38 +1,48 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getMyDowntime, submitDowntime, getMyCharactersV2, getCampaignsList, type DowntimeAction, type CharacterSheet, type Campaign } from '@/lib/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { getMyDowntime, submitDowntime, getMyCharactersV2, type DowntimeAction, type CharacterSheet } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useToast } from '@/components/ui/Toast';
 
 const TYPES = ['Crafting','Training','Research','Carousing','Working','Exploring','Other'];
 const TYPE_ICONS: Record<string, string> = { Crafting: '🔨', Training: '⚔️', Research: '📚', Carousing: '🍺', Working: '💼', Exploring: '🗺️', Other: '❓' };
 
 export default function DowntimePage() {
-  const { isLoggedIn } = useAuth();
+  usePageTitle('Downtime Actions');
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [actions, setActions] = useState<DowntimeAction[]>([]);
   const [chars, setChars] = useState<CharacterSheet[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ characterId: '', campaignId: '', type: 'Other', description: '', goal: '', duration: '' });
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    Promise.all([getMyDowntime(), getMyCharactersV2(), getCampaignsList()]).then(([a, c, ca]) => {
-      setActions(a); setChars(c); setCampaigns(ca);
+    Promise.all([getMyDowntime(), getMyCharactersV2()]).then(([a, c]) => {
+      setActions(a); setChars(c);
     }).finally(() => setLoading(false));
   }, [isLoggedIn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await submitDowntime(form);
-    setShowForm(false);
-    setForm({ characterId: '', campaignId: '', type: 'Other', description: '', goal: '', duration: '' });
-    getMyDowntime().then(setActions);
+    try {
+      await submitDowntime(form);
+      toast('Downtime action submitted!', 'success');
+      setShowForm(false);
+      setForm({ characterId: '', campaignId: '', type: 'Other', description: '', goal: '', duration: '' });
+      getMyDowntime().then(setActions);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to submit', 'error');
+    }
   };
 
+  if (authLoading) return <CandleLoader text="Checking credentials..." />;
   if (!isLoggedIn) return <ParchmentPanel title="Sign In Required"><p>Please sign in.</p></ParchmentPanel>;
   if (loading) return <CandleLoader text="Loading downtime..." />;
 
@@ -81,7 +91,7 @@ export default function DowntimePage() {
       )}
 
       {actions.length === 0 && !showForm ? (
-        <ParchmentPanel><p className="text-[var(--ink-faded)] text-center">No downtime actions yet. What will your character do between adventures?</p></ParchmentPanel>
+        <EmptyStateFromPreset preset="downtime" action={{ label: '+ New Action', href: '#' }} />
       ) : (
         <div className="space-y-3">
           {actions.map(a => (

@@ -1,14 +1,18 @@
 'use client';
+import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
-import { getAdminDashboard, triggerReminders, triggerBackup } from '@/lib/api';
-import { formatDate, formatTime, formatTimestamp, campaignColor } from '@/lib/utils';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { getAdminDashboard, getAdminHealthDetail, triggerReminders, triggerBackup, type HealthDetail } from '@/lib/api';
+import { formatDate, formatTime, formatTimestamp } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import { useToast } from '@/components/ui/Toast';
 
 export default function AdminDashboard() {
+  usePageTitle('DM War Table');
   const { data, loading } = useApi(getAdminDashboard);
+  const [health, setHealth] = useState<HealthDetail | null>(null);
   const { toast } = useToast();
 
   if (loading) return <CandleLoader text="Consulting the DM's war table..." />;
@@ -42,6 +46,51 @@ export default function AdminDashboard() {
         <WoodButton href="/admin/history">View History</WoodButton>
         <WoodButton onClick={async () => { await triggerReminders(); toast('Reminders sent!', 'success'); }}>Run Reminders</WoodButton>
         <WoodButton onClick={async () => { await triggerBackup(); toast('Backup started!', 'success'); }}>Run Backup</WoodButton>
+      </div>
+
+      {/* System Health (collapsible) */}
+      <div className="mb-6">
+        <button
+          onClick={() => { if (!health) getAdminHealthDetail().then(setHealth); else setHealth(null); }}
+          className="text-sm text-[var(--gold)] hover:underline bg-transparent border-none cursor-pointer font-[var(--font-heading)]"
+        >
+          {health ? '▼' : '▶'} System Health
+        </button>
+        {health && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+            <ParchmentPanel className="text-center !p-3">
+              <div className="text-lg">⏱️</div>
+              <div className="text-sm font-bold text-[var(--gold)]">{health.uptimeHuman}</div>
+              <div className="text-[10px] text-[var(--ink-faded)]">Uptime</div>
+            </ParchmentPanel>
+            <ParchmentPanel className="text-center !p-3">
+              <div className="text-lg">💾</div>
+              <div className="text-sm font-bold text-[var(--gold)]">{health.memory.rssMB} MB</div>
+              <div className="text-[10px] text-[var(--ink-faded)]">Memory (RSS)</div>
+            </ParchmentPanel>
+            <ParchmentPanel className="text-center !p-3">
+              <div className="text-lg">🗄️</div>
+              <div className="text-sm font-bold text-[var(--gold)]">{health.database.sizeMB} MB</div>
+              <div className="text-[10px] text-[var(--ink-faded)]">Database</div>
+            </ParchmentPanel>
+            <ParchmentPanel className="text-center !p-3">
+              <div className="text-lg">🖥️</div>
+              <div className="text-sm font-bold text-[var(--gold)]">{health.system.nodeVersion}</div>
+              <div className="text-[10px] text-[var(--ink-faded)]">{health.system.platform} · {health.system.cpus} CPUs</div>
+            </ParchmentPanel>
+            <ParchmentPanel className="col-span-full !p-3">
+              <p className="text-xs font-semibold text-[var(--ink)] mb-2">Table Row Counts</p>
+              <div className="grid grid-cols-5 gap-2">
+                {Object.entries(health.database.tables).map(([table, count]) => (
+                  <div key={table} className="text-center">
+                    <div className="text-sm font-bold text-[var(--gold)]">{count}</div>
+                    <div className="text-[9px] text-[var(--ink-faded)] truncate">{table}</div>
+                  </div>
+                ))}
+              </div>
+            </ParchmentPanel>
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">

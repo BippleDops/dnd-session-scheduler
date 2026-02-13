@@ -1,17 +1,20 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessions } from '@/lib/api';
-import CandleLoader from '@/components/ui/CandleLoader';
+import { SessionGridSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 import WoodButton from '@/components/ui/WoodButton';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 
 export default function SessionsPage() {
+  usePageTitle('Sessions');
   const { data: sessions, loading } = useApi(getSessions);
   const [showSubscribe, setShowSubscribe] = useState(false);
   const feedUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/calendar/feed.ics` : '';
 
-  if (loading) return <CandleLoader text="Unrolling the scrolls..." />;
+  if (loading) return <SessionGridSkeleton />;
 
   return (
     <div>
@@ -37,13 +40,10 @@ export default function SessionsPage() {
       )}
 
       {(!sessions || sessions.length === 0) ? (
-        <div className="parchment p-10 text-center">
-          <p className="font-[var(--font-heading)] text-xl text-[var(--ink)]">No sessions on the schedule right now.</p>
-          <p className="text-[var(--ink-faded)] italic mt-2">The tavern keeper says check back soon!</p>
-        </div>
+        <EmptyStateFromPreset preset="sessions" />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {sessions.map(s => <QuestCard key={s.sessionId} session={s} />)}
+          {sessions.map((s, i) => <QuestCard key={s.sessionId} session={s} index={i} />)}
         </div>
       )}
     </div>

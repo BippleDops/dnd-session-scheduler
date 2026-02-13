@@ -6,16 +6,23 @@ RUN npm ci
 COPY client/ ./
 RUN npm run build
 
-# Stage 2: Express server
-FROM node:20-alpine
-
+# Stage 2: Build native dependencies (better-sqlite3)
+FROM node:20-alpine AS backend-deps
 WORKDIR /app
-
-# Install build deps for better-sqlite3 + curl for healthcheck
-RUN apk add --no-cache python3 make g++ curl
-
+RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm ci --only=production
+
+# Stage 3: Final runtime image (no build tools)
+FROM node:20-alpine
+WORKDIR /app
+
+# Only curl needed for healthcheck at runtime
+RUN apk add --no-cache curl
+
+# Copy pre-built node_modules (includes native better-sqlite3)
+COPY --from=backend-deps /app/node_modules ./node_modules
+COPY package*.json ./
 
 COPY src/ ./src/
 COPY views/ ./views/

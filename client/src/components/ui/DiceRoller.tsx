@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 const DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'];
 
@@ -52,34 +52,21 @@ export function DiceRoller({ sessionId }: Props) {
     if (customExpr) rollDice(customExpr);
   };
 
-  // Listen for SSE dice_roll events
-  useEffect(() => {
-    if (!sessionId) return;
-    const base = process.env.NEXT_PUBLIC_API_URL || '';
-    const es = new EventSource(`${base}/api/sse/${sessionId}`, { withCredentials: true });
-    es.addEventListener('dice_roll', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data);
-        setHistory(prev => [data, ...prev].slice(0, 20));
-      } catch { /* ignore */ }
-    });
-    return () => es.close();
-  }, [sessionId]);
-
   return (
     <>
       {/* Floating dice button */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-[1500] w-14 h-14 rounded-full bg-[var(--gold)] text-[var(--wood-dark)] text-2xl shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+        className="dice-fab fixed bottom-6 right-6 z-[1500] w-14 h-14 rounded-full bg-[var(--gold)] text-[var(--wood-dark)] text-2xl shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
         title="Dice Roller"
+        aria-label={open ? 'Close dice roller' : 'Open dice roller'}
       >
         🎲
       </button>
 
       {/* Dice tray */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-[1500] w-80 max-h-[70vh] overflow-y-auto bg-[var(--wood)] border-2 border-[var(--gold)] rounded-lg shadow-2xl">
+        <div className="dice-tray fixed bottom-24 right-6 z-[1500] w-80 max-h-[70vh] overflow-y-auto bg-[var(--wood)] border-2 border-[var(--gold)] rounded-lg shadow-2xl">
           <div className="p-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-[var(--font-heading)] text-lg text-[var(--gold)]">🎲 Dice Tray</h3>
@@ -134,7 +121,7 @@ export function DiceRoller({ sessionId }: Props) {
                         <span className="text-[var(--parchment-dark)]">{r.expression}</span>
                         <span className="text-[var(--ink-faded)] ml-1">[{r.results.join(', ')}]{r.modifier ? (r.modifier > 0 ? `+${r.modifier}` : r.modifier) : ''}</span>
                       </div>
-                      <span className="font-bold text-[var(--gold)] text-sm">{r.total}</span>
+                      <span className={`font-bold text-[var(--gold)] text-sm ${i === 0 ? 'dice-pop' : ''}`}>{r.total}</span>
                     </div>
                   ))}
                 </div>

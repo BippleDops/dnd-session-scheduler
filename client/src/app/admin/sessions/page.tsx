@@ -2,23 +2,26 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminSessions, getAdminSessionDetail, createAdminSession, cancelAdminSession, completeAdminSession, markAttendance, cancelAdminRegistration, getCampaigns } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 export default function AdminSessionsPage() {
   return <Suspense><AdminSessionsInner /></Suspense>;
 }
 
 function AdminSessionsInner() {
+  usePageTitle('Session Management');
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   const sessionIdParam = searchParams.get('sessionId');
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: campaigns } = useApi(getCampaigns);
 
   const [view, setView] = useState<'list' | 'create' | 'detail'>(action === 'create' ? 'create' : sessionIdParam ? 'detail' : 'list');
@@ -49,7 +52,8 @@ function AdminSessionsInner() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!confirm(`Create ${formCampaign} session on ${formDate}?`)) return;
+    const ok = await confirm({ title: 'Create Session?', message: `Create ${formCampaign} session on ${formDate}?`, confirmLabel: 'Create' });
+    if (!ok) return;
     const r = await createAdminSession({ date: formDate, startTime: formTime, campaign: formCampaign, title: formTitle, description: formDesc, maxPlayers: parseInt(formMax), duration: parseInt(formDuration), difficulty: formDifficulty, levelTier: formTier, location: formLocation, dmNotes: formNotes });
     if (r.success) { toast('Session created!', 'success'); setDetailId(r.sessionId || ''); setView('detail'); }
     else toast(JSON.stringify(r.errors || r.message), 'error');
@@ -175,10 +179,13 @@ function AdminSessionsInner() {
 
           <div className="flex gap-3 flex-wrap">
             {detail.status === 'Scheduled' && <>
-              <WoodButton variant="danger" onClick={async () => { if (!confirm('Cancel session?')) return; await cancelAdminSession(detail.sessionId); toast('Cancelled', 'success'); setView('list'); refetchList(); }}>Cancel Session</WoodButton>
-              <WoodButton variant="primary" onClick={async () => { if (!confirm('Mark completed?')) return; await completeAdminSession(detail.sessionId); toast('Completed!', 'success'); refetchDetail(); }}>Mark Completed</WoodButton>
+              <WoodButton variant="danger" onClick={async () => { const ok = await confirm({ title: 'Cancel Session?', message: 'This will cancel the session and notify all registered players.', confirmLabel: 'Cancel Session', variant: 'danger' }); if (!ok) return; await cancelAdminSession(detail.sessionId); toast('Cancelled', 'success'); setView('list'); refetchList(); }}>Cancel Session</WoodButton>
+              <WoodButton variant="primary" onClick={async () => { const ok = await confirm({ title: 'Mark Completed?', message: 'This will mark the session as completed and create a history entry.', confirmLabel: 'Complete' }); if (!ok) return; await completeAdminSession(detail.sessionId); toast('Completed!', 'success'); refetchDetail(); }}>Mark Completed</WoodButton>
             </>}
             <WoodButton onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/signup?sessionId=${detail.sessionId}`); toast('Link copied!', 'success'); }}>Copy Sign-Up Link</WoodButton>
+            <WoodButton href={`/session/live?sessionId=${detail.sessionId}`}>⚡ Live View</WoodButton>
+            <WoodButton href={`/admin/prep?sessionId=${detail.sessionId}`}>🗺️ Prep</WoodButton>
+            <WoodButton href={`/admin/recap-wizard?sessionId=${detail.sessionId}`}>📜 Recap</WoodButton>
           </div>
         </>
       )}

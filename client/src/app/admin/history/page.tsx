@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getAdminHistory, updateHistoryNotes, getCampaigns } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
@@ -10,6 +11,7 @@ import WoodButton from '@/components/ui/WoodButton';
 import { useToast } from '@/components/ui/Toast';
 
 export default function AdminHistoryPage() {
+  usePageTitle('Session History');
   const [filterCampaign, setFilterCampaign] = useState('');
   const { data: history, loading } = useApi(() => getAdminHistory(filterCampaign ? { campaign: filterCampaign } : undefined), [filterCampaign]);
   const { data: campaigns } = useApi(getCampaigns);
@@ -57,10 +59,13 @@ export default function AdminHistoryPage() {
           <p className="text-sm text-[var(--ink)] mb-3"><strong>Attendees ({selected.attendeeCount}):</strong> {selected.attendeeCharNames || 'None'}</p>
           <label className="block text-sm font-semibold text-[var(--ink)] mb-1">DM Post-Session Notes</label>
           <textarea value={notes} onChange={e => setNotes(e.target.value)} className="tavern-input" rows={4} />
-          <WoodButton variant="primary" className="mt-2" onClick={async () => {
-            const r = await updateHistoryNotes(selected.sessionId, notes);
-            if (r.success) toast('Notes saved!', 'success'); else toast(r.message || 'Failed', 'error');
-          }}>Save Notes</WoodButton>
+          <div className="flex gap-2 mt-2">
+            <WoodButton variant="primary" onClick={async () => {
+              const r = await updateHistoryNotes(selected.sessionId, notes);
+              if (r.success) toast('Notes saved!', 'success'); else toast(r.message || 'Failed', 'error');
+            }}>Save Notes</WoodButton>
+            <WoodButton href={`/admin/recap-wizard?sessionId=${selected.sessionId}`}>📜 Full Recap Wizard</WoodButton>
+          </div>
         </ParchmentPanel>
       )}
     </div>

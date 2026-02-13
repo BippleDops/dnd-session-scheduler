@@ -1,18 +1,23 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { getSessionRequests, createSessionRequest, voteSessionRequest, getCampaignsList, type SessionRequest, type Campaign } from '@/lib/api';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
 import CandleLoader from '@/components/ui/CandleLoader';
+import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
+import { useToast } from '@/components/ui/Toast';
 
 export default function RequestsPage() {
+  usePageTitle('Session Requests');
   const { isLoggedIn } = useAuth();
   const [requests, setRequests] = useState<SessionRequest[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ campaignId: '', preferredDate: '', message: '' });
+  const { toast } = useToast();
 
   useEffect(() => {
     Promise.all([getSessionRequests(), getCampaignsList()]).then(([r, c]) => {
@@ -22,15 +27,25 @@ export default function RequestsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createSessionRequest(form);
-    setShowForm(false);
-    setForm({ campaignId: '', preferredDate: '', message: '' });
-    getSessionRequests().then(setRequests);
+    try {
+      await createSessionRequest(form);
+      toast('Session request submitted!', 'success');
+      setShowForm(false);
+      setForm({ campaignId: '', preferredDate: '', message: '' });
+      getSessionRequests().then(setRequests);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to submit request', 'error');
+    }
   };
 
   const handleVote = async (id: string) => {
-    await voteSessionRequest(id, []);
-    getSessionRequests().then(setRequests);
+    try {
+      await voteSessionRequest(id, []);
+      toast('Vote recorded!', 'success');
+      getSessionRequests().then(setRequests);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to vote', 'error');
+    }
   };
 
   if (loading) return <CandleLoader text="Loading requests..." />;
@@ -66,7 +81,7 @@ export default function RequestsPage() {
       )}
 
       {requests.length === 0 ? (
-        <ParchmentPanel><p className="text-[var(--ink-faded)] text-center">No session requests yet. Be the first to request a game!</p></ParchmentPanel>
+        <EmptyStateFromPreset preset="requests" action={isLoggedIn ? { label: '+ Request Session', href: '#' } : undefined} />
       ) : (
         <div className="space-y-3">
           {requests.map(r => (
