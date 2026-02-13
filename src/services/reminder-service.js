@@ -23,6 +23,23 @@ function getTransporter() {
   return _transporter;
 }
 
+/**
+ * Verify SMTP connection. Call at startup to validate configuration.
+ * @returns {{ ok: boolean, message: string }}
+ */
+async function verifySmtp() {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return { ok: false, message: 'SMTP credentials not configured (SMTP_USER/SMTP_PASS)' };
+  }
+  try {
+    await getTransporter().verify();
+    return { ok: true, message: 'SMTP connection verified' };
+  } catch (e) {
+    _transporter = null; // Reset so it can be retried later
+    return { ok: false, message: `SMTP verification failed: ${e.message}` };
+  }
+}
+
 function canSendMore() {
   const count = parseInt(getConfigValue('EMAIL_DAILY_COUNT', '0'), 10);
   const limit = parseInt(getConfigValue('EMAIL_DAILY_LIMIT', '100'), 10);
@@ -39,43 +56,63 @@ function incrementEmailCount() {
   return count;
 }
 
+/**
+ * Send an email. Handles draft mode, daily limits, retry on failure.
+ * @returns {object|null} Nodemailer info on success, { id: 'draft' } in draft mode, null on failure
+ */
 async function sendEmail(to, subject, htmlBody) {
-  if (!canSendMore()) {
-    console.log('Email daily limit reached. Skipping:', to);
-    return null;
-  }
+  if (!to) return null;
+
+  // Check if SMTP is configured at all
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.log('SMTP not configured. Would send to:', to, 'Subject:', subject);
+    console.log('[Email] SMTP not configured. Skipping:', subject, '→', to);
     return null;
   }
 
-  try {
-    const autoSend = (process.env.EMAIL_AUTO_SEND || getConfigValue('EMAIL_AUTO_SEND', 'false')).toUpperCase() === 'TRUE';
-    if (!autoSend) {
-      console.log('[Email Draft]', to, subject);
-      // Log it but don't send
-      const db = getDb();
-      db.prepare(`INSERT INTO email_log (log_id, timestamp, type, recipient, subject, status)
-        VALUES (?, datetime('now'), 'Draft', ?, ?, 'OK')`).run(generateUuid(), to, subject);
-      incrementEmailCount();
-      return { id: 'draft' };
-    }
-
-    const info = await getTransporter().sendMail({
-      from: process.env.EMAIL_FROM || process.env.SMTP_USER,
-      to, subject, html: htmlBody,
-    });
-
+  // Check if auto-send is enabled (env var takes precedence over config)
+  const autoSend = (process.env.EMAIL_AUTO_SEND || getConfigValue('EMAIL_AUTO_SEND', 'TRUE')).toUpperCase() === 'TRUE';
+  if (!autoSend) {
+    // Draft mode: log but don't send, and don't count toward daily limit
     const db = getDb();
     db.prepare(`INSERT INTO email_log (log_id, timestamp, type, recipient, subject, status)
-      VALUES (?, datetime('now'), 'Sent', ?, ?, 'OK')`).run(generateUuid(), to, subject);
-    incrementEmailCount();
-    return info;
-  } catch (e) {
-    console.error('Email error:', e.message);
-    logAction('EMAIL_FAILED', `Email failed for ${to}: ${e.message}`, 'System', '');
+      VALUES (?, datetime('now'), 'Draft', ?, ?, 'OK')`).run(generateUuid(), to, subject);
+    return { id: 'draft' };
+  }
+
+  // Check daily send limit
+  if (!canSendMore()) {
+    console.log('[Email] Daily limit reached. Skipping:', to);
     return null;
   }
+
+  // Attempt to send with one retry on failure
+  const db = getDb();
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const info = await getTransporter().sendMail({
+        from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+        to, subject, html: htmlBody,
+      });
+
+      db.prepare(`INSERT INTO email_log (log_id, timestamp, type, recipient, subject, status)
+        VALUES (?, datetime('now'), 'Sent', ?, ?, 'OK')`).run(generateUuid(), to, subject);
+      incrementEmailCount();
+      return info;
+    } catch (e) {
+      if (attempt === 1) {
+        console.warn(`[Email] Send failed (attempt 1), retrying in 3s: ${e.message}`);
+        await new Promise(r => setTimeout(r, 3000));
+        _transporter = null; // Reset transporter to get fresh connection
+      } else {
+        console.error(`[Email] Send failed permanently: ${to} — ${e.message}`);
+        db.prepare(`INSERT INTO email_log (log_id, timestamp, type, recipient, subject, status)
+          VALUES (?, datetime('now'), 'Failed', ?, ?, ?)`).run(generateUuid(), to, subject, e.message);
+        logAction('EMAIL_FAILED', `Email failed for ${to}: ${e.message}`, 'System', '');
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
 async function sendConfirmationEmail(playerEmail, playerName, session, characterName) {
@@ -220,10 +257,12 @@ async function postToDiscord(message) {
 module.exports = {
   sendEmail,
   sendConfirmationEmail,
+  verifySmtp,
   draftPlayerReminders,
   draftDMInfoSheet,
   draftDMRecapReminder,
   dailyReminderCheck,
   postToDiscord,
+  wrapEmailTemplate,
 };
 

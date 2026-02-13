@@ -269,9 +269,23 @@ app.use((err, req, res, next) => {
 });
 
 // ── Start ──
-const server = app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`D&D Session Scheduler running on http://0.0.0.0:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // Verify SMTP configuration at startup
+  try {
+    const { verifySmtp } = require('./services/reminder-service');
+    const autoSend = (process.env.EMAIL_AUTO_SEND || getConfigValue('EMAIL_AUTO_SEND', 'TRUE')).toUpperCase() === 'TRUE';
+    const result = await verifySmtp();
+    if (result.ok) {
+      console.log(`[Email] ✓ SMTP verified — auto-send: ${autoSend ? 'ON' : 'OFF (draft mode)'}`);
+    } else {
+      console.warn(`[Email] ⚠ ${result.message}${autoSend ? ' — emails will fail until fixed' : ''}`);
+    }
+  } catch (e) {
+    console.warn(`[Email] ⚠ SMTP check error: ${e.message}`);
+  }
 });
 
 // ── Graceful shutdown ──

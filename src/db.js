@@ -463,6 +463,9 @@ function initializeDatabase() {
     ['ARCHIVE_AFTER_DAYS', '365', 'Days before archiving completed sessions'],
     ['FEATURE_WAITLIST', 'FALSE', 'Enable waitlist when sessions are full'],
     ['FEATURE_PLAYER_CANCEL', 'TRUE', 'Allow players to self-cancel registrations'],
+    ['EMAIL_AUTO_SEND', 'TRUE', 'Send emails automatically (FALSE = draft/log only)'],
+    ['DIGEST_DAY', '0', 'Day of week for weekly digest (0=Sunday, 6=Saturday)'],
+    ['DIGEST_HOUR', '18', 'Hour (0-23) for weekly digest email'],
   ];
 
   // Versioned schema migrations
