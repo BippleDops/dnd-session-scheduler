@@ -12,6 +12,7 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import Link from 'next/link';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter'];
+const CLASS_ICONS: Record<string, string> = { Barbarian: '🪓', Bard: '🎵', Cleric: '✝️', Druid: '🌿', Fighter: '⚔️', Monk: '👊', Paladin: '🛡️', Ranger: '🏹', Rogue: '🗡️', Sorcerer: '✨', Warlock: '👁️', Wizard: '🧙', Artificer: '⚙️', 'Blood Hunter': '🩸' };
 const RACES = ['Human','Elf','Dwarf','Halfling','Gnome','Half-Elf','Half-Orc','Tiefling','Dragonborn','Goliath','Aasimar','Genasi','Tabaxi','Firbolg','Kenku','Lizardfolk','Changeling','Shifter','Warforged'];
 
 export default function CharactersPage() {
@@ -93,76 +94,127 @@ export default function CharactersPage() {
       </div>
 
       {showForm && (
-        <ParchmentPanel title={editId ? 'Edit Character' : 'Create Character'}>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ParchmentPanel title={editId ? '✏️ Edit Character' : '✨ Create New Character'}>
+          <p className="text-sm text-[var(--ink-faded)] mb-4">
+            {editId ? 'Update your character details below.' : 'Fill in your character details to begin your adventure. Only Name is required — you can fill in the rest later.'}
+          </p>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Identity */}
             <div>
-              <label className="block text-xs font-bold mb-1">Name *</label>
-              <input required className="parchment-input w-full" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold mb-1">Race</label>
-              <select className="parchment-input w-full" value={form.race || ''} onChange={e => setForm({ ...form, race: e.target.value })}>
-                <option value="">Select...</option>
-                {RACES.map(r => <option key={r}>{r}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold mb-1">Class</label>
-              <select className="parchment-input w-full" value={form.class || ''} onChange={e => setForm({ ...form, class: e.target.value })}>
-                <option value="">Select...</option>
-                {CLASSES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold mb-1">Subclass</label>
-              <input className="parchment-input w-full" value={form.subclass || ''} onChange={e => setForm({ ...form, subclass: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold mb-1">Level</label>
-              <input type="number" min="1" max="20" className="parchment-input w-full" value={form.level || '1'} onChange={e => setForm({ ...form, level: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold mb-1">Portrait URL</label>
-              <input className="parchment-input w-full" value={form.portraitUrl || ''} onChange={e => setForm({ ...form, portraitUrl: e.target.value })} placeholder="https://..." />
-            </div>
-
-            <div className="col-span-full">
-              <h3 className="font-[var(--font-heading)] text-lg text-[var(--gold)] mb-2">Combat Stats</h3>
-            </div>
-            <div className="grid grid-cols-3 gap-2 col-span-full">
-              <div><label className="block text-xs font-bold mb-1">HP</label><input type="number" className="parchment-input w-full" value={form.hp || ''} onChange={e => setForm({ ...form, hp: e.target.value })} /></div>
-              <div><label className="block text-xs font-bold mb-1">Max HP</label><input type="number" className="parchment-input w-full" value={form.maxHp || ''} onChange={e => setForm({ ...form, maxHp: e.target.value })} /></div>
-              <div><label className="block text-xs font-bold mb-1">AC</label><input type="number" className="parchment-input w-full" value={form.ac || '10'} onChange={e => setForm({ ...form, ac: e.target.value })} /></div>
-            </div>
-
-            <div className="col-span-full">
-              <h3 className="font-[var(--font-heading)] text-lg text-[var(--gold)] mb-2">Ability Scores</h3>
-            </div>
-            <div className="grid grid-cols-6 gap-2 col-span-full">
-              {['str','dex','con','int','wis','cha'].map(s => (
-                <div key={s}>
-                  <label className="block text-xs font-bold mb-1 uppercase text-center">{s}</label>
-                  <input type="number" min="1" max="30" className="parchment-input w-full text-center" value={form[s] || '10'} onChange={e => setForm({ ...form, [s]: e.target.value })} />
+              <h3 className="font-[var(--font-heading)] text-base text-[var(--gold)] mb-3 flex items-center gap-2">
+                👤 Identity
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold mb-1">Character Name *</label>
+                  <input required className="tavern-input" placeholder="e.g., Thorn Ironforge" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} autoFocus />
                 </div>
-              ))}
+                <div>
+                  <label className="block text-xs font-bold mb-1">Race / Ancestry</label>
+                  <select className="tavern-input" value={form.race || ''} onChange={e => setForm({ ...form, race: e.target.value })}>
+                    <option value="">— Select Race —</option>
+                    {RACES.map(r => <option key={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Class</label>
+                  <select className="tavern-input" value={form.class || ''} onChange={e => setForm({ ...form, class: e.target.value })}>
+                    <option value="">— Select Class —</option>
+                    {CLASSES.map(c => <option key={c} value={c}>{CLASS_ICONS[c] || '⚔️'} {c}</option>)}
+                  </select>
+                  {form.class && <span className="text-lg mt-1 inline-block">{CLASS_ICONS[form.class] || '⚔️'}</span>}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Subclass</label>
+                  <input className="tavern-input" placeholder="e.g., Champion, Evocation" value={form.subclass || ''} onChange={e => setForm({ ...form, subclass: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Level</label>
+                  <input type="number" min="1" max="20" className="tavern-input" value={form.level || '1'} onChange={e => setForm({ ...form, level: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Portrait URL</label>
+                  <input className="tavern-input" value={form.portraitUrl || ''} onChange={e => setForm({ ...form, portraitUrl: e.target.value })} placeholder="https://your-image-url.png" />
+                  {form.portraitUrl && (
+                    <img src={form.portraitUrl} alt="Preview" className="w-16 h-16 mt-2 rounded-lg object-cover border border-[var(--parchment-dark)]"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="col-span-full">
-              <label className="block text-xs font-bold mb-1">Backstory</label>
-              <textarea className="parchment-input w-full h-24" value={form.backstory || ''} onChange={e => setForm({ ...form, backstory: e.target.value })} />
-            </div>
+            {/* Combat Stats */}
             <div>
-              <label className="block text-xs font-bold mb-1">Proficiencies</label>
-              <textarea className="parchment-input w-full h-16" value={form.proficiencies || ''} onChange={e => setForm({ ...form, proficiencies: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold mb-1">Equipment</label>
-              <textarea className="parchment-input w-full h-16" value={form.equipment || ''} onChange={e => setForm({ ...form, equipment: e.target.value })} />
+              <h3 className="font-[var(--font-heading)] text-base text-[var(--gold)] mb-3 flex items-center gap-2">
+                ⚔️ Combat Stats
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold mb-1">❤️ HP</label>
+                  <input type="number" className="tavern-input" placeholder="0" value={form.hp || ''} onChange={e => setForm({ ...form, hp: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">❤️ Max HP</label>
+                  <input type="number" className="tavern-input" placeholder="0" value={form.maxHp || ''} onChange={e => setForm({ ...form, maxHp: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">🛡️ AC</label>
+                  <input type="number" className="tavern-input" value={form.ac || '10'} onChange={e => setForm({ ...form, ac: e.target.value })} />
+                </div>
+              </div>
             </div>
 
-            <div className="col-span-full flex justify-end gap-2">
+            {/* Ability Scores */}
+            <div>
+              <h3 className="font-[var(--font-heading)] text-base text-[var(--gold)] mb-3 flex items-center gap-2">
+                🎲 Ability Scores
+              </h3>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                {[
+                  { key: 'str', label: 'STR', icon: '💪' },
+                  { key: 'dex', label: 'DEX', icon: '🏃' },
+                  { key: 'con', label: 'CON', icon: '🫀' },
+                  { key: 'int', label: 'INT', icon: '🧠' },
+                  { key: 'wis', label: 'WIS', icon: '👁️' },
+                  { key: 'cha', label: 'CHA', icon: '✨' },
+                ].map(s => (
+                  <div key={s.key} className="text-center">
+                    <label className="block text-xs font-bold mb-1">{s.icon} {s.label}</label>
+                    <input type="number" min="1" max="30" className="tavern-input text-center text-lg font-bold" value={form[s.key] || '10'} onChange={e => setForm({ ...form, [s.key]: e.target.value })} />
+                    <span className="block text-[10px] text-[var(--gold)] mt-0.5">
+                      {(() => { const v = parseInt(form[s.key] || '10', 10); const m = Math.floor((v - 10) / 2); return m >= 0 ? `+${m}` : `${m}`; })()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Background */}
+            <div>
+              <h3 className="font-[var(--font-heading)] text-base text-[var(--gold)] mb-3 flex items-center gap-2">
+                📖 Background
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold mb-1">Backstory</label>
+                  <textarea className="tavern-input h-24" placeholder="Where did your character come from? What drives them?" value={form.backstory || ''} onChange={e => setForm({ ...form, backstory: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Proficiencies</label>
+                    <textarea className="tavern-input h-16" placeholder="Skills, tools, languages..." value={form.proficiencies || ''} onChange={e => setForm({ ...form, proficiencies: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Equipment</label>
+                    <textarea className="tavern-input h-16" placeholder="Weapons, armor, gear..." value={form.equipment || ''} onChange={e => setForm({ ...form, equipment: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--parchment-dark)]">
               <WoodButton type="button" variant="secondary" onClick={() => { setShowForm(false); setEditId(null); }}>Cancel</WoodButton>
-              <WoodButton type="submit">{editId ? 'Save Changes' : 'Create Character'}</WoodButton>
+              <WoodButton variant="primary" type="submit">{editId ? '💾 Save Changes' : '✨ Create Character'}</WoodButton>
             </div>
           </form>
         </ParchmentPanel>
@@ -179,7 +231,7 @@ export default function CharactersPage() {
               {c.portrait_url ? (
                 <img src={c.portrait_url} alt={c.name} className="w-16 h-16 rounded-lg object-cover border-2 border-[var(--wood-dark)]" />
               ) : (
-                <div className="w-16 h-16 rounded-lg bg-[var(--wood-dark)] flex items-center justify-center text-2xl">⚔️</div>
+                <div className="w-16 h-16 rounded-lg bg-[var(--wood-dark)] flex items-center justify-center text-2xl">{CLASS_ICONS[c.class?.split(',')[0]?.trim()] || '⚔️'}</div>
               )}
               <div className="flex-1 min-w-0">
                 <Link href={`/character?id=${c.character_id}`} className="font-[var(--font-heading)] text-lg text-[var(--gold)] hover:underline block truncate">{c.name}</Link>
