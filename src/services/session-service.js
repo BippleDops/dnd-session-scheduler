@@ -66,6 +66,7 @@ function getUpcomingSessions() {
       levelTier: s.level_tier || 'any',
       levelTierLabel: getTierLabel(s.level_tier || 'any'),
       location: s.location || '',
+      signupDeadline: s.signup_deadline || '',
     };
   });
 }

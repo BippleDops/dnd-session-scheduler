@@ -47,6 +47,11 @@ export default function QuestCard({ session: s, showSignup = true, index = 0 }: 
         </div>
       )}
 
+      {/* Signup deadline */}
+      {s.signupDeadline && new Date(s.signupDeadline) > new Date() && (
+        <p className="mt-2 text-[10px] text-[var(--candle)]">⏰ Signup closes {new Date(s.signupDeadline).toLocaleDateString()}</p>
+      )}
+
       {/* Tier + Description */}
       <div className="mt-3 flex items-center gap-2 flex-wrap">
         {s.levelTier && s.levelTier !== 'any' && <TierShield tier={s.levelTier} />}

@@ -193,6 +193,7 @@ export interface Session {
   campaign: string; title: string; description: string; maxPlayers: number;
   registeredCount: number; spotsRemaining: number; status: string;
   levelTier?: string; levelTierLabel?: string; location?: string;
+  signupDeadline?: string;
   roster: { characterName: string; characterClass: string; characterLevel: number }[];
 }
 export interface SessionDetail extends Session {
