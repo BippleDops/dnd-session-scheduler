@@ -164,6 +164,13 @@ export const voteSessionRequest = (id: string, availableDates: string[]) => fetc
 
 // ── Admin ──
 export const getAdminDashboard = () => fetchJson<AdminDashboard>('/api/admin/dashboard');
+export const sendTestEmail = () => fetchJson<ApiResult>('/api/admin/email-test', { method: 'POST' });
+export const getAdminEmails = (page: number, status?: string, type?: string) => {
+  const params = new URLSearchParams({ page: String(page) });
+  if (status) params.set('status', status);
+  if (type) params.set('type', type);
+  return fetchJson<EmailLogResponse>(`/api/admin/emails?${params}`);
+};
 export const getAdminHealthDetail = () => fetchJson<HealthDetail>('/api/admin/health-detail');
 export const getAdminSessions = (params?: Record<string, string>) => {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -226,6 +233,12 @@ export interface AdminDashboard {
   sessionsThisMonth: number; lastBackup: string;
   thisWeekSessions: { sessionId: string; date: string; startTime: string; campaign: string; title: string; maxPlayers: number; registeredCount: number }[];
   recentLogs: { ActionType: string; Timestamp: string; Details: string }[];
+}
+export interface EmailLogEntry {
+  log_id: string; timestamp: string; type: string; recipient: string; subject: string; status: string;
+}
+export interface EmailLogResponse {
+  emails: EmailLogEntry[]; total: number; page: number; totalPages: number;
 }
 export interface EmailPreferences {
   reminders: number; confirmations: number; cancellations: number;

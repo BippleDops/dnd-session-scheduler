@@ -21,6 +21,7 @@ const adminLinks = [
   { href: '/admin/downtime', label: 'Downtime', page: 'admin/downtime' },
   { href: '/admin/players', label: 'Players', page: 'admin/players' },
   { href: '/admin/analytics', label: 'Analytics', page: 'admin/analytics' },
+  { href: '/admin/emails', label: 'Emails', page: 'admin/emails' },
   { href: '/admin/config', label: 'Config', page: 'admin/config' },
 ];
 

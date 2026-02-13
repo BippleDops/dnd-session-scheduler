@@ -261,6 +261,49 @@ router.post('/campaigns/:id/generate-sessions', (req, res) => {
   res.json({ success: true, ...result });
 });
 
+// ── Email Log ──
+router.get('/emails', (req, res) => {
+  const db = getDb();
+  const page = parseInt(req.query.page, 10) || 1;
+  const perPage = 50;
+  const status = req.query.status || '';
+  const type = req.query.type || '';
+
+  let sql = 'SELECT * FROM email_log WHERE 1=1';
+  let countSql = 'SELECT COUNT(*) AS total FROM email_log WHERE 1=1';
+  const params = [];
+  if (status) { sql += ' AND status = ?'; countSql += ' AND status = ?'; params.push(status); }
+  if (type) { sql += ' AND type = ?'; countSql += ' AND type = ?'; params.push(type); }
+
+  const total = db.prepare(countSql).get(...params).total;
+  sql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
+  const emails = db.prepare(sql).all(...params, perPage, (page - 1) * perPage);
+
+  res.json({ emails, total, page, totalPages: Math.ceil(total / perPage) });
+});
+
+router.post('/emails/:id/resend', async (req, res) => {
+  const db = getDb();
+  const email = db.prepare('SELECT * FROM email_log WHERE log_id = ?').get(req.params.id);
+  if (!email) return res.status(404).json({ error: 'Email not found' });
+  // We can't resend since we don't store the body — log the attempt
+  logAction('EMAIL_RESEND_REQUESTED', `Resend requested for ${email.recipient}: ${email.subject}`, req.user.email, req.params.id);
+  res.json({ success: true, message: 'Resend logged. Note: email body is not stored, so the original content cannot be reconstructed.' });
+});
+
+// ── Email Test ──
+router.post('/email-test', async (req, res) => {
+  const { sendEmail } = require('../services/reminder-service');
+  const { wrapEmailTemplate } = require('../email/templates');
+  const html = wrapEmailTemplate('Test Email', `<h2 style="color:#8b0000;">Test Email</h2><p>This is a test email from the D&D Session Scheduler.</p><p>If you're reading this, your SMTP configuration is working! 🎲</p><p>Sent by: ${req.user.email}</p>`);
+  const result = await sendEmail(req.user.email, 'D&D Session Scheduler — Test Email', html);
+  if (result) {
+    res.json({ success: true, message: `Test email sent to ${req.user.email}` });
+  } else {
+    res.json({ success: false, message: 'Failed to send. Check SMTP configuration and server logs.' });
+  }
+});
+
 // ── Health Dashboard (detailed, admin-only) ──
 router.get('/health-detail', (req, res) => {
   const db = getDb();
