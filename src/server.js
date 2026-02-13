@@ -198,6 +198,40 @@ cron.schedule(`0 ${triggerHour} * * *`, async () => {
   } catch (e) { console.error('Cron reminder error:', e); }
 }, { timezone: 'America/Chicago' });
 
+// Weekly digest email (configurable day/hour, default Sunday 6 PM)
+const digestDay = parseInt(getConfigValue('DIGEST_DAY', '0'), 10);
+const digestHour = parseInt(getConfigValue('DIGEST_HOUR', '18'), 10);
+cron.schedule(`0 ${digestHour} * * ${digestDay}`, async () => {
+  console.log('[Cron] Sending weekly digest emails');
+  try {
+    const { getDb, normalizeDate, normalizeTime } = require('./db');
+    const db = getDb();
+    const { sendEmail, playerWantsEmail, getUnsubscribeUrl } = require('./services/reminder-service');
+    const { buildWeeklyDigestEmail } = require('./email/templates');
+
+    // Get upcoming sessions for the next 7 days
+    const today = new Date().toISOString().slice(0, 10);
+    const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
+    const upcoming = db.prepare("SELECT * FROM sessions WHERE date >= ? AND date <= ? AND status = 'Scheduled' ORDER BY date").all(today, weekEnd.toISOString().slice(0, 10));
+    const upcomingSessions = upcoming.map(s => ({ title: s.title, campaign: s.campaign, date: normalizeDate(s.date), startTime: normalizeTime(s.start_time), spotsRemaining: Math.max(0, (s.max_players || 6) - (db.prepare("SELECT COUNT(*) as c FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Attended')").get(s.session_id).c)) }));
+
+    // Recent recaps from past 7 days
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const recentRecaps = db.prepare("SELECT * FROM session_history WHERE dm_post_notes IS NOT NULL AND dm_post_notes != '' AND session_date >= ? ORDER BY session_date DESC LIMIT 5").all(weekAgo.toISOString().slice(0, 10)).map(h => ({ campaign: h.campaign, date: h.session_date, recap: h.dm_post_notes }));
+
+    // Send to all active players who want digest
+    const players = db.prepare("SELECT * FROM players WHERE active_status = 'Active'").all();
+    let sent = 0;
+    for (const p of players) {
+      if (!p.email || !playerWantsEmail(p.player_id, 'digest')) continue;
+      const html = buildWeeklyDigestEmail(p.name, upcomingSessions, recentRecaps, []);
+      const result = await sendEmail(p.email, '⚔️ This Week in D&D', html);
+      if (result) sent++;
+    }
+    if (sent > 0) console.log(`[Cron] Sent ${sent} weekly digest emails`);
+  } catch (e) { console.error('Cron digest error:', e); }
+}, { timezone: 'America/Chicago' });
+
 // RSVP confirmation emails: 48h before sessions (runs at 9 AM)
 cron.schedule('0 9 * * *', async () => {
   console.log('[Cron] Sending RSVP confirmation emails');

@@ -147,6 +147,37 @@ ${session.title ? `<tr><td style="padding:10px;font-weight:bold;">Session</td><t
   return wrapEmailTemplate('Waitlist Promotion', content);
 }
 
+function buildWeeklyDigestEmail(playerName, upcomingSessions, recentRecaps, achievementsEarned) {
+  let sessionsList = '';
+  if (upcomingSessions.length > 0) {
+    sessionsList = `<h3 style="color:#8b0000;">📅 This Week's Sessions</h3><ul style="margin:10px 0;">`;
+    for (const s of upcomingSessions) {
+      sessionsList += `<li style="margin:6px 0;"><strong>${s.title || s.campaign}</strong> — ${formatDateForEmail(s.date)} at ${formatTimeForEmail(s.startTime)} (${s.spotsRemaining > 0 ? s.spotsRemaining + ' spots open' : 'FULL'})</li>`;
+    }
+    sessionsList += `</ul>`;
+  }
+  let recapsList = '';
+  if (recentRecaps.length > 0) {
+    recapsList = `<h3 style="color:#8b0000;">📖 Recent Recaps</h3><ul style="margin:10px 0;">`;
+    for (const r of recentRecaps) {
+      recapsList += `<li style="margin:6px 0;"><strong>${r.campaign}</strong> — ${formatDateForEmail(r.date)}: ${(r.recap || '').slice(0, 120)}${r.recap?.length > 120 ? '...' : ''}</li>`;
+    }
+    recapsList += `</ul>`;
+  }
+  let achievementsList = '';
+  if (achievementsEarned.length > 0) {
+    achievementsList = `<h3 style="color:#8b0000;">🏆 Achievements This Week</h3><ul style="margin:10px 0;">`;
+    for (const a of achievementsEarned) { achievementsList += `<li style="margin:6px 0;">${a.icon} <strong>${a.name}</strong> — ${a.description}</li>`; }
+    achievementsList += `</ul>`;
+  }
+  const content = `<h2 style="color:#8b0000;">⚔️ This Week in D&D</h2>
+<p>Hail, ${playerName}! Here's your weekly adventurer's briefing:</p>
+${sessionsList || '<p style="color:#666;"><em>No sessions scheduled this week.</em></p>'}
+${recapsList}${achievementsList}
+<p style="margin-top:20px;"><a href="${process.env.BASE_URL || ''}" style="display:inline-block;padding:10px 24px;background:#8b0000;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">Visit the Quest Board</a></p>`;
+  return wrapEmailTemplate('Weekly Digest', content);
+}
+
 function buildRsvpEmail(session, playerName, characterName, yesUrl, noUrl) {
   const content = `<h2 style="color:#8b0000;">Are You Still Coming? 🎲</h2>
 <p>Hey ${playerName},</p>
@@ -205,6 +236,7 @@ module.exports = {
   buildCancellationEmail,
   buildWaitlistPromotionEmail,
   buildSessionUpdateEmail,
+  buildWeeklyDigestEmail,
   buildRsvpEmail,
   getEmailSubject,
   formatDateForEmail,
