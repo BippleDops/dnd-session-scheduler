@@ -47,6 +47,8 @@ export const getMyRegistrations = () => fetchJson<MyRegistrations>('/api/me/regi
 export const cancelMyRegistration = (id: string) => fetchJson<ApiResult>(`/api/me/registrations/${id}`, { method: 'DELETE' });
 export const getMyCharacters = () => fetchJson<Character[]>('/api/me/characters');
 export const getMyFeedToken = () => fetchJson<{ token: string; url: string }>('/api/me/feed-token');
+export const getMyEmailPreferences = () => fetchJson<EmailPreferences>('/api/me/email-preferences');
+export const updateMyEmailPreferences = (prefs: Partial<EmailPreferences>) => fetchJson<ApiResult>('/api/me/email-preferences', { method: 'PUT', body: JSON.stringify(prefs) });
 export const getMyContacts = () => fetchJson<{ id: string; name: string }[]>('/api/me/contacts');
 export const getMyNotifications = () => fetchJson<{ notifications: Notification[]; unread: number }>('/api/me/notifications');
 export const markAllNotificationsRead = () => fetchJson<ApiResult>('/api/me/notifications/read-all', { method: 'POST' });
@@ -223,6 +225,10 @@ export interface AdminDashboard {
   sessionsThisMonth: number; lastBackup: string;
   thisWeekSessions: { sessionId: string; date: string; startTime: string; campaign: string; title: string; maxPlayers: number; registeredCount: number }[];
   recentLogs: { ActionType: string; Timestamp: string; Details: string }[];
+}
+export interface EmailPreferences {
+  reminders: number; confirmations: number; cancellations: number;
+  updates: number; digest: number; achievements: number;
 }
 export interface HealthDetail {
   status: string; uptime: number; uptimeHuman: string;

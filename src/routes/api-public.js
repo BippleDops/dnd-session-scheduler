@@ -299,6 +299,35 @@ router.post('/me/notifications/read-all', (req, res) => {
   res.json({ success: true });
 });
 
+// ── Email Preferences ──
+router.get('/me/email-preferences', (req, res) => {
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.json({ reminders: 1, confirmations: 1, cancellations: 1, updates: 1, digest: 1, achievements: 1 });
+  const db = getDb();
+  const prefs = db.prepare('SELECT * FROM email_preferences WHERE player_id = ?').get(player.player_id);
+  if (!prefs) return res.json({ reminders: 1, confirmations: 1, cancellations: 1, updates: 1, digest: 1, achievements: 1 });
+  res.json({
+    reminders: prefs.reminders, confirmations: prefs.confirmations,
+    cancellations: prefs.cancellations, updates: prefs.updates,
+    digest: prefs.digest, achievements: prefs.achievements,
+  });
+});
+
+router.put('/me/email-preferences', (req, res) => {
+  if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });
+  const player = getPlayerByEmail(req.user.email);
+  if (!player) return res.json({ success: false, message: 'Player not found' });
+  const db = getDb();
+  const cats = ['reminders', 'confirmations', 'cancellations', 'updates', 'digest', 'achievements'];
+  const vals = cats.map(c => req.body[c] !== undefined ? (req.body[c] ? 1 : 0) : 1);
+  db.prepare(`INSERT INTO email_preferences (player_id, ${cats.join(',')}, updated_at)
+    VALUES (?, ${cats.map(() => '?').join(',')}, datetime('now'))
+    ON CONFLICT(player_id) DO UPDATE SET ${cats.map(c => `${c}=?`).join(',')}, updated_at=datetime('now')`)
+    .run(player.player_id, ...vals, ...vals);
+  res.json({ success: true });
+});
+
 // ── Contacts (lightweight player list for message recipient picker) ──
 router.get('/me/contacts', (req, res) => {
   if (!req.user || !req.user.email) return res.status(401).json({ error: 'Not authenticated' });

@@ -127,6 +127,18 @@ function hasEmailBeenSent(playerId, sessionId, emailType) {
   return !!row;
 }
 
+/**
+ * Check if a player has opted in to a specific email category.
+ * Returns true if they want to receive it (default: yes).
+ */
+function playerWantsEmail(playerId, category) {
+  if (!playerId) return true;
+  const db = getDb();
+  const prefs = db.prepare('SELECT * FROM email_preferences WHERE player_id = ?').get(playerId);
+  if (!prefs) return true; // Default: all enabled
+  return !!prefs[category];
+}
+
 /** Mark an email type as sent for this player+session. */
 function markEmailSent(playerId, sessionId, emailType) {
   if (!playerId || !sessionId) return;
@@ -285,6 +297,7 @@ module.exports = {
   verifySmtp,
   hasEmailBeenSent,
   markEmailSent,
+  playerWantsEmail,
   draftPlayerReminders,
   draftDMInfoSheet,
   draftDMRecapReminder,

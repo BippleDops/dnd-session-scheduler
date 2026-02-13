@@ -434,6 +434,18 @@ function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_moments_session ON session_moments(session_id);
     CREATE INDEX IF NOT EXISTS idx_homework_player ON homework_progress(player_id);
 
+    -- Email preferences per player (opt-in/out by category)
+    CREATE TABLE IF NOT EXISTS email_preferences (
+      player_id TEXT PRIMARY KEY REFERENCES players(player_id),
+      reminders INTEGER DEFAULT 1,
+      confirmations INTEGER DEFAULT 1,
+      cancellations INTEGER DEFAULT 1,
+      updates INTEGER DEFAULT 1,
+      digest INTEGER DEFAULT 1,
+      achievements INTEGER DEFAULT 1,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
     -- Email deduplication: track which emails were sent per player per session
     CREATE TABLE IF NOT EXISTS email_sent_tracker (
       player_id TEXT NOT NULL,
