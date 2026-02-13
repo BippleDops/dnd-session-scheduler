@@ -20,6 +20,7 @@ const moreLinks = [
   { href: '/requests', icon: '🙋', label: 'Requests' },
   { href: '/homework', icon: '📝', label: 'Homework' },
   { href: '/messages', icon: '📨', label: 'Messages' },
+  { href: '/gallery', icon: '🎨', label: 'Gallery' },
   { href: '/profile', icon: '👤', label: 'Profile' },
 ];
 

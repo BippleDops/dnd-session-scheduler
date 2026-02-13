@@ -363,6 +363,35 @@ router.put('/plot-threads/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// ── V10: Analytics & Insights ──
+router.get('/insights', (req, res) => {
+  const { getDMInsights } = require('../services/analytics-service');
+  res.json(getDMInsights());
+});
+
+router.get('/engagement-scores', (req, res) => {
+  const db = getDb();
+  const scores = db.prepare(`SELECT e.*, p.name FROM engagement_scores e JOIN players p ON e.player_id = p.player_id ORDER BY e.overall_score DESC`).all();
+  res.json(scores);
+});
+
+router.post('/engagement-refresh', (req, res) => {
+  const { refreshAllEngagementScores } = require('../services/analytics-service');
+  const result = refreshAllEngagementScores();
+  res.json({ success: true, ...result });
+});
+
+router.get('/previously-on/:campaign', (req, res) => {
+  const { generatePreviouslyOn } = require('../services/analytics-service');
+  const result = generatePreviouslyOn(req.params.campaign);
+  res.json(result || { summary: 'No previous session recap found.' });
+});
+
+router.get('/generate-npc', (req, res) => {
+  const { generateRandomNPC } = require('../services/analytics-service');
+  res.json(generateRandomNPC(req.query.role || 'neutral'));
+});
+
 // ── Guest Invites ──
 router.post('/sessions/:id/invite', (req, res) => {
   const crypto = require('crypto');
