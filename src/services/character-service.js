@@ -38,6 +38,10 @@ function createCharacter(playerId, data) {
       parseInt(data.int,10)||10, parseInt(data.wis,10)||10, parseInt(data.cha,10)||10,
       data.proficiencies || '', data.equipment || '');
   logAction('CHARACTER_CREATED', `${data.name} created`, '', id);
+
+  // Evaluate achievements after character creation
+  try { require('./achievement-engine').evaluateAchievements(playerId); } catch {}
+
   return { success: true, characterId: id };
 }
 

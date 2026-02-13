@@ -239,12 +239,18 @@ function promoteNextWaitlisted(sessionId) {
 
 function markRegistrationAttendance(registrationId, attended) {
   const db = getDb();
+  const reg = db.prepare('SELECT player_id FROM registrations WHERE registration_id = ?').get(registrationId);
   const newStatus = attended ? 'Attended' : 'No-Show';
   db.prepare(`
     UPDATE registrations SET status = ?, attendance_confirmed = ?
     WHERE registration_id = ?
   `).run(newStatus, attended ? 1 : 0, registrationId);
   logAction(ACTION_TYPES.ATTENDANCE_MARKED, `Attendance: ${newStatus}`, '', registrationId);
+
+  // Evaluate achievements after attendance marking
+  if (attended && reg?.player_id) {
+    try { require('./achievement-engine').evaluateAchievements(reg.player_id); } catch {}
+  }
   return { success: true };
 }
 

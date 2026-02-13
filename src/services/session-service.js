@@ -248,6 +248,14 @@ function completeSessionRecord(sessionId, adminEmail) {
   `).run(sessionId, normalizeDate(s.date), s.campaign, charNames, regs.length);
 
   logAction(ACTION_TYPES.SESSION_COMPLETED, `Session completed with ${regs.length} attendees`, adminEmail, sessionId);
+
+  // Evaluate achievements for all attending players
+  try {
+    const { evaluateAchievements } = require('./achievement-engine');
+    const attendees = db.prepare("SELECT DISTINCT player_id FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Attended')").all(sessionId);
+    for (const a of attendees) { evaluateAchievements(a.player_id); }
+  } catch {}
+
   return { success: true };
 }
 
