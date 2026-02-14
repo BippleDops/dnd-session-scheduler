@@ -170,6 +170,9 @@ export const voteSessionRequest = (id: string, availableDates: string[]) => fetc
 
 // ── Admin ──
 export const getAdminDashboard = () => fetchJson<AdminDashboard>('/api/admin/dashboard');
+export const getPendingRegistrations = () => fetchJson<PendingRegistration[]>('/api/admin/pending-registrations');
+export const approveRegistration = (id: string) => fetchJson<ApiResult>(`/api/admin/registrations/${id}/approve`, { method: 'POST' });
+export const rejectRegistration = (id: string, reason?: string) => fetchJson<ApiResult>(`/api/admin/registrations/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
 export const sendTestEmail = () => fetchJson<ApiResult>('/api/admin/email-test', { method: 'POST' });
 export const getAdminEmails = (page: number, status?: string, type?: string) => {
   const params = new URLSearchParams({ page: String(page) });
@@ -250,6 +253,12 @@ export interface CharacterRelationship {
   relationship_id: string; character_id: string; target_name: string;
   target_type: 'npc' | 'pc' | 'faction' | 'deity'; disposition: string; description: string;
   created_at: string;
+}
+export interface PendingRegistration {
+  registration_id: string; session_id: string; char_name_snapshot: string;
+  class_snapshot: string; level_snapshot: number; race_snapshot: string;
+  signup_timestamp: string; player_name: string; player_email: string;
+  date: string; campaign: string; title: string;
 }
 export interface EmailLogEntry {
   log_id: string; timestamp: string; type: string; recipient: string; subject: string; status: string;

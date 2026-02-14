@@ -2,18 +2,31 @@
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getAdminDashboard, getAdminHealthDetail, triggerReminders, triggerBackup, type HealthDetail } from '@/lib/api';
+import { getAdminDashboard, getPendingRegistrations, approveRegistration, rejectRegistration, triggerReminders, triggerBackup, type PendingRegistration } from '@/lib/api';
 import { formatDate, formatTime, formatTimestamp } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WoodButton from '@/components/ui/WoodButton';
+import WaxSeal from '@/components/ui/WaxSeal';
 import { useToast } from '@/components/ui/Toast';
 
 export default function AdminDashboard() {
   usePageTitle('DM War Table');
   const { data, loading } = useApi(getAdminDashboard);
-  const [health, setHealth] = useState<HealthDetail | null>(null);
+  const { data: pending, refetch: refetchPending } = useApi(getPendingRegistrations);
   const { toast } = useToast();
+
+  const handleApprove = async (id: string) => {
+    const r = await approveRegistration(id);
+    if (r.success) { toast('Approved!', 'success'); refetchPending(); }
+    else toast(r.message || 'Failed', 'error');
+  };
+
+  const handleReject = async (id: string) => {
+    const r = await rejectRegistration(id);
+    if (r.success) { toast('Rejected', 'success'); refetchPending(); }
+    else toast(r.message || 'Failed', 'error');
+  };
 
   if (loading) return <CandleLoader text="Consulting the DM's war table..." />;
   if (!data) return <ParchmentPanel className="text-center py-10"><p className="text-[var(--ink)]">Failed to load dashboard.</p></ParchmentPanel>;
@@ -21,6 +34,37 @@ export default function AdminDashboard() {
   return (
     <div>
       <h1 className="scroll-heading text-3xl mb-6">🏰 DM War Table</h1>
+
+      {/* Pending Approvals */}
+      {pending && pending.length > 0 && (
+        <div className="mb-6">
+          <h2 className="scroll-heading text-xl mb-3">⏳ Pending Approvals ({pending.length})</h2>
+          <div className="space-y-2">
+            {pending.map(reg => (
+              <ParchmentPanel key={reg.registration_id} className="!mb-0" pinned>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <WaxSeal campaign={reg.campaign} size={28} />
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--ink)]">
+                        {reg.player_name} as <strong>{reg.char_name_snapshot}</strong>
+                      </p>
+                      <p className="text-xs text-[var(--ink-faded)]">
+                        {reg.class_snapshot} Lv.{reg.level_snapshot} · {reg.campaign} · {formatDate(reg.date)}
+                        {reg.title && ` · ${reg.title}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <WoodButton variant="primary" onClick={() => handleApprove(reg.registration_id)} className="text-xs py-1 px-3">✅ Approve</WoodButton>
+                    <WoodButton variant="danger" onClick={() => handleReject(reg.registration_id)} className="text-xs py-1 px-3">❌ Reject</WoodButton>
+                  </div>
+                </div>
+              </ParchmentPanel>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
@@ -46,51 +90,6 @@ export default function AdminDashboard() {
         <WoodButton href="/admin/history">View History</WoodButton>
         <WoodButton onClick={async () => { await triggerReminders(); toast('Reminders sent!', 'success'); }}>Run Reminders</WoodButton>
         <WoodButton onClick={async () => { await triggerBackup(); toast('Backup started!', 'success'); }}>Run Backup</WoodButton>
-      </div>
-
-      {/* System Health (collapsible) */}
-      <div className="mb-6">
-        <button
-          onClick={() => { if (!health) getAdminHealthDetail().then(setHealth); else setHealth(null); }}
-          className="text-sm text-[var(--gold)] hover:underline bg-transparent border-none cursor-pointer font-[var(--font-heading)]"
-        >
-          {health ? '▼' : '▶'} System Health
-        </button>
-        {health && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-            <ParchmentPanel className="text-center !p-3">
-              <div className="text-lg">⏱️</div>
-              <div className="text-sm font-bold text-[var(--gold)]">{health.uptimeHuman}</div>
-              <div className="text-[10px] text-[var(--ink-faded)]">Uptime</div>
-            </ParchmentPanel>
-            <ParchmentPanel className="text-center !p-3">
-              <div className="text-lg">💾</div>
-              <div className="text-sm font-bold text-[var(--gold)]">{health.memory.rssMB} MB</div>
-              <div className="text-[10px] text-[var(--ink-faded)]">Memory (RSS)</div>
-            </ParchmentPanel>
-            <ParchmentPanel className="text-center !p-3">
-              <div className="text-lg">🗄️</div>
-              <div className="text-sm font-bold text-[var(--gold)]">{health.database.sizeMB} MB</div>
-              <div className="text-[10px] text-[var(--ink-faded)]">Database</div>
-            </ParchmentPanel>
-            <ParchmentPanel className="text-center !p-3">
-              <div className="text-lg">🖥️</div>
-              <div className="text-sm font-bold text-[var(--gold)]">{health.system.nodeVersion}</div>
-              <div className="text-[10px] text-[var(--ink-faded)]">{health.system.platform} · {health.system.cpus} CPUs</div>
-            </ParchmentPanel>
-            <ParchmentPanel className="col-span-full !p-3">
-              <p className="text-xs font-semibold text-[var(--ink)] mb-2">Table Row Counts</p>
-              <div className="grid grid-cols-5 gap-2">
-                {Object.entries(health.database.tables).map(([table, count]) => (
-                  <div key={table} className="text-center">
-                    <div className="text-sm font-bold text-[var(--gold)]">{count}</div>
-                    <div className="text-[9px] text-[var(--ink-faded)] truncate">{table}</div>
-                  </div>
-                ))}
-              </div>
-            </ParchmentPanel>
-          </div>
-        )}
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
