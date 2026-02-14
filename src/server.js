@@ -26,7 +26,6 @@ const PORT = parseInt(process.env.PORT, 10) || 3000;
 
 // ── Database ──
 initializeDatabase();
-try { require('./services/encounter-service').seedMonsters(); } catch (e) { console.error('Monster seed error:', e.message); }
 
 // ── Compression ──
 app.use(compression());
@@ -137,8 +136,6 @@ app.use('/auth', authRouter);
 app.use('/api', apiPublic);
 app.use('/api/admin', apiAdmin);
 app.use('/api/sse', require('./routes/api-sse'));
-app.use('/api/dice', require('./routes/api-dice'));
-app.use('/api/initiative', require('./routes/api-initiative'));
 app.use('/api', require('./routes/api-v3'));
 app.use('/api', require('./routes/api-v4'));
 
@@ -189,7 +186,8 @@ app.get('/health', (req, res) => {
 });
 
 // ── Cron jobs ──
-// Daily reminders at configured hour
+
+// Daily reminders (1 day before sessions, configurable hour)
 const triggerHour = parseInt(getConfigValue('REMINDER_TRIGGER_HOUR', '8'), 10);
 cron.schedule(`0 ${triggerHour} * * *`, async () => {
   console.log(`[Cron] Running daily reminder check at ${triggerHour}:00`);
@@ -197,88 +195,6 @@ cron.schedule(`0 ${triggerHour} * * *`, async () => {
     const { dailyReminderCheck } = require('./services/reminder-service');
     await dailyReminderCheck();
   } catch (e) { console.error('Cron reminder error:', e); }
-}, { timezone: 'America/Chicago' });
-
-// Weekly digest email (configurable day/hour, default Sunday 6 PM)
-const digestDay = parseInt(getConfigValue('DIGEST_DAY', '0'), 10);
-const digestHour = parseInt(getConfigValue('DIGEST_HOUR', '18'), 10);
-cron.schedule(`0 ${digestHour} * * ${digestDay}`, async () => {
-  console.log('[Cron] Sending weekly digest emails');
-  try {
-    const { getDb, normalizeDate, normalizeTime } = require('./db');
-    const db = getDb();
-    const { sendEmail, playerWantsEmail, getUnsubscribeUrl } = require('./services/reminder-service');
-    const { buildWeeklyDigestEmail } = require('./email/templates');
-
-    // Get upcoming sessions for the next 7 days
-    const today = new Date().toISOString().slice(0, 10);
-    const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
-    const upcoming = db.prepare("SELECT * FROM sessions WHERE date >= ? AND date <= ? AND status = 'Scheduled' ORDER BY date").all(today, weekEnd.toISOString().slice(0, 10));
-    const upcomingSessions = upcoming.map(s => ({ title: s.title, campaign: s.campaign, date: normalizeDate(s.date), startTime: normalizeTime(s.start_time), spotsRemaining: Math.max(0, (s.max_players || 6) - (db.prepare("SELECT COUNT(*) as c FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Attended')").get(s.session_id).c)) }));
-
-    // Recent recaps from past 7 days
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-    const recentRecaps = db.prepare("SELECT * FROM session_history WHERE dm_post_notes IS NOT NULL AND dm_post_notes != '' AND session_date >= ? ORDER BY session_date DESC LIMIT 5").all(weekAgo.toISOString().slice(0, 10)).map(h => ({ campaign: h.campaign, date: h.session_date, recap: h.dm_post_notes }));
-
-    // Send to all active players who want digest
-    const players = db.prepare("SELECT * FROM players WHERE active_status = 'Active'").all();
-    let sent = 0;
-    for (const p of players) {
-      if (!p.email || !playerWantsEmail(p.player_id, 'digest')) continue;
-      const html = buildWeeklyDigestEmail(p.name, upcomingSessions, recentRecaps, []);
-      const result = await sendEmail(p.email, '⚔️ This Week in D&D', html);
-      if (result) sent++;
-    }
-    if (sent > 0) console.log(`[Cron] Sent ${sent} weekly digest emails`);
-  } catch (e) { console.error('Cron digest error:', e); }
-}, { timezone: 'America/Chicago' });
-
-// RSVP confirmation emails: 48h before sessions (runs at 9 AM)
-cron.schedule('0 9 * * *', async () => {
-  console.log('[Cron] Sending RSVP confirmation emails');
-  try {
-    const { getDb } = require('./db');
-    const { normalizeDate, normalizeTime } = require('./db');
-    const db = getDb();
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + 2);
-    const dateStr = targetDate.toISOString().slice(0, 10);
-
-    const sessions = db.prepare("SELECT * FROM sessions WHERE date = ? AND status = 'Scheduled'").all(dateStr);
-    const { sendEmail, hasEmailBeenSent, markEmailSent, playerWantsEmail } = require('./services/reminder-service');
-    const { buildRsvpEmail, getEmailSubject } = require('./email/templates');
-    const crypto = require('crypto');
-    const secret = process.env.SESSION_SECRET || 'rsvp-secret';
-    let sent = 0;
-
-    for (const session of sessions) {
-      const regs = db.prepare(`SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id
-        WHERE r.session_id = ? AND r.status = 'Confirmed' AND r.rsvp_status IS NULL`).all(session.session_id);
-      const sessionData = { date: session.date, startTime: normalizeTime(session.start_time), endTime: normalizeTime(session.end_time), campaign: session.campaign, title: session.title };
-
-      for (const reg of regs) {
-        if (!reg.email || hasEmailBeenSent(reg.player_id, session.session_id, 'rsvp')) continue;
-        if (!playerWantsEmail(reg.player_id, 'reminders')) continue;
-        const token = crypto.createHmac('sha256', secret).update(reg.registration_id + 'rsvp').digest('hex').slice(0, 32);
-        const yesUrl = `${process.env.BASE_URL || ''}/api/rsvp?token=${token}&response=yes`;
-        const noUrl = `${process.env.BASE_URL || ''}/api/rsvp?token=${token}&response=no`;
-        const html = buildRsvpEmail(sessionData, reg.name, reg.char_name_snapshot || 'your character', yesUrl, noUrl);
-        const result = await sendEmail(reg.email, getEmailSubject('rsvp', sessionData), html);
-        if (result) { markEmailSent(reg.player_id, session.session_id, 'rsvp'); sent++; }
-      }
-    }
-    if (sent > 0) console.log(`[Cron] Sent ${sent} RSVP emails`);
-  } catch (e) { console.error('Cron RSVP error:', e); }
-}, { timezone: 'America/Chicago' });
-
-// Generate recurring sessions daily at midnight
-cron.schedule('0 0 * * *', () => {
-  console.log('[Cron] Generating recurring sessions');
-  try {
-    const { generateAllRecurringSessions } = require('./services/recurring-service');
-    const result = generateAllRecurringSessions();
-    if (result.totalCreated > 0) console.log(`[Cron] Created ${result.totalCreated} recurring sessions across ${result.campaignsChecked} campaigns`);
-  } catch (e) { console.error('Cron recurring error:', e); }
 }, { timezone: 'America/Chicago' });
 
 // Auto-complete past sessions at 1 AM
@@ -300,69 +216,6 @@ cron.schedule('0 2 * * *', () => {
   } catch (e) { console.error('Cron backup error:', e); }
 }, { timezone: 'America/Chicago' });
 
-// No-show follow-up: 24h after completed sessions
-cron.schedule('0 12 * * *', async () => {
-  console.log('[Cron] Checking for no-show follow-ups');
-  try {
-    const { getDb, normalizeDate } = require('./db');
-    const db = getDb();
-    const { sendEmail, hasEmailBeenSent, markEmailSent, playerWantsEmail } = require('./services/reminder-service');
-    const { buildNoShowEmail } = require('./email/templates');
-
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().slice(0, 10);
-
-    const noShows = db.prepare(`SELECT r.player_id, r.session_id, p.name, p.email, s.campaign, s.date
-      FROM registrations r JOIN players p ON r.player_id = p.player_id JOIN sessions s ON r.session_id = s.session_id
-      WHERE r.status = 'No-Show' AND s.date = ? AND s.status = 'Completed'`).all(dateStr);
-
-    let sent = 0;
-    for (const ns of noShows) {
-      if (!ns.email || hasEmailBeenSent(ns.player_id, ns.session_id, 'noshow') || !playerWantsEmail(ns.player_id, 'reminders')) continue;
-      const html = buildNoShowEmail({ date: normalizeDate(ns.date), campaign: ns.campaign }, ns.name);
-      const result = await sendEmail(ns.email, `We missed you — ${ns.campaign}`, html);
-      if (result) { markEmailSent(ns.player_id, ns.session_id, 'noshow'); sent++; }
-    }
-    if (sent > 0) console.log(`[Cron] Sent ${sent} no-show follow-up emails`);
-  } catch (e) { console.error('Cron no-show error:', e); }
-}, { timezone: 'America/Chicago' });
-
-// Inactivity re-engagement: monthly check for inactive players
-cron.schedule('0 14 1 * *', async () => {
-  console.log('[Cron] Checking for inactive player re-engagement');
-  try {
-    const { getDb, normalizeDate, normalizeTime } = require('./db');
-    const db = getDb();
-    const { sendEmail, playerWantsEmail } = require('./services/reminder-service');
-    const { buildInactivityEmail } = require('./email/templates');
-
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
-    const inactivePlayers = db.prepare(`
-      SELECT p.player_id, p.name, p.email FROM players p
-      WHERE p.active_status = 'Active' AND p.email IS NOT NULL
-      AND p.player_id NOT IN (
-        SELECT DISTINCT r.player_id FROM registrations r
-        JOIN sessions s ON r.session_id = s.session_id
-        WHERE s.date >= ? AND r.status IN ('Confirmed','Attended')
-      )
-    `).all(cutoff.toISOString().slice(0, 10));
-
-    const upcoming = db.prepare("SELECT * FROM sessions WHERE date >= date('now') AND status = 'Scheduled' ORDER BY date LIMIT 5").all();
-    const upcomingSessions = upcoming.map(s => ({
-      title: s.title, campaign: s.campaign, date: normalizeDate(s.date),
-      spotsRemaining: Math.max(0, (s.max_players || 6) - (db.prepare("SELECT COUNT(*) as c FROM registrations WHERE session_id = ? AND status IN ('Confirmed','Attended')").get(s.session_id).c)),
-    }));
-
-    let sent = 0;
-    for (const p of inactivePlayers) {
-      if (!playerWantsEmail(p.player_id, 'digest')) continue;
-      const html = buildInactivityEmail(p.name, upcomingSessions);
-      const result = await sendEmail(p.email, '🗡️ We miss you, adventurer!', html);
-      if (result) sent++;
-    }
-    if (sent > 0) console.log(`[Cron] Sent ${sent} inactivity re-engagement emails`);
-  } catch (e) { console.error('Cron inactivity error:', e); }
-}, { timezone: 'America/Chicago' });
 
 // Auto-briefing: 48h before sessions, send briefing emails
 cron.schedule('0 10 * * *', async () => {

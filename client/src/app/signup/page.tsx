@@ -11,7 +11,6 @@ import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
 import TierShield, { isLevelValidForTier, getTierRange } from '@/components/ui/TierShield';
 import { useToast } from '@/components/ui/Toast';
-import Confetti from '@/components/ui/Confetti';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter','Other'];
@@ -114,7 +113,6 @@ function SignupInner() {
   );
   if (done) return (
     <>
-      <Confetti count={35} />
       <ParchmentPanel className="text-center py-10">
         <h2 className="font-[var(--font-heading)] text-xl text-green-700">🎉 You&apos;re Registered!</h2>
         <p className="text-[var(--ink)] mt-2">{resultMsg}</p>

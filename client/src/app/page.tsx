@@ -7,7 +7,6 @@ import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import { useSwipe } from '@/hooks/useSwipe';
 import { CalendarSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
-import CalendarPopover from '@/components/ui/CalendarPopover';
 import WaxSeal from '@/components/ui/WaxSeal';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,8 +19,6 @@ export default function CalendarPage() {
   const { data: campaigns } = useApi(getCampaignsList);
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [hoverDate, setHoverDate] = useState<string | null>(null);
-  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -144,8 +141,6 @@ export default function CalendarPage() {
               <div
                 key={day}
                 onClick={() => hasSession && setSelectedDate(dateStr)}
-                onMouseEnter={e => { if (hasSession && !isPast) { setHoverDate(dateStr); setHoverPos({ x: e.clientX, y: e.clientY }); } }}
-                onMouseLeave={() => setHoverDate(null)}
                 className={`min-h-[60px] p-1 rounded border transition-all ${
                   isSelected ? 'border-[var(--gold)] bg-[rgba(201,169,89,0.1)]' :
                   isToday ? 'border-[var(--gold)] border-2' :
@@ -186,11 +181,6 @@ export default function CalendarPage() {
           })()}
         </div>
       </div>
-
-      {/* Hover popover (desktop only) */}
-      {hoverDate && sessionsByDate[hoverDate] && (
-        <CalendarPopover sessions={sessionsByDate[hoverDate]} position={hoverPos} />
-      )}
 
       {/* Selected day sessions */}
       {selectedDate && daySessions.length > 0 && (
