@@ -128,53 +128,123 @@ function processSignup(formData) {
 
   if (!regId) {
     regId = generateUuid();
+    // New signups go to 'Pending' — DM must approve
     db.prepare(`
       INSERT INTO registrations (registration_id, session_id, player_id,
         char_name_snapshot, class_snapshot, level_snapshot, race_snapshot,
         signup_timestamp, status, attendance_confirmed)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 'Pending', 0)
     `).run(regId, formData.sessionId, playerResult.playerId,
-      formData.characterName, formData.characterClass, level, formData.characterRace,
-      isWaitlisted ? 'Waitlisted' : 'Confirmed');
+      formData.characterName, formData.characterClass, level, formData.characterRace);
   }
 
   logAction(ACTION_TYPES.REGISTRATION_CREATED,
-    `${formData.characterName} ${isWaitlisted ? 'waitlisted for' : 'registered for'} ${session.campaign} on ${session.date}`,
+    `${formData.characterName} signed up (pending approval) for ${session.campaign} on ${session.date}`,
     formData.email, regId);
 
-  // Send confirmation email (async, best-effort — don't block the response)
-  if (!isWaitlisted) {
-    try {
-      const { sendConfirmationEmail } = require('./reminder-service');
-      const sessionData = {
-        date: normalizeDate(session.date), startTime: normalizeTime(session.start_time),
-        endTime: normalizeTime(session.end_time), campaign: session.campaign, title: session.title,
-      };
-      sendConfirmationEmail(formData.email, formData.name, sessionData, formData.characterName)
-        .catch(e => console.error('Confirmation email error:', e.message));
-    } catch (e) { console.error('Confirmation email setup error:', e.message); }
-  }
-
-  // Create in-app notification
+  // Notify the player
   try {
-    const notifMsg = isWaitlisted
-      ? `You've been waitlisted for ${session.campaign} on ${normalizeDate(session.date)}.`
-      : `You're registered for ${session.campaign} on ${normalizeDate(session.date)}!`;
-    createNotification(playerResult.playerId, 'registration', notifMsg, regId);
+    createNotification(playerResult.playerId, 'registration',
+      `Sign-up submitted for ${session.campaign} on ${normalizeDate(session.date)} — pending DM approval.`, regId);
   } catch { /* best effort */ }
 
-  if (isWaitlisted) {
-    return {
-      success: true,
-      message: "This session is full, but you've been added to the waitlist! You'll be notified if a spot opens.",
-      registrationId: regId, waitlisted: true,
-    };
-  }
+  // Send signup received email
+  try {
+    const { sendEmail } = require('./reminder-service');
+    const { wrapEmailTemplate } = require('../email/templates');
+    const html = wrapEmailTemplate('Sign-Up Received',
+      `<h2 style="color:#8b0000;">Sign-Up Received! ⏳</h2>
+      <p>Hey ${formData.name},</p>
+      <p><strong>${formData.characterName}</strong> has been submitted for <strong>${session.campaign}</strong> on ${normalizeDate(session.date)}.</p>
+      <p>Your sign-up is <strong>pending DM approval</strong>. You'll receive an email once the DM reviews your registration.</p>`);
+    sendEmail(formData.email, `D&D Session — Sign-Up Pending — ${session.campaign}`, html)
+      .catch(e => console.error('Signup email error:', e.message));
+  } catch {}
+
   return {
     success: true,
-    message: "You're in! Check your email for a confirmation with session details.",
+    message: "Sign-up submitted! The DM will review and approve your registration. You'll be notified by email.",
     registrationId: regId,
   };
+}
+
+/**
+ * DM approves a pending registration.
+ */
+function approveRegistration(registrationId, adminEmail) {
+  const db = getDb();
+  const reg = db.prepare('SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.registration_id = ?').get(registrationId);
+  if (!reg) return { success: false, error: 'Registration not found.' };
+  if (reg.status !== 'Pending') return { success: false, error: 'Registration is not pending.' };
+
+  db.prepare("UPDATE registrations SET status = 'Confirmed' WHERE registration_id = ?").run(registrationId);
+  logAction('REGISTRATION_APPROVED', `${reg.char_name_snapshot} approved`, adminEmail, registrationId);
+
+  // Notify + email the player
+  try {
+    createNotification(reg.player_id, 'registration', `✅ You're approved for the session! See you there.`, registrationId);
+    const session = db.prepare('SELECT * FROM sessions WHERE session_id = ?').get(reg.session_id);
+    if (session && reg.email) {
+      const { sendEmail } = require('./reminder-service');
+      const { wrapEmailTemplate } = require('../email/templates');
+      const html = wrapEmailTemplate('Registration Approved',
+        `<h2 style="color:#006600;">You're Approved! ✅</h2>
+        <p>Hey ${reg.name},</p>
+        <p><strong>${reg.char_name_snapshot}</strong> has been approved for <strong>${session.campaign}</strong> on ${normalizeDate(session.date)}.</p>
+        <p>You'll receive a reminder the day before. See you at the table!</p>`);
+      sendEmail(reg.email, `D&D Session — Approved! — ${session.campaign}`, html).catch(() => {});
+    }
+  } catch {}
+
+  return { success: true };
+}
+
+/**
+ * DM rejects a pending registration.
+ */
+function rejectRegistration(registrationId, adminEmail, reason) {
+  const db = getDb();
+  const reg = db.prepare('SELECT r.*, p.name, p.email FROM registrations r JOIN players p ON r.player_id = p.player_id WHERE r.registration_id = ?').get(registrationId);
+  if (!reg) return { success: false, error: 'Registration not found.' };
+
+  db.prepare("UPDATE registrations SET status = 'Cancelled' WHERE registration_id = ?").run(registrationId);
+  logAction('REGISTRATION_REJECTED', `${reg.char_name_snapshot} rejected${reason ? ': ' + reason : ''}`, adminEmail, registrationId);
+
+  // Notify + email the player
+  try {
+    createNotification(reg.player_id, 'registration', `Your signup was not approved this time.${reason ? ' Reason: ' + reason : ''}`, registrationId);
+    if (reg.email) {
+      const { sendEmail } = require('./reminder-service');
+      const { wrapEmailTemplate } = require('../email/templates');
+      const html = wrapEmailTemplate('Registration Not Approved',
+        `<h2 style="color:#8b0000;">Not Approved This Time</h2>
+        <p>Hey ${reg.name},</p>
+        <p>Your signup for <strong>${reg.char_name_snapshot}</strong> was not approved.${reason ? ` <strong>Reason:</strong> ${reason}` : ''}</p>
+        <p>Check the quest board for other upcoming sessions!</p>
+        <p><a href="${process.env.BASE_URL || ''}/sessions" style="color:#8b0000;">Browse Sessions</a></p>`);
+      sendEmail(reg.email, `D&D Session — Not Approved`, html).catch(() => {});
+    }
+  } catch {}
+
+  return { success: true };
+}
+
+/**
+ * Get all pending registrations (for DM dashboard).
+ */
+function getPendingRegistrations() {
+  const db = getDb();
+  return db.prepare(`
+    SELECT r.registration_id, r.session_id, r.char_name_snapshot, r.class_snapshot,
+           r.level_snapshot, r.race_snapshot, r.signup_timestamp,
+           p.name AS player_name, p.email AS player_email,
+           s.date, s.campaign, s.title
+    FROM registrations r
+    JOIN players p ON r.player_id = p.player_id
+    JOIN sessions s ON r.session_id = s.session_id
+    WHERE r.status = 'Pending' AND s.status = 'Scheduled'
+    ORDER BY r.signup_timestamp
+  `).all();
 }
 
 function cancelRegistration(registrationId) {
@@ -328,6 +398,9 @@ function getPublicRoster(sessionId) {
 
 module.exports = {
   processSignup,
+  approveRegistration,
+  rejectRegistration,
+  getPendingRegistrations,
   cancelRegistration,
   cancelMyRegistration,
   markRegistrationAttendance,

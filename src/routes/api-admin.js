@@ -77,6 +77,21 @@ router.post('/auto-complete', (req, res) => {
 
 // ── Registrations ──
 
+router.get('/pending-registrations', (req, res) => {
+  const { getPendingRegistrations } = require('../services/registration-service');
+  res.json(getPendingRegistrations());
+});
+
+router.post('/registrations/:id/approve', (req, res) => {
+  const { approveRegistration } = require('../services/registration-service');
+  res.json(approveRegistration(req.params.id, req.user.email));
+});
+
+router.post('/registrations/:id/reject', (req, res) => {
+  const { rejectRegistration } = require('../services/registration-service');
+  res.json(rejectRegistration(req.params.id, req.user.email, req.body.reason));
+});
+
 router.post('/registrations/:id/cancel', (req, res) => {
   res.json(cancelRegistration(req.params.id));
 });

@@ -474,7 +474,7 @@ function initializeDatabase() {
 
   const defaults = [
     ['MAX_PLAYERS_DEFAULT', '6', 'Default max players per session'],
-    ['REMINDER_LEAD_DAYS', '2', 'Days before session to send reminders'],
+    ['REMINDER_LEAD_DAYS', '1', 'Days before session to send reminders'],
     ['RECAP_FOLLOW_DAYS', '1', 'Days after session to send recap reminder'],
     ['REMINDER_TRIGGER_HOUR', '8', 'Hour (0-23) for daily trigger'],
     ['CAMPAIGN_LIST', 'Aethermoor,Aquabyssos,Terravor,Two Cities', 'Available campaigns'],
@@ -558,6 +558,7 @@ function initializeDatabase() {
       created_by TEXT, max_uses INTEGER DEFAULT 1, uses INTEGER DEFAULT 0,
       expires_at TEXT, created_at TEXT DEFAULT (datetime('now'))
     )` },
+    { version: 18, desc: 'Add pre_session_note to sessions', sql: "ALTER TABLE sessions ADD COLUMN pre_session_note TEXT" },
     { version: 17, desc: 'Add engagement scores table', sql: `CREATE TABLE IF NOT EXISTS engagement_scores (
       player_id TEXT PRIMARY KEY REFERENCES players(player_id),
       attendance_score REAL DEFAULT 0, journal_score REAL DEFAULT 0,
