@@ -9,9 +9,8 @@ import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
 import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
-import TierShield, { isLevelValidForTier, getTierRange } from '@/components/ui/TierShield';
+import TierShield from '@/components/ui/TierShield';
 import { useToast } from '@/components/ui/Toast';
-import Breadcrumbs from '@/components/ui/Breadcrumbs';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter','Other'];
 const CLASS_ICONS: Record<string, string> = {
@@ -114,7 +113,7 @@ function SignupInner() {
   if (done) return (
     <>
       <ParchmentPanel className="text-center py-10">
-        <h2 className="font-[var(--font-heading)] text-xl text-green-700">🎉 You&apos;re Registered!</h2>
+        <h2 className="font-[var(--font-heading)] text-xl text-green-700">🎉 Sign-Up Submitted!</h2>
         <p className="text-[var(--ink)] mt-2">{resultMsg}</p>
         <div className="flex gap-3 justify-center mt-4">
           <WoodButton variant="primary" href="/">Quest Board</WoodButton>
@@ -126,51 +125,18 @@ function SignupInner() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'Sessions', href: '/sessions' }, { label: session.title || session.campaign }]} />
-
       {/* Session summary */}
       <ParchmentPanel>
         <div className="flex justify-between items-start">
           <div>
             <h2 className="font-[var(--font-heading)] text-xl text-[var(--ink)]">{session.title || session.campaign}</h2>
             <p className="text-sm text-[var(--ink-faded)]">{formatDate(session.date)} &bull; {formatTime(session.startTime)} — {formatTime(session.endTime)}</p>
-            {session.description && <p className="text-sm text-[var(--ink-faded)] italic mt-1">{session.description}</p>}
+            {session.levelTier && session.levelTier !== 'any' && <TierShield tier={session.levelTier} />}
           </div>
           <WaxSeal campaign={session.campaign} size={44} />
         </div>
-        <div className="flex items-center gap-3 mt-2 flex-wrap">
-          <span className="text-sm text-[var(--ink-faded)]">{session.spotsRemaining} spot{session.spotsRemaining !== 1 ? 's' : ''} remaining</span>
-          {session.levelTier && session.levelTier !== 'any' && <TierShield tier={session.levelTier} size="md" showName />}
-        </div>
-        {/* Tier restriction banner */}
-        {session.levelTier && session.levelTier !== 'any' && (() => {
-          const range = getTierRange(session.levelTier);
-          return (
-            <div className="mt-3 p-3 rounded bg-[rgba(0,0,0,0.05)] border border-[var(--parchment-dark)]">
-              <p className="text-sm font-semibold text-[var(--ink)]">🛡️ Level Restriction</p>
-              <p className="text-xs text-[var(--ink-faded)] mt-1">
-                Your character must be <strong>level {range.min}–{range.max}</strong> to join this session.
-                Characters outside this range cannot sign up.
-              </p>
-            </div>
-          );
-        })()}
+        <p className="text-sm text-[var(--ink-faded)] mt-2">{session.spotsRemaining} spot{session.spotsRemaining !== 1 ? 's' : ''} remaining</p>
       </ParchmentPanel>
-
-      {/* Current roster */}
-      {session.roster.length > 0 && (
-        <ParchmentPanel>
-          <p className="text-xs font-semibold text-[var(--ink-faded)] uppercase tracking-wide mb-2">⚔️ Current Adventuring Party ({session.roster.length}/{session.maxPlayers})</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-            {session.roster.map((r, i) => (
-              <div key={i} className="text-xs p-1.5 rounded bg-[rgba(0,0,0,0.03)]">
-                <span className="font-semibold text-[var(--ink)]">{r.characterName}</span>
-                <span className="text-[var(--ink-faded)] ml-1">{r.characterClass} Lv.{r.characterLevel}</span>
-              </div>
-            ))}
-          </div>
-        </ParchmentPanel>
-      )}
 
       {/* Character picker */}
       {characters.length > 0 && (
@@ -180,32 +146,23 @@ function SignupInner() {
             {characters.map((c, i) => {
               const isSelected = charName === c.characterName;
               const classIcon = CLASS_ICONS[c.characterClass.split(',')[0].trim()] || '⚔️';
-              const tier = session.levelTier || 'any';
-              const eligible = tier === 'any' || isLevelValidForTier(c.characterLevel, tier);
               return (
-                <button key={i} onClick={() => eligible && fillCharacter(c)} disabled={!eligible}
-                  className={`flex items-center gap-2 p-3 rounded-lg text-left transition-all border relative ${
-                    !eligible
-                      ? 'border-[var(--parchment-dark)] bg-[var(--parchment)] opacity-50 cursor-not-allowed'
-                      : isSelected
-                        ? 'border-[var(--gold)] bg-[rgba(201,169,89,0.15)] shadow-md'
-                        : 'border-[var(--parchment-dark)] bg-[var(--parchment)] hover:border-[var(--gold)] hover:shadow-sm'
+                <button key={i} onClick={() => fillCharacter(c)}
+                  className={`flex items-center gap-2 p-3 rounded-lg text-left transition-all border ${
+                    isSelected
+                      ? 'border-[var(--gold)] bg-[rgba(201,169,89,0.15)] shadow-md'
+                      : 'border-[var(--parchment-dark)] bg-[var(--parchment)] hover:border-[var(--gold)] hover:shadow-sm'
                   }`}
                 >
                   <span className="text-2xl">{classIcon}</span>
                   <div className="min-w-0">
                     <p className={`text-sm font-semibold truncate ${isSelected ? 'text-[var(--gold)]' : 'text-[var(--ink)]'}`}>{c.characterName}</p>
                     <p className="text-[10px] text-[var(--ink-faded)]">{c.characterClass} · Lv{c.characterLevel}</p>
-                    {!eligible && (
-                      <p className="text-[10px] text-red-500 font-semibold mt-0.5">
-                        {c.characterLevel < getTierRange(tier).min ? 'Level too low' : 'Level too high'}
-                      </p>
-                    )}
                   </div>
                 </button>
               );
             })}
-            <button onClick={() => { setCharName(''); setCharLevel(session.levelTier && session.levelTier !== 'any' ? String(getTierRange(session.levelTier).min) : ''); setCharClasses([]); setCharRace(''); }}
+            <button onClick={() => { setCharName(''); setCharLevel(''); setCharClasses([]); setCharRace(''); }}
               className="flex items-center gap-2 p-3 rounded-lg text-left border border-dashed border-[var(--parchment-dark)] bg-[var(--parchment)] hover:border-[var(--gold)] transition-colors">
               <span className="text-2xl opacity-40">➕</span>
               <p className="text-sm text-[var(--ink-faded)]">New Character</p>
@@ -245,25 +202,7 @@ function SignupInner() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[var(--ink)] mb-1">Level *</label>
-                {(() => {
-                  const tier = session.levelTier || 'any';
-                  const range = getTierRange(tier);
-                  const level = parseInt(charLevel, 10);
-                  const valid = !charLevel || isNaN(level) || (level >= range.min && level <= range.max);
-                  return (
-                    <>
-                      <input type="number" value={charLevel} onChange={e => setCharLevel(e.target.value)}
-                        className={`tavern-input ${!valid ? '!border-red-500' : ''}`}
-                        min={range.min} max={range.max} required
-                        placeholder={tier !== 'any' ? `${range.min}–${range.max}` : '1–20'} />
-                      {charLevel && !isNaN(level) && (
-                        <p className={`text-xs mt-1 font-semibold ${valid ? 'text-green-600' : 'text-red-500'}`}>
-                          {valid ? `✓ Level ${level} is eligible` : `✗ Level must be ${range.min}–${range.max} for this session`}
-                        </p>
-                      )}
-                    </>
-                  );
-                })()}
+                <input type="number" value={charLevel} onChange={e => setCharLevel(e.target.value)} className="tavern-input" min={1} max={20} required />
               </div>
             </div>
           </div>

@@ -151,7 +151,7 @@ export default function CalendarPage() {
               >
                 <span className={`text-xs font-semibold ${isToday ? 'text-[var(--gold)]' : 'text-[var(--ink-faded)]'}`}>{day}</span>
                 {hasSession && (
-                  <div className="flex gap-1 mt-1 flex-wrap items-center">
+                  <div className="flex gap-1 mt-1 flex-wrap">
                     {daySess.map((s, j) => (
                       <div
                         key={j}
@@ -160,7 +160,6 @@ export default function CalendarPage() {
                         title={`${s.title || s.campaign} — ${formatTime(s.startTime)} — ${s.spotsRemaining > 0 ? s.spotsRemaining + ' spots' : 'FULL'}`}
                       />
                     ))}
-                    {daySess.length > 1 && <span className="text-[9px] text-[var(--ink-faded)]">{daySess.length}</span>}
                   </div>
                 )}
               </div>
@@ -168,17 +167,14 @@ export default function CalendarPage() {
           })}
         </div>
 
-        {/* Legend (dynamic from actual sessions) */}
+        {/* Legend */}
         <div className="flex gap-4 justify-center mt-4 flex-wrap">
-          {(() => {
-            const campaignSet = new Set((sessions || []).map(s => s.campaign));
-            return Array.from(campaignSet).map(c => (
-              <div key={c} className="flex items-center gap-1 text-xs text-[var(--ink-faded)]">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: campaignColor(c) }} />
-                {c}
-              </div>
-            ));
-          })()}
+          {['Aethermoor','Aquabyssos','Terravor','Two Cities'].map(c => (
+            <div key={c} className="flex items-center gap-1 text-xs text-[var(--ink-faded)]">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: campaignColor(c) }} />
+              {c}
+            </div>
+          ))}
         </div>
       </div>
 
