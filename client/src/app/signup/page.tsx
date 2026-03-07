@@ -11,7 +11,6 @@ import WaxSeal from '@/components/ui/WaxSeal';
 import WoodButton from '@/components/ui/WoodButton';
 import TierShield from '@/components/ui/TierShield';
 import { useToast } from '@/components/ui/Toast';
-import Confetti from '@/components/ui/Confetti';
 
 const CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Artificer','Blood Hunter','Other'];
 const CLASS_ICONS: Record<string, string> = {
@@ -113,9 +112,8 @@ function SignupInner() {
   );
   if (done) return (
     <>
-      <Confetti count={35} />
       <ParchmentPanel className="text-center py-10">
-        <h2 className="font-[var(--font-heading)] text-xl text-green-700">🎉 You&apos;re Registered!</h2>
+        <h2 className="font-[var(--font-heading)] text-xl text-green-700">🎉 Sign-Up Submitted!</h2>
         <p className="text-[var(--ink)] mt-2">{resultMsg}</p>
         <div className="flex gap-3 justify-center mt-4">
           <WoodButton variant="primary" href="/">Quest Board</WoodButton>

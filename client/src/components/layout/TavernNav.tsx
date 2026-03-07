@@ -11,16 +11,13 @@ const publicLinks = [
   { href: '/sessions', label: '📜 Sessions', page: 'sessions' },
   { href: '/characters', label: '🗡️ Characters', page: 'characters' },
   { href: '/my-sessions', label: '🎒 My Quests', page: 'my-sessions' },
-  { href: '/discussions', label: '💬 Tavern Talk', page: 'discussions' },
   { href: '/recaps', label: '📖 Recaps', page: 'recaps' },
 ];
 
 const adminLinks = [
   { href: '/admin', label: 'Dashboard', page: 'admin' },
   { href: '/admin/sessions', label: 'Manage', page: 'admin/sessions' },
-  { href: '/admin/downtime', label: 'Downtime', page: 'admin/downtime' },
   { href: '/admin/players', label: 'Players', page: 'admin/players' },
-  { href: '/admin/analytics', label: 'Analytics', page: 'admin/analytics' },
   { href: '/admin/config', label: 'Config', page: 'admin/config' },
 ];
 
