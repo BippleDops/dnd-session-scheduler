@@ -47,6 +47,7 @@ function AdminSessionsInner() {
   const [formTier, setFormTier] = useState('any');
   const [formLocation, setFormLocation] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formPreNote, setFormPreNote] = useState('');
 
   const dayType = formDate ? (() => { const d = new Date(formDate + 'T12:00:00'); return [0,6].includes(d.getDay()) ? 'Weekend' : 'Weeknight'; })() : '';
 
@@ -54,7 +55,7 @@ function AdminSessionsInner() {
     e.preventDefault();
     const ok = await confirm({ title: 'Create Session?', message: `Create ${formCampaign} session on ${formDate}?`, confirmLabel: 'Create' });
     if (!ok) return;
-    const r = await createAdminSession({ date: formDate, startTime: formTime, campaign: formCampaign, title: formTitle, description: formDesc, maxPlayers: parseInt(formMax), duration: parseInt(formDuration), difficulty: formDifficulty, levelTier: formTier, location: formLocation, dmNotes: formNotes });
+    const r = await createAdminSession({ date: formDate, startTime: formTime, campaign: formCampaign, title: formTitle, description: formDesc, maxPlayers: parseInt(formMax), duration: parseInt(formDuration), difficulty: formDifficulty, levelTier: formTier, location: formLocation, dmNotes: formNotes, preSessionNote: formPreNote });
     if (r.success) { toast('Session created!', 'success'); setDetailId(r.sessionId || ''); setView('detail'); }
     else toast(JSON.stringify(r.errors || r.message), 'error');
   };
@@ -133,7 +134,8 @@ function AdminSessionsInner() {
                   </select></div>
               </div>
               <div><label className="block text-sm font-semibold text-[var(--ink)] mb-1">Location</label><input value={formLocation} onChange={e => setFormLocation(e.target.value)} className="tavern-input" /></div>
-              <div><label className="block text-sm font-semibold text-[var(--ink)] mb-1">DM Notes</label><textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} className="tavern-input" rows={3} /></div>
+              <div><label className="block text-sm font-semibold text-[var(--ink)] mb-1">Pre-Session Note (visible to players)</label><textarea value={formPreNote} onChange={e => setFormPreNote(e.target.value)} className="tavern-input" rows={2} placeholder="A note for players before the session..." /></div>
+              <div><label className="block text-sm font-semibold text-[var(--ink)] mb-1">DM Notes (private)</label><textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} className="tavern-input" rows={2} /></div>
               <div className="flex gap-3"><WoodButton variant="primary" type="submit">Create Session</WoodButton><WoodButton onClick={() => setView('list')}>Cancel</WoodButton></div>
             </ParchmentPanel>
           </form>

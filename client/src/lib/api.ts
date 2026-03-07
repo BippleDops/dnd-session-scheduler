@@ -210,6 +210,7 @@ export interface Session {
   registeredCount: number; spotsRemaining: number; status: string;
   levelTier?: string; levelTierLabel?: string; location?: string;
   signupDeadline?: string;
+  preSessionNote?: string;
   roster: { characterName: string; characterClass: string; characterLevel: number }[];
 }
 export interface SessionDetail extends Session {

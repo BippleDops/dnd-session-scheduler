@@ -2,7 +2,7 @@
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getMyRegistrations, cancelMyRegistration, getMyFeedToken } from '@/lib/api';
+import { getMyRegistrations, cancelMyRegistration } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';
@@ -11,6 +11,15 @@ import WoodButton from '@/components/ui/WoodButton';
 import { EmptyStateFromPreset } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+
+const STATUS_BADGES: Record<string, { label: string; color: string }> = {
+  Pending: { label: '⏳ Pending Approval', color: 'text-yellow-500' },
+  Confirmed: { label: '✅ Approved', color: 'text-green-500' },
+  Waitlisted: { label: '📋 Waitlisted', color: 'text-blue-400' },
+  Attended: { label: '✓ Attended', color: 'text-green-600' },
+  'No-Show': { label: '✗ No-Show', color: 'text-red-400' },
+  Cancelled: { label: '✗ Cancelled', color: 'text-red-400' },
+};
 
 export default function MySessionsPage() {
   usePageTitle('My Quests');
@@ -31,124 +40,70 @@ export default function MySessionsPage() {
   if (loading) return <CandleLoader text="Opening your quest log..." />;
 
   const handleCancel = async (regId: string) => {
-    const ok = await confirm({ title: 'Abandon Quest?', message: 'Are you sure you want to cancel this registration? Your spot will be freed for another adventurer.', confirmLabel: 'Abandon', variant: 'danger' });
+    const ok = await confirm({ title: 'Cancel Registration?', message: 'Are you sure? Your spot will be freed.', confirmLabel: 'Cancel Registration', variant: 'danger' });
     if (!ok) return;
     const r = await cancelMyRegistration(regId);
-    if (r.success) { toast('Quest cancelled', 'success'); refetch(); }
+    if (r.success) { toast('Cancelled', 'success'); refetch(); }
     else toast(r.message || 'Failed', 'error');
-  };
-
-  const handleSubscribe = async () => {
-    const d = await getMyFeedToken();
-    if (!d.token) { toast('Sign up for a session first', 'warning'); return; }
-    navigator.clipboard.writeText(d.url);
-    toast('Calendar feed URL copied!', 'success');
   };
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="scroll-heading text-3xl">🎒 My Quests</h1>
-        <WoodButton variant="sm" onClick={handleSubscribe}>📅 Subscribe My Calendar</WoodButton>
-      </div>
-
-      {/* Quick stats */}
-      {data && (
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="parchment p-3 text-center">
-            <div className="text-2xl font-bold text-[var(--gold)]">{data.upcoming.length}</div>
-            <div className="text-[10px] text-[var(--ink-faded)] uppercase">Upcoming</div>
-          </div>
-          <div className="parchment p-3 text-center">
-            <div className="text-2xl font-bold text-[var(--gold)]">{data.past.length}</div>
-            <div className="text-[10px] text-[var(--ink-faded)] uppercase">Past</div>
-          </div>
-          <div className="parchment p-3 text-center">
-            <div className="text-2xl font-bold text-[var(--gold)]">{data.characters.length}</div>
-            <div className="text-[10px] text-[var(--ink-faded)] uppercase">Characters</div>
-          </div>
-        </div>
-      )}
+      <h1 className="scroll-heading text-3xl mb-6">🎒 My Sessions</h1>
 
       {/* Upcoming */}
-      <h2 className="scroll-heading text-xl mb-3">Upcoming Adventures</h2>
+      <h2 className="scroll-heading text-xl mb-3">Upcoming</h2>
       {data?.upcoming.length === 0 ? (
-        <EmptyStateFromPreset preset="quests" action={{ label: 'Browse Quest Board', href: '/sessions' }} />
+        <EmptyStateFromPreset preset="quests" action={{ label: 'Browse Sessions', href: '/sessions' }} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 mb-6">
-          {data?.upcoming.map(r => (
-            <div key={r.registrationId} className="quest-card p-5 pt-6" style={{ borderLeft: `4px solid ${campaignColor(r.campaign)}` }}>
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-[var(--font-heading)] text-lg text-[var(--ink)]">{r.title || r.campaign}</h3>
-                  <p className="text-sm text-[var(--ink-faded)]">{formatDate(r.date)} &bull; {formatTime(r.startTime)} — {formatTime(r.endTime)}</p>
-                  <p className="text-sm text-[var(--ink)] mt-1">Playing as <strong>{r.characterName}</strong> ({r.characterClass} Lv.{r.characterLevel})</p>
-                </div>
-                <WaxSeal campaign={r.campaign} />
-              </div>
-              <div className="mt-3">
-                <WoodButton variant="danger" onClick={() => handleCancel(r.registrationId)} className="text-xs">Cancel Quest</WoodButton>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Recap prompts for recent past sessions */}
-      {data?.past && data.past.length > 0 && data.past.length <= 5 && (
-        <div className="mb-6">
-          {data.past.slice(0, 2).map(r => (
-            <div key={`recap-${r.registrationId}`} className="parchment p-4 mb-2 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📖</span>
-                <div>
-                  <p className="text-sm text-[var(--ink)]">How did <strong>{r.characterName}</strong> experience <strong>{r.title || r.campaign}</strong>?</p>
-                  <p className="text-[10px] text-[var(--ink-faded)]">{formatDate(r.date)} · Write a recap from your character&apos;s perspective</p>
+        <div className="space-y-3 mb-6">
+          {data?.upcoming.map(r => {
+            const badge = STATUS_BADGES[r.status] || { label: r.status, color: '' };
+            return (
+              <div key={r.registrationId} className="quest-card p-4 card-enter" style={{ borderLeft: `4px solid ${campaignColor(r.campaign)}` }}>
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <a href={`/session?id=${r.sessionId}`} className="font-[var(--font-heading)] text-lg text-[var(--ink)] hover:text-[var(--gold)] no-underline transition-colors block">{r.title || r.campaign}</a>
+                    <p className="text-sm text-[var(--ink-faded)]">{formatDate(r.date)} · {formatTime(r.startTime)}</p>
+                    <p className="text-sm text-[var(--ink)] mt-1">{r.characterName} ({r.characterClass} Lv.{r.characterLevel})</p>
+                    <p className={`text-xs font-semibold mt-1 ${badge.color}`}>{badge.label}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <WaxSeal campaign={r.campaign} size={28} />
+                    {(r.status === 'Confirmed' || r.status === 'Pending') && (
+                      <WoodButton variant="danger" onClick={() => handleCancel(r.registrationId)} className="text-[10px] py-0.5 px-2">Cancel</WoodButton>
+                    )}
+                  </div>
                 </div>
               </div>
-              <a href={`/session?id=${r.sessionId}`} className="wood-btn text-xs py-1 px-3 no-underline flex-shrink-0">Write Recap</a>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Past */}
-      <h2 className="scroll-heading text-xl mb-3 mt-6">Past Adventures</h2>
+      <h2 className="scroll-heading text-xl mb-3">Past Sessions</h2>
       {data?.past.length === 0 ? (
         <ParchmentPanel className="text-center py-6">
-          <p className="text-[var(--ink-faded)] italic">No past adventures yet.</p>
+          <p className="text-[var(--ink-faded)] italic">No past sessions yet.</p>
         </ParchmentPanel>
       ) : (
-        <div className="parchment overflow-x-auto">
-          <table className="w-full text-sm text-[var(--ink)]">
-            <thead><tr className="border-b border-[var(--parchment-dark)]">
-              <th className="text-left p-2 font-semibold">Date</th><th className="text-left p-2">Campaign</th><th className="text-left p-2">Character</th><th className="text-left p-2">Status</th>
-            </tr></thead>
-            <tbody>
-              {data?.past.map(r => (
-                <tr key={r.registrationId} className="border-b border-[rgba(0,0,0,0.05)]">
-                  <td className="p-2">{formatDate(r.date)}</td>
-                  <td className="p-2"><WaxSeal campaign={r.campaign} size={24} /></td>
-                  <td className="p-2">{r.characterName} ({r.characterClass})</td>
-                  <td className="p-2"><span className="tier-shield">{r.attended ? 'Attended' : r.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2">
+          {data?.past.map(r => (
+            <a key={r.registrationId} href={`/session?id=${r.sessionId}`}
+              className="flex items-center justify-between p-3 parchment no-underline hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <WaxSeal campaign={r.campaign} size={24} />
+                <div>
+                  <span className="text-sm font-semibold text-[var(--ink)]">{r.title || r.campaign}</span>
+                  <span className="text-xs text-[var(--ink-faded)] ml-2">{formatDate(r.date)}</span>
+                </div>
+              </div>
+              <span className="text-xs text-[var(--ink-faded)]">{r.characterName} · {r.attended ? '✓ Attended' : r.status}</span>
+            </a>
+          ))}
         </div>
       )}
-
-      {/* Characters */}
-      <h2 className="scroll-heading text-xl mb-3 mt-6">My Characters</h2>
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
-        {data?.characters.map((c, i) => (
-          <ParchmentPanel key={i}>
-            <p className="font-[var(--font-heading)] text-[var(--gold)] text-lg">{c.characterName}</p>
-            <p className="text-sm text-[var(--ink-faded)]">{c.characterClass} · Level {c.characterLevel}{c.characterRace ? ` · ${c.characterRace}` : ''}</p>
-          </ParchmentPanel>
-        ))}
-      </div>
     </div>
   );
 }
-

@@ -67,6 +67,7 @@ function getUpcomingSessions() {
       levelTierLabel: getTierLabel(s.level_tier || 'any'),
       location: s.location || '',
       signupDeadline: s.signup_deadline || '',
+      preSessionNote: s.pre_session_note || '',
     };
   });
 }
@@ -149,14 +150,15 @@ function createSessionRecord(data, adminEmail) {
   db.prepare(`
     INSERT INTO sessions (session_id, date, day_type, start_time, duration, end_time,
       status, max_players, campaign, title, description, dm_notes,
-      signup_deadline, location, tags, difficulty, level_tier, co_dm, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      signup_deadline, location, tags, difficulty, level_tier, co_dm, pre_session_note, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `).run(
     id, data.date, dayType, data.startTime, duration, endTime,
     parseInt(data.maxPlayers, 10) || 6,
     data.campaign || '', data.title || '', data.description || '', data.dmNotes || '',
     data.signupDeadline || null, data.location || '',
-    data.tags || '', data.difficulty || '', levelTier, data.coDM || ''
+    data.tags || '', data.difficulty || '', levelTier, data.coDM || '',
+    data.preSessionNote || ''
   );
 
   logAction(ACTION_TYPES.SESSION_CREATED,
@@ -180,7 +182,7 @@ function updateSessionRecord(sessionId, data, adminEmail) {
   const camelMap = {
     date: 'date', campaign: 'campaign', title: 'title', description: 'description',
     dmNotes: 'dm_notes', location: 'location', tags: 'tags', difficulty: 'difficulty',
-    coDM: 'co_dm', signupDeadline: 'signup_deadline',
+    coDM: 'co_dm', signupDeadline: 'signup_deadline', preSessionNote: 'pre_session_note',
   };
 
   for (const [camel, col] of Object.entries(camelMap)) {
