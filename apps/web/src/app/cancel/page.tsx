@@ -15,7 +15,7 @@ function CancelInner() {
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
-    if (!token) { setResult({ success: false, message: 'Invalid cancel link.' }); return; }
+    if (!token) { setTimeout(() => setResult({ success: false, message: 'Invalid cancel link.' }), 0); return; }
     cancelByToken(token).then(r => setResult({ success: r.success, message: r.message || '' })).catch(() => setResult({ success: false, message: 'Something went wrong.' }));
   }, [token]);
 
