@@ -1,16 +1,16 @@
 services:
-  dnd-scheduler:
-    build: .
-    container_name: dnd-scheduler
+  dnd-api:
+    build:
+      context: ./apps/api
+    container_name: dnd-api
     restart: unless-stopped
     init: true
-    ports:
-      - "3001:3000"
     env_file:
       - .env
     volumes:
       - ./data:/app/data
     networks:
+      - dnd-internal
       - n8n-network
     deploy:
       resources:
@@ -22,10 +22,28 @@ services:
         max-size: "10m"
         max-file: "5"
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  dnd-web:
+    build:
+      context: ./apps/web
+    container_name: dnd-web
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    depends_on:
+      dnd-api:
+        condition: service_healthy
+    networks:
+      - dnd-internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
 
   sqlitebrowser:
     image: lscr.io/linuxserver/sqlitebrowser:latest
@@ -55,7 +73,8 @@ services:
       - n8n-network
 
 networks:
+  dnd-internal:
+    driver: bridge
   n8n-network:
     external: true
     name: n8n_n8n-network
-

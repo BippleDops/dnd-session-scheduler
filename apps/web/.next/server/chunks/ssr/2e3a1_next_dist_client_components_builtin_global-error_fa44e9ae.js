@@ -1,0 +1,3 @@
+module.exports=[5096,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(28746);a.n(d("[project]/Developer/dnd-session-scheduler/apps/web/node_modules/next/dist/client/components/builtin/global-error.js <module evaluation>"))},60353,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(28746);a.n(d("[project]/Developer/dnd-session-scheduler/apps/web/node_modules/next/dist/client/components/builtin/global-error.js"))},10295,a=>{"use strict";a.i(5096);var b=a.i(60353);a.n(b)}];
+
+//# sourceMappingURL=2e3a1_next_dist_client_components_builtin_global-error_fa44e9ae.js.map
