@@ -1,6 +1,9 @@
 /**
- * Express server entry point.
+ * Express API server entry point.
  * D&D Session Scheduler — self-hosted.
+ *
+ * This server handles /api/*, /auth/*, and /health routes only.
+ * The frontend (Next.js static export) is served separately by nginx.
  */
 require('dotenv').config();
 
@@ -16,7 +19,6 @@ const cron = require('node-cron');
 const rateLimit = require('express-rate-limit');
 const { initializeDatabase, getConfigValue } = require('./db');
 const { router: authRouter, initPassport } = require('./routes/auth');
-const pageRoutes = require('./routes/pages');
 const apiPublic = require('./routes/api-public');
 const apiAdmin = require('./routes/api-admin');
 const { injectUser } = require('./middleware/auth');
@@ -31,25 +33,9 @@ initializeDatabase();
 app.use(compression());
 
 // ── Security ──
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'https:'],
-      fontSrc: ["'self'", 'data:'],
-      connectSrc: ["'self'"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'", 'https://accounts.google.com'],
-    },
-  },
-  crossOriginEmbedderPolicy: false,
-}));
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
-// ── Trust proxy (Cloudflare Tunnel) — must be set before session middleware ──
+// ── Trust proxy (nginx / Cloudflare Tunnel) — must be set before session middleware ──
 app.set('trust proxy', 1);
 
 // ── Body parsing ──
@@ -72,7 +58,7 @@ app.use(session({
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     sameSite: 'lax',
   },
-  proxy: true, // trust Cloudflare proxy
+  proxy: true,
 }));
 
 // ── Passport ──
@@ -82,38 +68,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   app.use(passport.session());
 }
 
-// ── Template engine ──
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, '..', 'views'));
-
-// ── Static files (with caching) ──
-app.use('/_next/static', express.static(path.join(__dirname, '..', 'public', '_next', 'static'), {
-  maxAge: '1y',
-  immutable: true,
-}));
-app.use(express.static(path.join(__dirname, '..', 'public'), {
-  maxAge: '1h',
-  setHeaders: (res, filePath) => {
-    // HTML files get shorter cache + revalidation
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
-    }
-  },
-}));
-
-// ── Inject user into all templates ──
+// ── Inject user into request context ──
 app.use(injectUser);
 
-// ── Request logging (skip static assets and health checks) ──
+// ── Request logging ──
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
-    // Skip logging for static assets, health checks, and SSE keepalives
-    if (req.path.startsWith('/health') || req.path.startsWith('/_next/') ||
-        req.path.startsWith('/styles') || req.path.endsWith('.js') ||
-        req.path.endsWith('.css') || req.path.endsWith('.ico') ||
-        req.path.endsWith('.png') || req.path.endsWith('.svg') ||
-        req.path.endsWith('.woff') || req.path.endsWith('.woff2')) return;
+    if (req.path === '/health') return;
     const ms = Date.now() - start;
     console.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${req.user ? req.user.email : 'anon'}`);
   });
@@ -122,8 +84,8 @@ app.use((req, res, next) => {
 
 // ── API Rate Limiting ──
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 120, // 120 requests per minute per IP
+  windowMs: 60 * 1000,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please slow down.' },
@@ -138,41 +100,6 @@ app.use('/api/admin', apiAdmin);
 app.use('/api/sse', require('./routes/api-sse'));
 app.use('/api', require('./routes/api-v3'));
 app.use('/api', require('./routes/api-v4'));
-
-// Serve React static export for non-API routes
-// EJS routes kept as fallback for pages not yet in React
-app.use('/', pageRoutes);
-
-// React SPA fallback: serve .html files for client-side routes
-// Pre-build the set of available HTML files at startup to avoid sync fs checks per request
-const _staticHtmlFiles = new Map();
-(function buildHtmlFileSet(dir, prefix) {
-  const fs = require('fs');
-  try {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const fullPath = path.join(dir, entry.name);
-      const urlPath = prefix + '/' + entry.name;
-      if (entry.isDirectory()) {
-        buildHtmlFileSet(fullPath, urlPath);
-      } else if (entry.name.endsWith('.html')) {
-        _staticHtmlFiles.set(urlPath, fullPath);
-        // Also map /foo to /foo.html and /foo/ to /foo/index.html
-        if (entry.name === 'index.html') {
-          _staticHtmlFiles.set(prefix || '/', fullPath);
-        } else {
-          _staticHtmlFiles.set(urlPath.replace(/\.html$/, ''), fullPath);
-        }
-      }
-    }
-  } catch { /* directory doesn't exist yet during build */ }
-})(path.join(__dirname, '..', 'public'), '');
-
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) return next();
-  const htmlFile = _staticHtmlFiles.get(req.path);
-  if (htmlFile) return res.sendFile(htmlFile);
-  next();
-});
 
 // ── Health check ──
 app.get('/health', (req, res) => {
@@ -262,10 +189,7 @@ cron.schedule('0 10 * * *', async () => {
 // ── Error handler ──
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  if (req.path.startsWith('/api/')) {
-    return res.status(500).json({ error: err.message || 'Internal server error' });
-  }
-  res.status(500).render('error', { message: err.message || 'Something went wrong. Please try again.', currentPage: '' });
+  res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
 // ── Start ──

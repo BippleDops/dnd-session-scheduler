@@ -15,6 +15,46 @@ A self-hosted web portal for managing tabletop RPG sessions. Players can browse 
 | Email | Nodemailer (Gmail SMTP) |
 | Deployment | Docker + GitHub Actions → GHCR |
 
+## Monorepo Structure
+
+```text
+├── apps/
+│   ├── api/                      # Express backend (API-only)
+│   │   ├── src/
+│   │   │   ├── server.js         # Express entry point + cron jobs
+│   │   │   ├── db.js             # SQLite schema & query utilities
+│   │   │   ├── routes/           # API + auth routes
+│   │   │   ├── services/         # Business logic layer
+│   │   │   ├── middleware/       # Auth, CSRF, rate limiting
+│   │   │   └── email/            # Email templates
+│   │   ├── tests/                # Jest test suite
+│   │   ├── Dockerfile            # Node.js Alpine image
+│   │   └── package.json
+│   │
+│   └── web/                      # Next.js frontend (static export)
+│       ├── src/
+│       │   ├── app/              # Pages (App Router)
+│       │   ├── components/       # UI + layout components
+│       │   ├── hooks/            # useApi, useAuth, useSwipe, etc.
+│       │   └── lib/              # API client, utils, theme
+│       ├── nginx.conf            # Reverse proxy config
+│       ├── Dockerfile            # Multi-stage build → nginx
+│       └── package.json
+│
+├── data/                         # SQLite DB + backups (gitignored)
+├── docker-compose.yml            # API + Web + SQLite viewer + Uptime Kuma
+└── .github/workflows/            # CI + deploy per app
+```
+
+## Architecture
+
+The app runs as **two containers** behind an nginx reverse proxy:
+
+- **dnd-api** — Express server handling `/api/*`, `/auth/*`, and `/health`. No static files, no templates.
+- **dnd-web** — nginx serving the Next.js static export and proxying API/auth requests to the API container.
+
+This separation means the frontend and backend can be built, deployed, and scaled independently. Cookie-based auth works because nginx keeps everything on the same origin.
+
 ## Features
 
 ### Players
@@ -48,36 +88,39 @@ A self-hosted web portal for managing tabletop RPG sessions. Players can browse 
 ### Setup
 
 ```bash
-# Clone and install
+# Clone
 git clone https://github.com/<your-username>/dnd-session-scheduler.git
 cd dnd-session-scheduler
-npm install
-cd client && npm install && cd ..
 
 # Configure environment
-cp env.example .env
+cp apps/api/env.example .env
 # Edit .env — at minimum set:
 #   SESSION_SECRET (random 64+ char string)
 #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
 #   GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
 #   ADMIN_EMAILS=your-email@gmail.com
 #   EMAIL_AUTO_SEND=false  (draft mode — no emails sent during dev)
+
+# Install dependencies
+cd apps/api && npm install && cd ../..
+cd apps/web && npm install && cd ../..
 ```
 
 ### Run (development)
 
-You need two terminals — one for the backend, one for the frontend dev server:
+Two terminals — one for the backend, one for the frontend dev server:
 
 ```bash
 # Terminal 1: Backend (auto-restarts on file changes)
+cd apps/api
 npm run dev
 
 # Terminal 2: Frontend (Next.js dev server with hot reload)
-cd client
+cd apps/web
 npm run dev
 ```
 
-The backend runs on `http://localhost:3000`. The Next.js dev server runs on `http://localhost:3001` (or whichever port Next.js picks).
+The backend runs on `http://localhost:3000`. The Next.js dev server runs on `http://localhost:3001`.
 
 ### Run with Docker
 
@@ -85,11 +128,10 @@ The backend runs on `http://localhost:3000`. The Next.js dev server runs on `htt
 docker compose up --build
 ```
 
-This starts three services:
-
 | Service | Port | Description |
 |---------|------|-------------|
-| dnd-scheduler | 3001 | Main application |
+| dnd-web | 3001 | Frontend (nginx + static) + API proxy |
+| dnd-api | internal | Express API (not exposed to host) |
 | sqlitebrowser | 3002 (localhost only) | SQLite DB viewer |
 | uptime-kuma | 3003 (localhost only) | Health monitoring |
 
@@ -102,10 +144,12 @@ The backend has a Jest test suite covering utility functions, middleware, and al
 ### Run tests
 
 ```bash
+cd apps/api
+
 # Run all tests
 npm test
 
-# Run tests in watch mode (re-runs on file changes)
+# Run tests in watch mode
 npm run test:watch
 
 # Run tests with coverage report
@@ -131,88 +175,35 @@ npm run test:coverage
 
 ### Manual smoke test
 
-1. **Health check** — `curl http://localhost:3000/health` should return a JSON response confirming DB connectivity.
-
-2. **Walk-through:**
-   - Visit the home page and confirm the Quest Board loads
-   - Log in with Google OAuth
-   - Complete your profile (name + "played before" question)
-   - Browse sessions, sign up for one
-   - Create a character
-   - If you're an admin (`ADMIN_EMAILS`), verify the admin dashboard loads at `/admin`
-
-3. **Email draft mode** — Set `EMAIL_AUTO_SEND=false` in `.env`. Emails will be logged to the `email_log` table and the console instead of being sent.
-
-4. **API spot checks:**
-
-   ```bash
-   # Public endpoints (no auth required)
-   curl http://localhost:3000/api/sessions
-   curl http://localhost:3000/api/campaigns
-   curl http://localhost:3000/api/recaps
-   ```
+1. **Health check** — `curl http://localhost:3000/health` should return JSON confirming DB connectivity.
+2. **Walk-through** — Log in, complete profile, browse sessions, sign up, create a character, verify admin dashboard.
+3. **Email draft mode** — Set `EMAIL_AUTO_SEND=false`. Emails log to the `email_log` table instead of sending.
 
 ## CI/CD
 
-The project has two GitHub Actions workflows:
+Four GitHub Actions workflows, split by app:
 
-### Test (`ci.yml`)
+### API
 
-Runs on pushes to `feature/**` and `bugfix/**` branches, and on pull requests to `main`. Installs dependencies on Node 20 and runs `npm test`.
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| `api-ci.yml` | Push to `feature/**` / `bugfix/**`, PRs to `main` | Installs deps, runs `npm test` |
+| `api-deploy.yml` | Push to `main` | Builds Docker image, pushes to `ghcr.io/.../api:latest` |
 
-### Build & Deploy (`deploy.yml`)
+### Web
 
-Triggered on every push to `main`:
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| `web-ci.yml` | Push to `feature/**` / `bugfix/**`, PRs to `main` | Installs deps, lints, builds static export |
+| `web-deploy.yml` | Push to `main` | Builds Docker image, pushes to `ghcr.io/.../web:latest` |
 
-### Build & Push to GHCR
+All workflows use path filters so only the relevant app's pipeline runs when its files change.
 
-1. **Checkout** — Pulls the latest code.
-2. **Login** — Authenticates to GitHub Container Registry (`ghcr.io`) using the built-in `GITHUB_TOKEN`.
-3. **Metadata** — Tags the image with the commit SHA and `latest`.
-4. **Build & Push** — Runs the multi-stage Dockerfile:
-   - **Stage 1 (frontend):** Installs client dependencies and runs `next build` to produce a static export (`client/out/`).
-   - **Stage 2 (backend-deps):** Compiles native modules (better-sqlite3) in an Alpine build environment.
-   - **Stage 3 (runtime):** Assembles the final lightweight image — copies pre-built node_modules, server source, and the static frontend into the Express `public/` directory. Runs as a non-root user.
-5. The resulting image is pushed to `ghcr.io/<owner>/dnd-session-scheduler:latest`.
-
-From there, the production host pulls the new image and restarts the container (handled outside this repo).
-
-## Project Structure
-
-```text
-├── src/
-│   ├── server.js              # Express entry point + cron jobs
-│   ├── db.js                  # SQLite schema & query utilities
-│   ├── routes/                # API + page routes
-│   │   ├── api-public.js      # Public endpoints (/api/sessions, etc.)
-│   │   ├── api-admin.js       # Admin endpoints (/api/admin/*)
-│   │   ├── api-v3.js          # Campaign/character APIs
-│   │   ├── api-v4.js          # Session prep & moments
-│   │   ├── api-sse.js         # Server-sent events
-│   │   ├── auth.js            # Google OAuth routes
-│   │   └── pages.js           # EJS page routes
-│   ├── services/              # Business logic layer
-│   │   ├── session-service.js
-│   │   ├── registration-service.js
-│   │   ├── reminder-service.js
-│   │   └── ...
-│   ├── middleware/             # Auth, CSRF, rate limiting
-│   └── email/                 # Email templates
-├── client/                    # Next.js 16 frontend
-│   └── src/
-│       ├── app/               # 18 pages (App Router)
-│       ├── components/        # UI + layout components
-│       ├── hooks/             # useApi, useAuth, useSwipe, etc.
-│       └── lib/               # API client, utils, theme
-├── data/                      # SQLite DB + backups (gitignored)
-├── Dockerfile                 # Multi-stage build
-├── docker-compose.yml         # App + SQLite viewer + Uptime Kuma
-└── env.example                # Environment variable template
-```
+From there, the production host pulls the new images and restarts the containers (handled outside this repo).
 
 ## Environment Variables
 
-See [`env.example`](env.example) for the full list. Key variables:
+See [`apps/api/env.example`](apps/api/env.example) for the full list. Key variables:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -228,7 +219,7 @@ See [`env.example`](env.example) for the full list. Key variables:
 
 ## Scheduled Jobs
 
-The server runs four cron jobs (all times in America/Chicago):
+The API server runs four cron jobs (all times in America/Chicago):
 
 | Time | Job | Description |
 |------|-----|-------------|
