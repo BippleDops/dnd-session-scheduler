@@ -38,7 +38,7 @@ setInterval(() => {
   for (const [k, v] of attempts) {
     if (v.firstAttempt < cutoff) attempts.delete(k);
   }
-}, 15 * 60 * 1000);
+}, 15 * 60 * 1000).unref();
 
 module.exports = { checkRateLimit };
 
