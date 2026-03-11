@@ -30,7 +30,7 @@ function ProfileInner() {
   const [emailPrefs, setEmailPrefs] = useState<EmailPreferences>({ reminders: 1, confirmations: 1, cancellations: 1, updates: 1, digest: 1, achievements: 1 });
 
   useEffect(() => {
-    if (!isLoggedIn) { setLoading(false); return; }
+    if (!isLoggedIn) { setTimeout(() => setLoading(false), 0); return; }
     Promise.all([getMyProfile(), getCampaigns(), getMyEmailPreferences()]).then(([p, c, ep]) => {
       setEmailPrefs(ep);
       setCampaigns(c);

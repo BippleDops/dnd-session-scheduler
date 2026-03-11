@@ -49,7 +49,7 @@ function SignupInner() {
   const [playedBefore, setPlayedBefore] = useState('');
 
   useEffect(() => {
-    if (!sessionId) { setLoading(false); return; }
+    if (!sessionId) { setTimeout(() => setLoading(false), 0); return; }
     Promise.all([
       getSession(sessionId),
       getCsrfToken(),
