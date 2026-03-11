@@ -97,11 +97,43 @@ The SQLite database persists in `./data/`.
 
 ## Testing
 
-There is no automated test suite currently. To verify the app is working:
+The backend has a Jest test suite covering utility functions, middleware, and all service modules. Tests use an in-memory SQLite database so they run fast and don't touch any real data.
+
+### Run tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+### What's tested
+
+| Area | Test file | Coverage |
+|------|-----------|----------|
+| DB utilities | `tests/db/db-utils.test.js` | `generateUuid`, `nowTimestamp`, `maskEmail`, `normalizeDate`, `normalizeTime` |
+| DB config/logging | `tests/db/db-config.test.js` | `getConfigValue`, `setConfigValue`, `logAction` |
+| Auth middleware | `tests/middleware/auth.test.js` | `isAdmin`, `requireAuth`, `requireAdmin`, `injectUser` |
+| CSRF tokens | `tests/middleware/csrf.test.js` | Generate, validate, single-use, cancel tokens |
+| Rate limiting | `tests/middleware/rate-limit.test.js` | Signup attempt throttling (5 per 10 min) |
+| Session service | `tests/services/session-service.test.js` | CRUD, tier validation, clone, auto-complete, history |
+| Player service | `tests/services/player-service.test.js` | Upsert, lookup, status, contacts, admin list |
+| Character service | `tests/services/character-service.test.js` | CRUD, retire, XP/leveling, URL sanitization, loot |
+| Registration service | `tests/services/registration-service.test.js` | Signup flow, approval, rejection, cancellation, waitlist, attendance |
+| Campaign service | `tests/services/campaign-service.test.js` | CRUD, sessions, roster, timeline |
+| Notification service | `tests/services/notification-service.test.js` | Create, read, mark read, unread count |
+| Export service | `tests/services/export-service.test.js` | CSV export, roster export, quote escaping |
+
+### Manual smoke test
 
 1. **Health check** — `curl http://localhost:3000/health` should return a JSON response confirming DB connectivity.
 
-2. **Manual smoke test:**
+2. **Walk-through:**
    - Visit the home page and confirm the Quest Board loads
    - Log in with Google OAuth
    - Complete your profile (name + "played before" question)
@@ -109,7 +141,7 @@ There is no automated test suite currently. To verify the app is working:
    - Create a character
    - If you're an admin (`ADMIN_EMAILS`), verify the admin dashboard loads at `/admin`
 
-3. **Email draft mode** — Set `EMAIL_AUTO_SEND=false` in `.env`. Emails will be logged to the `email_log` table and the console instead of being sent. Check with the SQLite browser at `:3002` or query the DB directly.
+3. **Email draft mode** — Set `EMAIL_AUTO_SEND=false` in `.env`. Emails will be logged to the `email_log` table and the console instead of being sent.
 
 4. **API spot checks:**
 
@@ -122,7 +154,15 @@ There is no automated test suite currently. To verify the app is working:
 
 ## CI/CD
 
-The project uses a single GitHub Actions workflow (`.github/workflows/deploy.yml`) triggered on every push to `main`:
+The project has two GitHub Actions workflows:
+
+### Test (`ci.yml`)
+
+Runs on pushes to `feature/**` and `bugfix/**` branches, and on pull requests to `main`. Installs dependencies on Node 20 and runs `npm test`.
+
+### Build & Deploy (`deploy.yml`)
+
+Triggered on every push to `main`:
 
 ### Build & Push to GHCR
 
