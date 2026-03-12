@@ -399,6 +399,51 @@ function cloneSessionRecord(sessionId, newDate, adminEmail) {
   }, adminEmail);
 }
 
+function purgeOldSessions(cutoffDate, adminEmail) {
+  const db = getDb();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cutoffDate)) return { success: false, error: 'Invalid date format. Use YYYY-MM-DD.' };
+
+  const preview = db.prepare(`
+    SELECT COUNT(*) AS sessionCount,
+      (SELECT COUNT(*) FROM registrations WHERE session_id IN (SELECT session_id FROM sessions WHERE date < ? AND status IN ('Completed','Cancelled'))) AS registrationCount
+    FROM sessions WHERE date < ? AND status IN ('Completed','Cancelled')
+  `).get(cutoffDate, cutoffDate);
+
+  const purge = db.transaction(() => {
+    const sessionIds = db.prepare(`SELECT session_id FROM sessions WHERE date < ? AND status IN ('Completed','Cancelled')`).all(cutoffDate).map(r => r.session_id);
+    if (sessionIds.length === 0) return { success: true, sessionsDeleted: 0, registrationsDeleted: 0 };
+
+    const placeholders = sessionIds.map(() => '?').join(',');
+    const tables = ['registrations', 'session_history', 'session_prep', 'session_moments', 'session_checklists', 'session_comments', 'player_recaps', 'loot', 'dice_rolls', 'initiative_entries'];
+    let registrationsDeleted = 0;
+
+    for (const table of tables) {
+      try {
+        const result = db.prepare(`DELETE FROM ${table} WHERE session_id IN (${placeholders})`).run(...sessionIds);
+        if (table === 'registrations') registrationsDeleted = result.changes;
+      } catch {}
+    }
+
+    const sessionsDeleted = db.prepare(`DELETE FROM sessions WHERE session_id IN (${placeholders})`).run(...sessionIds).changes;
+    return { success: true, sessionsDeleted, registrationsDeleted };
+  });
+
+  const result = purge();
+  if (result.sessionsDeleted > 0) {
+    logAction('SESSIONS_PURGED', `Purged ${result.sessionsDeleted} sessions and ${result.registrationsDeleted} registrations before ${cutoffDate}`, adminEmail);
+  }
+  return result;
+}
+
+function previewPurge(cutoffDate) {
+  const db = getDb();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cutoffDate)) return { error: 'Invalid date format.' };
+
+  const sessions = db.prepare(`SELECT COUNT(*) AS count FROM sessions WHERE date < ? AND status IN ('Completed','Cancelled')`).get(cutoffDate).count;
+  const registrations = db.prepare(`SELECT COUNT(*) AS count FROM registrations WHERE session_id IN (SELECT session_id FROM sessions WHERE date < ? AND status IN ('Completed','Cancelled'))`).get(cutoffDate).count;
+  return { sessions, registrations };
+}
+
 function autoCompletePastSessions() {
   const db = getDb();
   const yesterday = new Date();
@@ -452,6 +497,8 @@ module.exports = {
   updateSessionHistoryNotes,
   cloneSessionRecord,
   autoCompletePastSessions,
+  purgeOldSessions,
+  previewPurge,
   getCampaignList,
   ACTION_TYPES,
   TIER_RANGES,

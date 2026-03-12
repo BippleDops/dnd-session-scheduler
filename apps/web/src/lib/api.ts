@@ -202,6 +202,8 @@ export const saveAdminConfig = (key: string, value: string) => fetchJson<ApiResu
 export const getAdminLogs = (page: number, actionType?: string) => fetchJson<LogsResponse>(`/api/admin/logs?page=${page}&perPage=50${actionType ? `&actionType=${actionType}` : ''}`);
 export const triggerReminders = () => fetchJson<ApiResult>('/api/admin/trigger-reminders', { method: 'POST' });
 export const triggerBackup = () => fetchJson<ApiResult>('/api/admin/trigger-backup', { method: 'POST' });
+export const previewPurge = (before: string) => fetchJson<PurgePreview>(`/api/admin/purge/preview?before=${before}`);
+export const executePurge = (before: string) => fetchJson<PurgeResult>('/api/admin/purge', { method: 'POST', body: JSON.stringify({ before }) });
 
 // ── Types ──
 export interface Session {
@@ -288,6 +290,8 @@ export interface AdminPlayer {
 export interface PlayerHistoryEntry { characterName: string; characterClass: string; characterLevel: number; status: string; sessionDate: string; campaign: string }
 export interface HistoryEntry { sessionId: string; sessionDate: string; campaign: string; attendeeCharNames: string; attendeeCount: number; recapDrafted: boolean; infoSheetDrafted: boolean; dmPostNotes: string }
 export interface ConfigEntry { key: string; value: string; description: string; modified_at: string }
+export interface PurgePreview { sessions: number; registrations: number; error?: string }
+export interface PurgeResult { success: boolean; sessionsDeleted?: number; registrationsDeleted?: number; error?: string }
 export interface LogsResponse { logs: { LogID: string; Timestamp: string; ActionType: string; Details: string; TriggeredBy: string }[]; total: number; page: number; totalPages: number }
 export interface Notification { notification_id: string; type: string; message: string; created_at: string }
 export interface Comment { comment_id: string; session_id: string; player_id: string; text: string; created_at: string; player_name: string; photo_url?: string }
