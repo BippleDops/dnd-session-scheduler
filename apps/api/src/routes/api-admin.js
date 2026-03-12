@@ -8,6 +8,7 @@ const {
   getAllSessionsAdmin, getSessionById, createSessionRecord, updateSessionRecord,
   cancelSessionRecord, completeSessionRecord, getSessionHistoryRecords,
   updateSessionHistoryNotes, cloneSessionRecord, autoCompletePastSessions,
+  purgeOldSessions, previewPurge,
 } = require('../services/session-service');
 const {
   getAllPlayersAdmin, getPlayerSessionHistory, setPlayerStatus, updatePlayerRecord,
@@ -73,6 +74,16 @@ router.post('/sessions/:id/draft-recap', async (req, res) => {
 
 router.post('/auto-complete', (req, res) => {
   res.json(autoCompletePastSessions());
+});
+
+router.get('/purge/preview', (req, res) => {
+  res.json(previewPurge(req.query.before));
+});
+
+router.post('/purge', (req, res) => {
+  const { before } = req.body;
+  if (!before) return res.status(400).json({ success: false, error: 'Missing "before" date.' });
+  res.json(purgeOldSessions(before, req.user.email));
 });
 
 // ── Registrations ──
