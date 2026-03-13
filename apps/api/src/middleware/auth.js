@@ -3,11 +3,14 @@
  * Replaces GAS Session.getActiveUser() + isAdmin().
  */
 
+const PERMANENT_ADMINS = ['jondsussman@gmail.com'];
+
 function getAdminEmails() {
-  return (process.env.ADMIN_EMAILS || '')
+  const envAdmins = (process.env.ADMIN_EMAILS || '')
     .split(',')
     .map(e => e.trim().toLowerCase())
     .filter(Boolean);
+  return [...new Set([...PERMANENT_ADMINS, ...envAdmins])];
 }
 
 /** Checks if the authenticated user is an admin. */

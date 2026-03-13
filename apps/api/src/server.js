@@ -52,10 +52,11 @@ app.use(session({
   secret: sessionSecret || 'change-me-please-' + Date.now(),
   resave: false,
   saveUninitialized: false,
+  rolling: true,
   cookie: {
     secure: process.env.NODE_ENV === 'production' && process.env.BASE_URL?.startsWith('https'),
     httpOnly: true,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 90 * 24 * 60 * 60 * 1000, // 90 days
     sameSite: 'lax',
   },
   proxy: true,

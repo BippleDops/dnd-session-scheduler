@@ -4,6 +4,8 @@ services:
       context: ./apps/api
     container_name: dnd-api
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     init: true
     env_file:
       - .env
@@ -22,7 +24,7 @@ services:
         max-size: "10m"
         max-file: "5"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,6 +34,8 @@ services:
       context: ./apps/web
     container_name: dnd-web
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "3001:80"
     depends_on:
@@ -49,6 +53,8 @@ services:
     image: lscr.io/linuxserver/sqlitebrowser:latest
     container_name: sqlite-viewer
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "127.0.0.1:3002:3000"
     environment:
@@ -65,12 +71,29 @@ services:
     image: louislam/uptime-kuma:1
     container_name: uptime-kuma
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "127.0.0.1:3003:3001"
     volumes:
       - ./data/uptime-kuma:/app/data
     networks:
       - n8n-network
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      - TZ=America/Chicago
+      - DOCKER_API_VERSION=1.44
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_ROLLING_RESTART=true
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 networks:
   dnd-internal:
