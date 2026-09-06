@@ -9,19 +9,41 @@ describe('CSRF tokens', () => {
     expect(token).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('validates a fresh token', () => {
+  it('validates a fresh token for the session it was issued to', () => {
     const token = generateCsrfToken('session-123');
-    expect(validateCsrfToken(token)).toBe(true);
+    expect(validateCsrfToken(token, 'session-123')).toBe(true);
+  });
+
+  it('rejects a token presented by a different session', () => {
+    const token = generateCsrfToken('session-123');
+    expect(validateCsrfToken(token, 'session-456')).toBe(false);
+  });
+
+  it('rejects a token presented without a session id', () => {
+    const token = generateCsrfToken('session-123');
+    expect(validateCsrfToken(token)).toBe(false);
+    expect(validateCsrfToken(token, '')).toBe(false);
+  });
+
+  it('consumes the token even when the session does not match', () => {
+    const token = generateCsrfToken('session-123');
+    validateCsrfToken(token, 'session-456');
+    expect(validateCsrfToken(token, 'session-123')).toBe(false);
   });
 
   it('rejects a token on second use (single-use)', () => {
     const token = generateCsrfToken('session-123');
-    validateCsrfToken(token); // first use
-    expect(validateCsrfToken(token)).toBe(false);
+    validateCsrfToken(token, 'session-123'); // first use
+    expect(validateCsrfToken(token, 'session-123')).toBe(false);
   });
 
   it('rejects an unknown token', () => {
-    expect(validateCsrfToken('not-a-real-token')).toBe(false);
+    expect(validateCsrfToken('not-a-real-token', 'session-123')).toBe(false);
+  });
+
+  it('rejects non-string tokens', () => {
+    expect(validateCsrfToken(undefined, 'session-123')).toBe(false);
+    expect(validateCsrfToken({ toString: () => 'x' }, 'session-123')).toBe(false);
   });
 
   it('generates unique tokens', () => {

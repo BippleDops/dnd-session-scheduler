@@ -41,6 +41,7 @@ export default function VisualCharacterSheet({ character: c }: Props) {
         {/* Portrait */}
         <div className="flex-shrink-0">
           {c.portrait_url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- player-supplied remote URL; static export has no image optimizer
             <img src={c.portrait_url} alt={c.name} className="w-24 h-24 md:w-32 md:h-32 rounded-lg object-cover border-2 border-[var(--wood-dark)] shadow-lg" />
           ) : (
             <div className="w-24 h-24 md:w-32 md:h-32 rounded-lg bg-[var(--wood-dark)] flex items-center justify-center text-4xl md:text-5xl shadow-lg">

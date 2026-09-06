@@ -118,6 +118,7 @@ export default function TavernNav() {
               aria-label="User menu"
             >
               {user?.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element -- Google OAuth avatar (remote host); static export has no image optimizer
                 <img src={user.photo} alt="" className="w-7 h-7 rounded-full border border-[var(--gold)]" referrerPolicy="no-referrer" />
               ) : (
                 <span className="w-7 h-7 rounded-full bg-[var(--wood-light)] flex items-center justify-center text-sm">👤</span>

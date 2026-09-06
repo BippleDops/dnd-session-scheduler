@@ -16,10 +16,23 @@ function isAdmin(user) {
   return getAdminEmails().includes(user.email.toLowerCase());
 }
 
+/**
+ * True when the request targets the JSON API.
+ *
+ * Routers are mounted with app.use('/api', ...) / app.use('/api/admin', ...),
+ * which strips the mount prefix from req.path ('/api/admin/sessions' becomes
+ * '/sessions'). req.originalUrl keeps the full path, so that is what we test.
+ */
+function isApiRequest(req) {
+  if (req.xhr) return true;
+  const url = req.originalUrl || `${req.baseUrl || ''}${req.path || ''}`;
+  return url === '/api' || url.startsWith('/api/') || url.startsWith('/api?');
+}
+
 /** Middleware: requires any authenticated user. */
 function requireAuth(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) return next();
-  if (req.xhr || req.path.startsWith('/api/')) {
+  if (isApiRequest(req)) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   return res.redirect('/auth/google');
@@ -28,11 +41,11 @@ function requireAuth(req, res, next) {
 /** Middleware: requires an admin user. */
 function requireAdmin(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
-    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
+    if (isApiRequest(req)) return res.status(401).json({ error: 'Not authenticated' });
     return res.redirect('/auth/google');
   }
   if (!isAdmin(req.user)) {
-    if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'Admin access required' });
+    if (isApiRequest(req)) return res.status(403).json({ error: 'Admin access required' });
     return res.redirect('/?error=Access+Denied');
   }
   next();
@@ -46,5 +59,4 @@ function injectUser(req, res, next) {
   next();
 }
 
-module.exports = { isAdmin, requireAuth, requireAdmin, injectUser, getAdminEmails };
-
+module.exports = { isAdmin, isApiRequest, requireAuth, requireAdmin, injectUser, getAdminEmails };

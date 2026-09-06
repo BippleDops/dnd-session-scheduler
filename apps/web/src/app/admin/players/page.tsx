@@ -43,7 +43,7 @@ export default function AdminPlayersPage() {
         <select value={status} onChange={e => setStatus(e.target.value)} className="tavern-input max-w-[140px]">
           <option value="">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option>
         </select>
-        <WoodButton variant="sm" onClick={() => window.location.href = '/api/admin/export/players'}>Export CSV</WoodButton>
+        <WoodButton variant="sm" href="/api/admin/export/players">Export CSV</WoodButton>
       </div>
 
       <div className="parchment overflow-x-auto mb-4">

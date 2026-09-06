@@ -4,9 +4,10 @@
  */
 const path = require('path');
 const fs = require('fs');
-const { getDb, logAction } = require('../db');
+const { getDb, logAction, DATA_DIR } = require('../db');
 
-const BACKUP_DIR = path.join(__dirname, '..', '..', 'data', 'backups');
+// Backups live next to the database (apps/api/data/backups by default, or beside DB_PATH).
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 
 function performBackup() {
   try {

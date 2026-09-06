@@ -95,7 +95,10 @@ function SessionDetailInner() {
           ) : comments.map(c => (
             <div key={c.comment_id} className="p-2 bg-[rgba(0,0,0,0.03)] rounded">
               <div className="flex items-center gap-2">
-                {c.photo_url && <img src={c.photo_url} alt="" className="w-6 h-6 rounded-full" />}
+                {c.photo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element -- Google OAuth avatar (remote host); static export has no image optimizer
+                  <img src={c.photo_url} alt="" className="w-6 h-6 rounded-full" />
+                )}
                 <span className="text-sm font-semibold text-[var(--ink)]">{c.player_name}</span>
                 <span className="text-[10px] text-[var(--ink-faded)]">{c.created_at}</span>
               </div>
@@ -113,7 +116,7 @@ function SessionDetailInner() {
 
       {/* Actions */}
       <div className="flex gap-2">
-        <WoodButton variant="sm" onClick={() => window.location.href = `/api/sessions/${session.sessionId}/ics`}>📅 Add to Calendar</WoodButton>
+        <WoodButton variant="sm" href={`/api/sessions/${session.sessionId}/ics`}>📅 Add to Calendar</WoodButton>
         {session.spotsRemaining > 0 && session.status === 'Scheduled' && (
           <WoodButton variant="primary" href={`/signup?sessionId=${session.sessionId}`}>Sign Up</WoodButton>
         )}

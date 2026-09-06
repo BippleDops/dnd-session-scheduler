@@ -136,8 +136,8 @@ function hasEmailBeenSent(playerId, sessionId, emailType) {
  */
 function getUnsubscribeUrl(playerId, category) {
   const crypto = require('crypto');
-  const secret = process.env.SESSION_SECRET || 'unsubscribe-secret';
-  const token = crypto.createHmac('sha256', secret).update(playerId + category).digest('hex').slice(0, 32);
+  const { getLinkSigningSecret } = require('../config/secrets');
+  const token = crypto.createHmac('sha256', getLinkSigningSecret()).update(playerId + category).digest('hex').slice(0, 32);
   return `${process.env.BASE_URL || ''}/api/unsubscribe?token=${token}&category=${category}`;
 }
 
@@ -256,13 +256,11 @@ async function dailyReminderCheck() {
   const leadDays = parseInt(getConfigValue('REMINDER_LEAD_DAYS', '2'), 10);
   const followDays = parseInt(getConfigValue('RECAP_FOLLOW_DAYS', '1'), 10);
 
-  const reminderDate = new Date();
-  reminderDate.setDate(reminderDate.getDate() + leadDays);
-  const reminderDateStr = reminderDate.toISOString().slice(0, 10);
-
-  const recapDate = new Date();
-  recapDate.setDate(recapDate.getDate() - followDays);
-  const recapDateStr = recapDate.toISOString().slice(0, 10);
+  // Calendar arithmetic in the scheduler timezone (session dates are local YYYY-MM-DD strings)
+  const { getLocalDate, addDays } = require('../config/time');
+  const today = getLocalDate();
+  const reminderDateStr = addDays(today, leadDays);
+  const recapDateStr = addDays(today, -followDays);
 
   let draftCount = 0;
 

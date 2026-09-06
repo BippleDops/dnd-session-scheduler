@@ -33,6 +33,7 @@ function CampaignHubInner() {
       {/* Campaign Banner */}
       <div className="relative overflow-hidden rounded-lg">
         {campaign.banner_url ? (
+          // eslint-disable-next-line @next/next/no-img-element -- DM-supplied remote URL; static export has no image optimizer
           <img src={campaign.banner_url} alt={campaign.name} className="w-full h-48 object-cover" />
         ) : (
           <div className="w-full h-48 bg-gradient-to-r from-[var(--wood-dark)] to-[var(--wood)] flex items-center justify-center">
@@ -81,6 +82,7 @@ function CampaignHubInner() {
 
           {campaign.world_map_url && (
             <ParchmentPanel title="World Map" className="col-span-full">
+              {/* eslint-disable-next-line @next/next/no-img-element -- DM-supplied remote URL; static export has no image optimizer */}
               <img src={campaign.world_map_url} alt="World Map" className="w-full rounded-lg" />
             </ParchmentPanel>
           )}
@@ -109,6 +111,7 @@ function CampaignHubInner() {
               {roster.map(p => (
                 <div key={p.player_id} className="flex items-center gap-3 p-3 border-b border-[var(--wood-dark)] last:border-0">
                   {p.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Google OAuth avatar (remote host); static export has no image optimizer
                     <img src={p.photo_url} alt="" className="w-10 h-10 rounded-full" />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-[var(--wood-dark)] flex items-center justify-center text-lg">👤</div>

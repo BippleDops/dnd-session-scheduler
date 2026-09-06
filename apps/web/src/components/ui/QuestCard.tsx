@@ -97,7 +97,7 @@ export default function QuestCard({ session: s, showSignup = true, index = 0 }: 
 
       {/* Actions */}
       <div className="mt-3 flex justify-end gap-2">
-        <WoodButton variant="sm" onClick={() => window.location.href = `/api/sessions/${s.sessionId}/ics`}>
+        <WoodButton variant="sm" href={`/api/sessions/${s.sessionId}/ics`}>
           📅
         </WoodButton>
         {countdown && countdown.isUrgent && (

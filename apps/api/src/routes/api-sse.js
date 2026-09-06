@@ -3,7 +3,13 @@
  * Clients connect per-session to receive real-time dice rolls, initiative updates, and presence.
  */
 const express = require('express');
+const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
+
+// Upper bound on simultaneously open streams per game session. Each open
+// stream pins a socket and a heartbeat timer, so this must be bounded.
+const MAX_CLIENTS_PER_SESSION = Math.max(1, parseInt(process.env.SSE_MAX_CLIENTS_PER_SESSION, 10) || 50);
+const HEARTBEAT_MS = 30000;
 
 // In-memory client registry: sessionId -> Set of response objects
 const clients = new Map();
@@ -34,9 +40,13 @@ function getPresenceCount(sessionId) {
   return clients.has(sessionId) ? clients.get(sessionId).size : 0;
 }
 
-// SSE endpoint: GET /api/sse/:sessionId
-router.get('/:sessionId', (req, res) => {
+// SSE endpoint: GET /api/sse/:sessionId (authenticated users only)
+router.get('/:sessionId', requireAuth, (req, res) => {
   const { sessionId } = req.params;
+
+  if (getPresenceCount(sessionId) >= MAX_CLIENTS_PER_SESSION) {
+    return res.status(429).json({ error: 'Too many open connections for this session' });
+  }
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -45,18 +55,16 @@ router.get('/:sessionId', (req, res) => {
     'X-Accel-Buffering': 'no',
   });
 
-  // Send initial connection event
-  res.write(`event: connected\ndata: ${JSON.stringify({ sessionId, presence: getPresenceCount(sessionId) + 1 })}\n\n`);
-
   addClient(sessionId, res);
 
-  // Broadcast updated presence
+  // Send initial connection event, then broadcast the updated presence
+  res.write(`event: connected\ndata: ${JSON.stringify({ sessionId, presence: getPresenceCount(sessionId) })}\n\n`);
   broadcast(sessionId, 'presence', { count: getPresenceCount(sessionId) });
 
-  // Heartbeat every 30s to keep connection alive
+  // Heartbeat to keep the connection alive through proxies
   const heartbeat = setInterval(() => {
     res.write(': heartbeat\n\n');
-  }, 30000);
+  }, HEARTBEAT_MS);
 
   req.on('close', () => {
     clearInterval(heartbeat);
@@ -68,4 +76,4 @@ router.get('/:sessionId', (req, res) => {
 module.exports = router;
 module.exports.broadcast = broadcast;
 module.exports.getPresenceCount = getPresenceCount;
-
+module.exports.MAX_CLIENTS_PER_SESSION = MAX_CLIENTS_PER_SESSION;
