@@ -9,15 +9,15 @@ require('dotenv').config();
 
 const express = require('express');
 const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
 const passport = require('passport');
 const helmet = require('helmet');
 const compression = require('compression');
 const cron = require('node-cron');
 
 const rateLimit = require('express-rate-limit');
-const { initializeDatabase, getConfigValue, ensureDataDir } = require('./db');
+const { initializeDatabase, getConfigValue, getDb } = require('./db');
 const { getSessionSecret } = require('./config/secrets');
+const { BetterSqliteSessionStore } = require('./config/session-store');
 const { SCHEDULER_TIMEZONE, getLocalDate, getLocalHour, addDays } = require('./config/time');
 const { router: authRouter, initPassport } = require('./routes/auth');
 const apiPublic = require('./routes/api-public');
@@ -45,9 +45,10 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── Sessions ──
 // Throws in production when SESSION_SECRET is missing; stable (insecure) fallback in development.
+// Login sessions are stored in the `http_sessions` table of scheduler.db (same better-sqlite3 handle).
 const sessionSecret = getSessionSecret();
 app.use(session({
-  store: new SQLiteStore({ dir: ensureDataDir(), db: 'sessions.sqlite' }),
+  store: new BetterSqliteSessionStore({ db: getDb() }),
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,

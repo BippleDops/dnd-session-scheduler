@@ -9,7 +9,7 @@ const crypto = require('crypto');
 
 // Default: apps/api/data/scheduler.db (mounted from ./data by docker-compose). Override with DB_PATH.
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scheduler.db');
-// Directory holding scheduler.db, sessions.sqlite and backups/.
+// Directory holding scheduler.db (data + login sessions) and backups/.
 const DATA_DIR = DB_PATH === ':memory:' ? path.join(__dirname, '..', 'data') : path.dirname(DB_PATH);
 let _db = null;
 
