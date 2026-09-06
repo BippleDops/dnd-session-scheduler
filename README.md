@@ -218,17 +218,20 @@ Four GitHub Actions workflows, split by app:
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `api-ci.yml` | Push to `feature/**` / `bugfix/**`, PRs to `main` | Installs deps, runs `npm test` |
-| `api-deploy.yml` | Push to `main` | Builds Docker image, pushes to `ghcr.io/.../api:latest` |
+| `api-ci.yml` | Push to `main` / `feature/**` / `bugfix/**`, PRs to `main` | Installs deps, runs `npm run test:ci` |
+| `api-deploy.yml` | `api-ci.yml` succeeded for a push to `main` | Builds the tested commit, pushes to `ghcr.io/.../api:latest` |
 
 ### Web
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `web-ci.yml` | Push to `feature/**` / `bugfix/**`, PRs to `main` | Installs deps, lints, builds static export |
-| `web-deploy.yml` | Push to `main` | Builds Docker image, pushes to `ghcr.io/.../web:latest` |
+| `web-ci.yml` | Push to `main` / `feature/**` / `bugfix/**`, PRs to `main` | Installs deps, lints (`--max-warnings=0`), builds static export |
+| `web-deploy.yml` | `web-ci.yml` succeeded for a push to `main` | Builds the tested commit, pushes to `ghcr.io/.../web:latest` |
 
-All workflows use path filters so only the relevant app's pipeline runs when its files change.
+The CI workflows use path filters so only the relevant app's pipeline runs when its files change. Deploys are chained
+off CI with `workflow_run`, so a red test suite never publishes `:latest`. Third-party actions are pinned to commit SHAs
+(the version is kept as a trailing comment). `web-deploy.yml` passes the `NEXT_PUBLIC_SITE_URL` repository variable
+(Settings → Secrets and variables → Actions → Variables) into the image build for canonical/OpenGraph URLs.
 
 From there, the production host pulls the new images and restarts the containers (handled outside this repo).
 
