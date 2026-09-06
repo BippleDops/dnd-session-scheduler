@@ -1,9 +1,16 @@
-# Optional override: attach dnd-api and uptime-kuma to an existing n8n stack's network.
+# Optional override: attach dnd-api, dnd-web and uptime-kuma to an existing n8n stack's network.
 # Only usable on hosts where the external network `n8n_n8n-network` already exists.
+# dnd-web must join it because the cloudflared ingress (homelab/machines/mac-studio/n8n)
+# routes dndsignup.get-suss.com to http://dnd-web:80.
 #
 #   docker compose -f docker-compose.yml -f docker-compose.n8n.yml up -d
 services:
   dnd-api:
+    networks:
+      - dnd-internal
+      - n8n-network
+
+  dnd-web:
     networks:
       - dnd-internal
       - n8n-network
