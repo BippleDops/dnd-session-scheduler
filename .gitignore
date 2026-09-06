@@ -14,9 +14,10 @@
 **/data/backups/
 data/uptime-kuma/
 
-# Next.js build output (static export)
+# Next.js build output (static export) and generated type stubs
 apps/web/.next/
 apps/web/out/
+apps/web/next-env.d.ts
 *.tsbuildinfo
 
 # Test coverage
