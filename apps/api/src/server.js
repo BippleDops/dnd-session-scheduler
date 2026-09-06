@@ -13,12 +13,12 @@ const SQLiteStore = require('connect-sqlite3')(session);
 const passport = require('passport');
 const helmet = require('helmet');
 const compression = require('compression');
-const path = require('path');
 const cron = require('node-cron');
 
 const rateLimit = require('express-rate-limit');
-const { initializeDatabase, getConfigValue } = require('./db');
+const { initializeDatabase, getConfigValue, ensureDataDir } = require('./db');
 const { getSessionSecret } = require('./config/secrets');
+const { SCHEDULER_TIMEZONE, getLocalDate, getLocalHour, addDays } = require('./config/time');
 const { router: authRouter, initPassport } = require('./routes/auth');
 const apiPublic = require('./routes/api-public');
 const apiAdmin = require('./routes/api-admin');
@@ -47,7 +47,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // Throws in production when SESSION_SECRET is missing; stable (insecure) fallback in development.
 const sessionSecret = getSessionSecret();
 app.use(session({
-  store: new SQLiteStore({ dir: path.join(__dirname, '..', 'data'), db: 'sessions.sqlite' }),
+  store: new SQLiteStore({ dir: ensureDataDir(), db: 'sessions.sqlite' }),
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
@@ -76,7 +76,7 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     if (req.path === '/health') return;
     const ms = Date.now() - start;
-    console.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${req.user ? req.user.email : 'anon'}`);
+    console.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms ${req.user ? req.user.email : 'anon'}`);
   });
   next();
 });
@@ -112,16 +112,19 @@ app.get('/health', (req, res) => {
 });
 
 // ── Cron jobs ──
+const cronOptions = { timezone: SCHEDULER_TIMEZONE };
 
-// Daily reminders (1 day before sessions, configurable hour)
-const triggerHour = parseInt(getConfigValue('REMINDER_TRIGGER_HOUR', '8'), 10);
-cron.schedule(`0 ${triggerHour} * * *`, async () => {
-  console.log(`[Cron] Running daily reminder check at ${triggerHour}:00`);
+// Daily reminders (1 day before sessions, configurable hour). Ticks every hour
+// and re-reads REMINDER_TRIGGER_HOUR so admin changes apply without a restart.
+cron.schedule('0 * * * *', async () => {
+  const triggerHour = parseInt(getConfigValue('REMINDER_TRIGGER_HOUR', '8'), 10);
+  if (getLocalHour() !== triggerHour) return;
+  console.log(`[Cron] Running daily reminder check at ${triggerHour}:00 ${SCHEDULER_TIMEZONE}`);
   try {
     const { dailyReminderCheck } = require('./services/reminder-service');
     await dailyReminderCheck();
   } catch (e) { console.error('Cron reminder error:', e); }
-}, { timezone: 'America/Chicago' });
+}, cronOptions);
 
 // Auto-complete past sessions at 1 AM
 cron.schedule('0 1 * * *', () => {
@@ -131,7 +134,7 @@ cron.schedule('0 1 * * *', () => {
     const result = autoCompletePastSessions();
     if (result.count > 0) console.log(`[Cron] Auto-completed ${result.count} past sessions`);
   } catch (e) { console.error('Cron auto-complete error:', e); }
-}, { timezone: 'America/Chicago' });
+}, cronOptions);
 
 // Daily backup at 2 AM
 cron.schedule('0 2 * * *', () => {
@@ -140,7 +143,7 @@ cron.schedule('0 2 * * *', () => {
     const { performBackup } = require('./services/backup-service');
     performBackup();
   } catch (e) { console.error('Cron backup error:', e); }
-}, { timezone: 'America/Chicago' });
+}, cronOptions);
 
 
 // Auto-briefing: 48h before sessions, send briefing emails
@@ -149,12 +152,13 @@ cron.schedule('0 10 * * *', async () => {
   try {
     const { getDb } = require('./db');
     const db = getDb();
-    // Find sessions in ~48 hours
+    // Sessions two calendar days out, in the scheduler timezone (not SQLite's UTC date('now')).
+    const briefingDate = addDays(getLocalDate(), 2);
     const upcoming = db.prepare(`
       SELECT s.*, sp.previously_on, sp.dm_teaser FROM sessions s
       LEFT JOIN session_prep sp ON s.session_id = sp.session_id
-      WHERE s.status = 'Scheduled' AND s.date = date('now', '+2 days')
-    `).all();
+      WHERE s.status = 'Scheduled' AND s.date = ?
+    `).all(briefingDate);
     if (upcoming.length === 0) return;
 
     const { sendEmail, wrapEmailTemplate } = require('./services/reminder-service');
@@ -183,12 +187,16 @@ cron.schedule('0 10 * * *', async () => {
       console.log(`[Cron] Sent briefing for session ${session.session_id} to ${regs.length} players`);
     }
   } catch (e) { console.error('Cron briefing error:', e); }
-}, { timezone: 'America/Chicago' });
+}, cronOptions);
 
-// ── Error handler ──
+// ── Error handler (Express identifies error handlers by their 4-argument arity) ──
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: err.message || 'Internal server error' });
+  console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err);
+  if (res.headersSent) return;
+  const status = Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
+  const exposeDetails = process.env.NODE_ENV !== 'production';
+  res.status(status).json({ error: exposeDetails && err.message ? err.message : 'Internal server error' });
 });
 
 // ── Start ──

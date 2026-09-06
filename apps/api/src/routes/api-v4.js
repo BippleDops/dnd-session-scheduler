@@ -9,6 +9,25 @@ const { getDb, generateUuid, logAction } = require('../db');
 const { getPlayerByEmail } = require('../services/player-service');
 const { requireAdmin } = require('../middleware/auth');
 
+// Allowed values for columns guarded by CHECK constraints in db.js. Validating here
+// turns what would be a SQLite constraint error (HTTP 500) into a 400 with a message.
+const ENUMS = {
+  momentType: ['combat_start', 'combat_end', 'key_moment', 'break', 'loot_drop', 'plot_reveal', 'note'],
+  downtimeType: ['Crafting', 'Training', 'Research', 'Carousing', 'Working', 'Exploring', 'Other'],
+  downtimeStatus: ['Pending', 'Approved', 'Rejected', 'Resolved'],
+  goalType: ['short', 'long'],
+  goalStatus: ['active', 'completed', 'abandoned'],
+  relationshipTargetType: ['npc', 'pc', 'faction', 'deity'],
+  relationshipDisposition: ['allied', 'friendly', 'neutral', 'unfriendly', 'hostile'],
+};
+
+/** Returns an error message when `value` is set but not one of `allowed`; undefined otherwise. */
+function enumError(field, value, allowed) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (allowed.includes(value)) return undefined;
+  return `Invalid ${field} "${value}". Allowed: ${allowed.join(', ')}`;
+}
+
 // ══════════════════════════════════════════════════════
 // Module 1: Obsidian Vault Bridge
 // ══════════════════════════════════════════════════════
@@ -220,6 +239,8 @@ router.get('/sessions/:id/moments', (req, res) => {
 router.post('/admin/sessions/:id/moments', requireAdmin, (req, res) => {
   const { type, description } = req.body;
   if (!type || !description) return res.status(400).json({ error: 'Type and description required' });
+  const typeError = enumError('type', type, ENUMS.momentType);
+  if (typeError) return res.status(400).json({ error: typeError });
   const id = generateUuid();
   getDb().prepare('INSERT INTO session_moments (moment_id, session_id, type, description) VALUES (?, ?, ?, ?)')
     .run(id, req.params.id, type, description);
@@ -273,6 +294,8 @@ router.post('/me/downtime', (req, res) => {
   if (!player) return res.status(404).json({ error: 'Player not found' });
   const { characterId, campaignId, type, description, goal, duration } = req.body;
   if (!characterId || !type || !description) return res.status(400).json({ error: 'Character, type, and description required' });
+  const typeError = enumError('type', type, ENUMS.downtimeType);
+  if (typeError) return res.status(400).json({ error: typeError });
   const id = generateUuid();
   getDb().prepare('INSERT INTO downtime_actions (action_id, character_id, player_id, campaign_id, type, description, goal, duration) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
     .run(id, characterId, player.player_id, campaignId || null, type, description.slice(0, 2000), goal || '', duration || '');
@@ -286,6 +309,8 @@ router.get('/admin/downtime', requireAdmin, (req, res) => {
 
 router.put('/admin/downtime/:id', requireAdmin, (req, res) => {
   const { status, dmNotes, reward } = req.body;
+  const statusError = enumError('status', status, ENUMS.downtimeStatus);
+  if (statusError) return res.status(400).json({ error: statusError });
   getDb().prepare('UPDATE downtime_actions SET status = ?, dm_notes = ?, reward = ?, resolved_at = datetime(\'now\') WHERE action_id = ?')
     .run(status || 'Resolved', dmNotes || '', reward || '', req.params.id);
   logAction('DOWNTIME_RESOLVED', `Downtime ${req.params.id} resolved: ${status}`, req.user.email, req.params.id);
@@ -425,12 +450,17 @@ router.put('/me/homework/:sessionId', (req, res) => {
   const fields = ['recap_read','journal_written','downtime_submitted','character_updated'];
   const updates = {};
   for (const f of fields) { if (req.body[f] !== undefined) updates[f] = req.body[f] ? 1 : 0; }
+  const keys = Object.keys(updates);
+  if (keys.length === 0) {
+    return res.status(400).json({ error: `No homework fields provided. Expected one or more of: ${fields.join(', ')}` });
+  }
+  const values = Object.values(updates);
   const db = getDb();
   // Upsert
-  db.prepare(`INSERT INTO homework_progress (player_id, session_id, ${Object.keys(updates).join(',')})
-    VALUES (?, ?, ${Object.values(updates).join(',')})
-    ON CONFLICT(player_id, session_id) DO UPDATE SET ${Object.keys(updates).map(k => `${k}=?`).join(',')}`)
-    .run(player.player_id, req.params.sessionId, ...Object.values(updates));
+  db.prepare(`INSERT INTO homework_progress (player_id, session_id, ${keys.join(',')})
+    VALUES (?, ?, ${keys.map(() => '?').join(',')})
+    ON CONFLICT(player_id, session_id) DO UPDATE SET ${keys.map(k => `${k}=?`).join(',')}`)
+    .run(player.player_id, req.params.sessionId, ...values, ...values);
   res.json({ success: true });
 });
 
@@ -486,6 +516,8 @@ router.post('/me/characters/:id/goals', (req, res) => {
   if (!player) return res.status(404).json({ error: 'Player not found' });
   const { title, description, type } = req.body;
   if (!title) return res.status(400).json({ error: 'Title required' });
+  const typeError = enumError('type', type, ENUMS.goalType);
+  if (typeError) return res.status(400).json({ error: typeError });
   const id = generateUuid();
   getDb().prepare('INSERT INTO character_goals (goal_id, character_id, title, description, type) VALUES (?, ?, ?, ?, ?)')
     .run(id, req.params.id, title, description || '', type || 'short');
@@ -494,12 +526,14 @@ router.post('/me/characters/:id/goals', (req, res) => {
 
 router.put('/admin/goals/:id', requireAdmin, (req, res) => {
   const { status, reward } = req.body;
+  const statusError = enumError('status', status, ENUMS.goalStatus);
+  if (statusError) return res.status(400).json({ error: statusError });
   const updates = [];
   const params = [];
   if (status) { updates.push('status = ?'); params.push(status); }
   if (reward !== undefined) { updates.push('reward = ?'); params.push(reward); }
   if (status === 'completed') { updates.push("completed_at = datetime('now')"); }
-  if (updates.length === 0) return res.json({ success: false });
+  if (updates.length === 0) return res.status(400).json({ success: false, error: 'Nothing to update. Provide status and/or reward.' });
   params.push(req.params.id);
   getDb().prepare(`UPDATE character_goals SET ${updates.join(', ')} WHERE goal_id = ?`).run(...params);
   res.json({ success: true });
@@ -513,6 +547,9 @@ router.post('/me/characters/:id/relationships', (req, res) => {
   if (!req.user?.email) return res.status(401).json({ error: 'Not authenticated' });
   const { targetName, targetType, disposition, description } = req.body;
   if (!targetName) return res.status(400).json({ error: 'Target name required' });
+  const enumErr = enumError('targetType', targetType, ENUMS.relationshipTargetType)
+    || enumError('disposition', disposition, ENUMS.relationshipDisposition);
+  if (enumErr) return res.status(400).json({ error: enumErr });
   const id = generateUuid();
   getDb().prepare('INSERT INTO character_relationships (relationship_id, character_id, target_name, target_type, disposition, description) VALUES (?, ?, ?, ?, ?, ?)')
     .run(id, req.params.id, targetName, targetType || 'npc', disposition || 'neutral', description || '');

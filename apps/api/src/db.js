@@ -3,14 +3,25 @@
  * Replaces Google Sheets as the data store.
  */
 const Database = require('better-sqlite3');
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'scheduler.db');
+// Default: apps/api/data/scheduler.db (mounted from ./data by docker-compose). Override with DB_PATH.
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scheduler.db');
+// Directory holding scheduler.db, sessions.sqlite and backups/.
+const DATA_DIR = DB_PATH === ':memory:' ? path.join(__dirname, '..', 'data') : path.dirname(DB_PATH);
 let _db = null;
+
+/** Creates the data directory if needed (fresh checkouts have none; it is gitignored). */
+function ensureDataDir() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  return DATA_DIR;
+}
 
 function getDb() {
   if (_db) return _db;
+  if (DB_PATH !== ':memory:') ensureDataDir();
   _db = new Database(DB_PATH);
   _db.pragma('journal_mode = WAL');
   _db.pragma('foreign_keys = ON');
@@ -45,6 +56,7 @@ function initializeDatabase() {
       co_dm TEXT,
       prep_checklist TEXT,
       calendar_event_id TEXT,
+      pre_session_note TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       modified_at TEXT
     );
@@ -79,8 +91,9 @@ function initializeDatabase() {
       player_notes TEXT,
       admin_notes TEXT,
       signup_timestamp TEXT DEFAULT (datetime('now')),
-      status TEXT DEFAULT 'Confirmed' CHECK(status IN ('Confirmed','Cancelled','Waitlisted','Attended','No-Show')),
-      attendance_confirmed INTEGER DEFAULT 0
+      status TEXT DEFAULT 'Confirmed' CHECK(status IN ('Pending','Confirmed','Cancelled','Waitlisted','Attended','No-Show')),
+      attendance_confirmed INTEGER DEFAULT 0,
+      rsvp_status TEXT DEFAULT NULL
     );
 
     CREATE TABLE IF NOT EXISTS session_history (
@@ -153,6 +166,9 @@ function initializeDatabase() {
       banner_url TEXT,
       world_map_url TEXT,
       default_tier TEXT DEFAULT 'any',
+      foundry_url TEXT,
+      recurring_schedule TEXT,
+      recurring_exceptions TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -500,15 +516,20 @@ function initializeDatabase() {
     db.prepare('SELECT version FROM schema_migrations').all().map(r => r.version)
   );
 
+  // Column additions are declared as { addColumn } and applied only when the column is
+  // missing (PRAGMA table_info), so they are safe both for databases created before the
+  // column existed and for fresh databases whose CREATE TABLE already includes it.
+  // Versions are append-only: never renumber or remove an entry — existing databases
+  // record which versions they have applied in schema_migrations.
   const migrations = [
-    { version: 1, desc: 'Add player photo_url', sql: "ALTER TABLE players ADD COLUMN photo_url TEXT" },
-    { version: 2, desc: 'Add player feed_token', sql: "ALTER TABLE players ADD COLUMN feed_token TEXT" },
-    { version: 3, desc: 'Add session level_tier', sql: "ALTER TABLE sessions ADD COLUMN level_tier TEXT DEFAULT 'any'" },
-    { version: 4, desc: 'Add campaign foundry_url', sql: "ALTER TABLE campaigns ADD COLUMN foundry_url TEXT" },
-    { version: 5, desc: 'Add campaign recurring_schedule', sql: "ALTER TABLE campaigns ADD COLUMN recurring_schedule TEXT" },
-    { version: 6, desc: 'Add campaign recurring_exceptions', sql: "ALTER TABLE campaigns ADD COLUMN recurring_exceptions TEXT" },
-    { version: 7, desc: 'Add session map_url', sql: "ALTER TABLE sessions ADD COLUMN map_url TEXT" },
-    { version: 8, desc: 'Add registration rsvp_status', sql: "ALTER TABLE registrations ADD COLUMN rsvp_status TEXT DEFAULT NULL" },
+    { version: 1, desc: 'Add player photo_url', addColumn: ['players', 'photo_url', 'TEXT'] },
+    { version: 2, desc: 'Add player feed_token', addColumn: ['players', 'feed_token', 'TEXT'] },
+    { version: 3, desc: 'Add session level_tier', addColumn: ['sessions', 'level_tier', "TEXT DEFAULT 'any'"] },
+    { version: 4, desc: 'Add campaign foundry_url', addColumn: ['campaigns', 'foundry_url', 'TEXT'] },
+    { version: 5, desc: 'Add campaign recurring_schedule', addColumn: ['campaigns', 'recurring_schedule', 'TEXT'] },
+    { version: 6, desc: 'Add campaign recurring_exceptions', addColumn: ['campaigns', 'recurring_exceptions', 'TEXT'] },
+    { version: 7, desc: 'Add session map_url', addColumn: ['sessions', 'map_url', 'TEXT'] },
+    { version: 8, desc: 'Add registration rsvp_status', addColumn: ['registrations', 'rsvp_status', 'TEXT DEFAULT NULL'] },
     { version: 9, desc: 'Add character goals table', sql: `CREATE TABLE IF NOT EXISTS character_goals (
       goal_id TEXT PRIMARY KEY, character_id TEXT NOT NULL REFERENCES characters(character_id),
       title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'short' CHECK(type IN ('short','long')),
@@ -558,24 +579,25 @@ function initializeDatabase() {
       created_by TEXT, max_uses INTEGER DEFAULT 1, uses INTEGER DEFAULT 0,
       expires_at TEXT, created_at TEXT DEFAULT (datetime('now'))
     )` },
-    { version: 18, desc: 'Add pre_session_note to sessions', sql: "ALTER TABLE sessions ADD COLUMN pre_session_note TEXT" },
     { version: 17, desc: 'Add engagement scores table', sql: `CREATE TABLE IF NOT EXISTS engagement_scores (
       player_id TEXT PRIMARY KEY REFERENCES players(player_id),
       attendance_score REAL DEFAULT 0, journal_score REAL DEFAULT 0,
       downtime_score REAL DEFAULT 0, discussion_score REAL DEFAULT 0,
       overall_score REAL DEFAULT 0, updated_at TEXT DEFAULT (datetime('now'))
     )` },
+    { version: 18, desc: 'Add pre_session_note to sessions', addColumn: ['sessions', 'pre_session_note', 'TEXT'] },
   ];
 
+  const recordMigration = db.prepare('INSERT INTO schema_migrations (version, description) VALUES (?, ?)');
   for (const m of migrations) {
     if (appliedVersions.has(m.version)) continue;
-    try {
+    if (m.addColumn) {
+      const [table, column, definition] = m.addColumn;
+      if (!columnExists(db, table, column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    } else {
       db.exec(m.sql);
-    } catch (e) {
-      // Column may already exist from before versioning was added — that's OK
-      if (!String(e.message).includes('duplicate column')) throw e;
     }
-    db.prepare('INSERT INTO schema_migrations (version, description) VALUES (?, ?)').run(m.version, m.desc);
+    recordMigration.run(m.version, m.desc);
     console.log(`[DB] Applied migration v${m.version}: ${m.desc}`);
   }
 
@@ -609,6 +631,11 @@ function initializeDatabase() {
   }
 
   return db;
+}
+
+/** True when `column` exists on `table` (uses PRAGMA table_info). */
+function columnExists(db, table, column) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column);
 }
 
 // ── Helper functions (replace SheetUtils.gs) ──
@@ -688,6 +715,9 @@ function normalizeTime(val) {
 }
 
 module.exports = {
+  DB_PATH,
+  DATA_DIR,
+  ensureDataDir,
   getDb,
   initializeDatabase,
   generateUuid,

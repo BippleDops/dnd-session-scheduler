@@ -375,15 +375,20 @@ router.post('/plot-threads', (req, res) => {
   res.json({ success: true, threadId: id });
 });
 
+const PLOT_THREAD_STATUSES = ['active', 'resolved', 'abandoned']; // CHECK constraint on plot_threads.status
+
 router.put('/plot-threads/:id', (req, res) => {
   const t = req.body;
+  if (t.status && !PLOT_THREAD_STATUSES.includes(t.status)) {
+    return res.status(400).json({ success: false, error: `Invalid status "${t.status}". Allowed: ${PLOT_THREAD_STATUSES.join(', ')}` });
+  }
   const updates = [];
   const params = [];
   if (t.title !== undefined) { updates.push('title=?'); params.push(t.title); }
   if (t.description !== undefined) { updates.push('description=?'); params.push(t.description); }
   if (t.status) { updates.push('status=?'); params.push(t.status); if (t.status === 'resolved') updates.push("resolved_at=datetime('now')"); }
   if (t.priority) { updates.push('priority=?'); params.push(t.priority); }
-  if (updates.length === 0) return res.json({ success: false });
+  if (updates.length === 0) return res.status(400).json({ success: false, error: 'Nothing to update.' });
   params.push(req.params.id);
   getDb().prepare(`UPDATE plot_threads SET ${updates.join(', ')} WHERE thread_id = ?`).run(...params);
   res.json({ success: true });
@@ -479,7 +484,6 @@ router.post('/email-test', async (req, res) => {
 router.get('/health-detail', (req, res) => {
   const db = getDb();
   const fs = require('fs');
-  const path = require('path');
   const os = require('os');
 
   const tables = ['sessions', 'players', 'registrations', 'characters', 'campaigns',
@@ -489,9 +493,9 @@ router.get('/health-detail', (req, res) => {
     try { rowCounts[t] = db.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get().c; } catch { rowCounts[t] = 0; }
   }
 
-  const dbPath = path.join(__dirname, '..', '..', 'data', 'scheduler.db');
+  const { DB_PATH } = require('../db');
   let dbSizeMB = 0;
-  try { dbSizeMB = Math.round(fs.statSync(dbPath).size / 1024 / 1024 * 10) / 10; } catch {}
+  try { dbSizeMB = Math.round(fs.statSync(DB_PATH).size / 1024 / 1024 * 10) / 10; } catch {}
 
   const mem = process.memoryUsage();
   const { getPresenceCount } = require('./api-sse');
