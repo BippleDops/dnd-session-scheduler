@@ -2,7 +2,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getSessions, getCampaignsList, type Session, type Campaign } from '@/lib/api';
+import { getSessions, getCampaignsList, type Session } from '@/lib/api';
 import { formatDate, formatTime, campaignColor } from '@/lib/utils';
 import { useSwipe } from '@/hooks/useSwipe';
 import { CalendarSkeleton } from '@/components/ui/SessionSkeleton';

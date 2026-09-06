@@ -1,8 +1,7 @@
 'use client';
-import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getAdminDashboard, getPendingRegistrations, approveRegistration, rejectRegistration, triggerReminders, triggerBackup, type PendingRegistration } from '@/lib/api';
+import { getAdminDashboard, getPendingRegistrations, approveRegistration, rejectRegistration, triggerReminders, triggerBackup } from '@/lib/api';
 import { formatDate, formatTime, formatTimestamp } from '@/lib/utils';
 import CandleLoader from '@/components/ui/CandleLoader';
 import ParchmentPanel from '@/components/ui/ParchmentPanel';

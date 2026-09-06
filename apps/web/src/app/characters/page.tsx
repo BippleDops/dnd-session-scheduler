@@ -136,6 +136,7 @@ export default function CharactersPage() {
                   <label className="block text-xs font-bold mb-1">Portrait URL</label>
                   <input className="tavern-input" value={form.portraitUrl || ''} onChange={e => setForm({ ...form, portraitUrl: e.target.value })} placeholder="https://your-image-url.png" />
                   {form.portraitUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- live preview of a user-typed URL; static export has no image optimizer
                     <img src={form.portraitUrl} alt="Preview" className="w-16 h-16 mt-2 rounded-lg object-cover border border-[var(--parchment-dark)]"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   )}
@@ -229,6 +230,7 @@ export default function CharactersPage() {
           <ParchmentPanel key={c.character_id} className="hover:shadow-lg transition-shadow">
             <div className="flex gap-3">
               {c.portrait_url ? (
+                // eslint-disable-next-line @next/next/no-img-element -- player-supplied remote URL; static export has no image optimizer
                 <img src={c.portrait_url} alt={c.name} className="w-16 h-16 rounded-lg object-cover border-2 border-[var(--wood-dark)]" />
               ) : (
                 <div className="w-16 h-16 rounded-lg bg-[var(--wood-dark)] flex items-center justify-center text-2xl">{CLASS_ICONS[c.class?.split(',')[0]?.trim()] || '⚔️'}</div>

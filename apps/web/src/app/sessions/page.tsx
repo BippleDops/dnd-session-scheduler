@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { getSessions, type Session } from '@/lib/api';
+import { getSessions } from '@/lib/api';
 import { SessionGridSkeleton } from '@/components/ui/SessionSkeleton';
 import QuestCard from '@/components/ui/QuestCard';
 import WoodButton from '@/components/ui/WoodButton';
