@@ -55,6 +55,28 @@ describe('initializeDatabase on a fresh database', () => {
     getDb().close();
   });
 
+  it('seeds no campaigns unless INITIAL_CAMPAIGNS is set', () => {
+    const { initializeDatabase, getDb } = freshDbModule({ INITIAL_CAMPAIGNS: '' });
+    initializeDatabase();
+    const db = getDb();
+    expect(db.prepare('SELECT COUNT(*) AS c FROM campaigns').get().c).toBe(0);
+    expect(db.prepare("SELECT value FROM config WHERE key = 'CAMPAIGN_LIST'").get().value).toBe('');
+    db.close();
+  });
+
+  it('seeds campaigns from INITIAL_CAMPAIGNS (comma-separated, trimmed)', () => {
+    const { initializeDatabase, getDb } = freshDbModule({ INITIAL_CAMPAIGNS: ' Aethermoor, Two Cities ,, ' });
+    initializeDatabase();
+    const db = getDb();
+    const rows = db.prepare('SELECT slug, name FROM campaigns ORDER BY name').all();
+    expect(rows).toEqual([
+      { slug: 'aethermoor', name: 'Aethermoor' },
+      { slug: 'two-cities', name: 'Two Cities' },
+    ]);
+    expect(db.prepare("SELECT value FROM config WHERE key = 'CAMPAIGN_LIST'").get().value).toBe('Aethermoor,Two Cities');
+    db.close();
+  });
+
   it('accepts Pending registrations (the status processSignup writes)', () => {
     const { initializeDatabase, getDb } = freshDbModule();
     initializeDatabase();

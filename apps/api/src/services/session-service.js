@@ -481,8 +481,8 @@ function getTierRange(tier) { return TIER_RANGES[tier] || TIER_RANGES.any; }
 function getTierLabel(tier) { return TIER_LABELS[tier] || ''; }
 
 function getCampaignList() {
-  return getConfigValue('CAMPAIGN_LIST', 'Aethermoor,Aquabyssos,Terravor,Two Cities')
-    .split(',').map(c => c.trim());
+  // CAMPAIGN_LIST is seeded from INITIAL_CAMPAIGNS on first start and editable in admin config.
+  return getConfigValue('CAMPAIGN_LIST', '').split(',').map(c => c.trim()).filter(Boolean);
 }
 
 module.exports = {

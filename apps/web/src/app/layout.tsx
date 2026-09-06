@@ -24,15 +24,18 @@ const inter = Inter({
   display: 'swap',
 });
 
+// Public origin of the deployed site, baked in at build time (see apps/web/.env.example).
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') || undefined;
+
 export const metadata: Metadata = {
   title: 'D&D Session Scheduler',
   description: 'Sign up for D&D sessions, manage characters, and track your adventures.',
   manifest: '/manifest.json',
-  metadataBase: new URL('https://dndsignup.get-suss.com'),
+  metadataBase: siteUrl ? new URL(siteUrl) : undefined,
   openGraph: {
     title: 'D&D Session Scheduler',
     description: 'Sign up for D&D sessions, manage characters, and track your adventures.',
-    url: 'https://dndsignup.get-suss.com',
+    url: siteUrl,
     siteName: 'D&D Session Scheduler',
     type: 'website',
     locale: 'en_US',
@@ -66,7 +69,7 @@ const jsonLd = {
   '@type': 'WebApplication',
   name: 'D&D Session Scheduler',
   description: 'Sign up for D&D sessions, manage characters, and track your adventures.',
-  url: 'https://dndsignup.get-suss.com',
+  ...(siteUrl ? { url: siteUrl } : {}),
   applicationCategory: 'GameApplication',
   operatingSystem: 'Web',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },

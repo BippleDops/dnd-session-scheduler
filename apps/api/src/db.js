@@ -488,12 +488,16 @@ function initializeDatabase() {
     VALUES (?, ?, ?, datetime('now'))
   `);
 
+  // Campaigns seeded into a fresh database (comma-separated). Existing databases keep
+  // whatever CAMPAIGN_LIST the admin has configured.
+  const initialCampaigns = parseCampaignList(process.env.INITIAL_CAMPAIGNS);
+
   const defaults = [
     ['MAX_PLAYERS_DEFAULT', '6', 'Default max players per session'],
     ['REMINDER_LEAD_DAYS', '1', 'Days before session to send reminders'],
     ['RECAP_FOLLOW_DAYS', '1', 'Days after session to send recap reminder'],
     ['REMINDER_TRIGGER_HOUR', '8', 'Hour (0-23) for daily trigger'],
-    ['CAMPAIGN_LIST', 'Aethermoor,Aquabyssos,Terravor,Two Cities', 'Available campaigns'],
+    ['CAMPAIGN_LIST', initialCampaigns.join(','), 'Available campaigns'],
     ['EMAIL_DAILY_COUNT', '0', 'Emails sent today (auto-reset)'],
     ['EMAIL_DAILY_LIMIT', '100', 'Max emails per day'],
     ['APP_TITLE', 'D&D Session Scheduler', 'Web app display title'],
@@ -608,8 +612,8 @@ function initializeDatabase() {
   });
   seedTx();
 
-  // Seed campaigns from config
-  const campaignList = (db.prepare("SELECT value FROM config WHERE key = 'CAMPAIGN_LIST'").get()?.value || 'Aethermoor,Aquabyssos,Terravor,Two Cities').split(',').map(c => c.trim());
+  // Seed campaign rows from the configured CAMPAIGN_LIST (no-op when empty)
+  const campaignList = parseCampaignList(db.prepare("SELECT value FROM config WHERE key = 'CAMPAIGN_LIST'").get()?.value);
   const insertCampaign = db.prepare(`INSERT OR IGNORE INTO campaigns (campaign_id, slug, name, created_at) VALUES (?, ?, ?, datetime('now'))`);
   for (const name of campaignList) {
     insertCampaign.run(generateUuid(), name.toLowerCase().replace(/\s+/g, '-'), name);
@@ -631,6 +635,11 @@ function initializeDatabase() {
   }
 
   return db;
+}
+
+/** Splits a comma-separated campaign list into trimmed, non-empty names. */
+function parseCampaignList(value) {
+  return String(value || '').split(',').map(c => c.trim()).filter(Boolean);
 }
 
 /** True when `column` exists on `table` (uses PRAGMA table_info). */
@@ -729,5 +738,6 @@ module.exports = {
   maskEmail,
   normalizeDate,
   normalizeTime,
+  parseCampaignList,
 };
 

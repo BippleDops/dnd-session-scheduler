@@ -1,3 +1,6 @@
+# Variables are read from ./.env (copy apps/api/env.example there for Docker deployments).
+# Hosts that run the n8n stack can attach dnd-api/uptime-kuma to its network with:
+#   docker compose -f docker-compose.yml -f docker-compose.n8n.yml up -d
 services:
   dnd-api:
     build:
@@ -7,11 +10,13 @@ services:
     init: true
     env_file:
       - .env
+    environment:
+      - SCHEDULER_TIMEZONE=${SCHEDULER_TIMEZONE:-America/Chicago}
     volumes:
+      # The container runs as the unprivileged `node` user (uid 1000); ./data must be writable by it.
       - ./data:/app/data
     networks:
       - dnd-internal
-      - n8n-network
     deploy:
       resources:
         limits:
@@ -30,6 +35,9 @@ services:
   dnd-web:
     build:
       context: ./apps/web
+      args:
+        # Baked into the static export (metadata / canonical URLs). Defaults to BASE_URL.
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-${BASE_URL:-http://localhost:3001}}
     container_name: dnd-web
     restart: unless-stopped
     ports:
@@ -54,9 +62,10 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=America/Chicago
-      - CUSTOM_USER=${SQLITE_BROWSER_USER:-admin}
-      - PASSWORD=${SQLITE_BROWSER_PASS:-changeme}
+      - TZ=${SCHEDULER_TIMEZONE:-America/Chicago}
+      # Required: no default credentials. Set both in .env.
+      - CUSTOM_USER=${SQLITE_BROWSER_USER:?Set SQLITE_BROWSER_USER in .env}
+      - PASSWORD=${SQLITE_BROWSER_PASS:?Set SQLITE_BROWSER_PASS in .env}
     volumes:
       - ./data:/databases:ro
     shm_size: "1gb"
@@ -70,11 +79,8 @@ services:
     volumes:
       - ./data/uptime-kuma:/app/data
     networks:
-      - n8n-network
+      - dnd-internal
 
 networks:
   dnd-internal:
     driver: bridge
-  n8n-network:
-    external: true
-    name: n8n_n8n-network

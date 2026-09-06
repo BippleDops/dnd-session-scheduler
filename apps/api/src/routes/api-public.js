@@ -5,6 +5,7 @@
 const express = require('express');
 const { isAdmin } = require('../middleware/auth');
 const { getLinkSigningSecret } = require('../config/secrets');
+const { SCHEDULER_TIMEZONE } = require('../config/time');
 const { generateCsrfToken, validateCancelToken } = require('../middleware/csrf');
 const { getUpcomingSessions, getSessionById, getCampaignList } = require('../services/session-service');
 const { processSignup, cancelMyRegistration, getMyRegistrationsData } = require('../services/registration-service');
@@ -14,6 +15,15 @@ const { getCharactersByPlayer, getCharacterById, createCharacter, updateCharacte
 const { getAllCampaigns, getCampaignBySlug, getCampaignRoster, getCampaignTimeline } = require('../services/campaign-service');
 
 const router = express.Router();
+
+/** Host part of BASE_URL, used to namespace iCal UIDs (must be globally unique per RFC 5545). */
+function calendarUidDomain() {
+  try {
+    return new URL(process.env.BASE_URL).hostname || 'dnd-session-scheduler.local';
+  } catch {
+    return 'dnd-session-scheduler.local';
+  }
+}
 
 // ── Sessions ──
 
@@ -33,7 +43,7 @@ router.get('/sessions/:id/ics', (req, res) => {
   const dateStr = String(session.date).replace(/-/g, '');
   const startTime = String(session.startTime).replace(':', '') + '00';
   const endTime = String(session.endTime).replace(':', '') + '00';
-  const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//DnD Session Scheduler//EN\r\nBEGIN:VEVENT\r\nDTSTART;TZID=America/Chicago:${dateStr}T${startTime}\r\nDTEND;TZID=America/Chicago:${dateStr}T${endTime}\r\nSUMMARY:${session.title || session.campaign}\r\nDESCRIPTION:D&D Session - ${session.campaign}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+  const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//DnD Session Scheduler//EN\r\nBEGIN:VEVENT\r\nUID:${session.sessionId}@${calendarUidDomain()}\r\nDTSTART;TZID=${SCHEDULER_TIMEZONE}:${dateStr}T${startTime}\r\nDTEND;TZID=${SCHEDULER_TIMEZONE}:${dateStr}T${endTime}\r\nSUMMARY:${session.title || session.campaign}\r\nDESCRIPTION:D&D Session - ${session.campaign}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
 
   res.set('Content-Type', 'text/calendar');
   res.set('Content-Disposition', 'attachment; filename="session.ics"');
@@ -51,7 +61,7 @@ router.get('/calendar/feed.ics', (req, res) => {
     const endTime = String(s.endTime).replace(':', '') + '00';
     const spots = s.spotsRemaining > 0 ? `${s.spotsRemaining} spots open` : 'FULL';
     const tierInfo = s.levelTier && s.levelTier !== 'any' ? ` [${tierLabel(s.levelTier)}]` : '';
-    return `BEGIN:VEVENT\r\nUID:${s.sessionId}@dndsignup.get-suss.com\r\nDTSTART;TZID=America/Chicago:${dateStr}T${startTime}\r\nDTEND;TZID=America/Chicago:${dateStr}T${endTime}\r\nSUMMARY:${(s.title || s.campaign)}${tierInfo}\r\nDESCRIPTION:${s.campaign} — ${spots}${s.description ? '\\n' + s.description : ''}\\nSign up: ${process.env.BASE_URL || ''}/signup?sessionId=${s.sessionId}\r\nLOCATION:${s.location || ''}\r\nEND:VEVENT`;
+    return `BEGIN:VEVENT\r\nUID:${s.sessionId}@${calendarUidDomain()}\r\nDTSTART;TZID=${SCHEDULER_TIMEZONE}:${dateStr}T${startTime}\r\nDTEND;TZID=${SCHEDULER_TIMEZONE}:${dateStr}T${endTime}\r\nSUMMARY:${(s.title || s.campaign)}${tierInfo}\r\nDESCRIPTION:${s.campaign} — ${spots}${s.description ? '\\n' + s.description : ''}\\nSign up: ${process.env.BASE_URL || ''}/signup?sessionId=${s.sessionId}\r\nLOCATION:${s.location || ''}\r\nEND:VEVENT`;
   }).join('\r\n');
   const cal = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//DnD Session Scheduler//EN\r\nX-WR-CALNAME:D&D Sessions\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\nREFRESH-INTERVAL;VALUE=DURATION:PT1H\r\nX-PUBLISHED-TTL:PT1H\r\n${events}\r\nEND:VCALENDAR`;
   res.set('Content-Type', 'text/calendar; charset=utf-8');
@@ -78,7 +88,7 @@ router.get('/calendar/my-feed.ics', (req, res) => {
     const dateStr = String(r.date).replace(/-/g, '');
     const startTime = String(r.start_time).replace(':', '') + '00';
     const endTime = String(r.end_time).replace(':', '') + '00';
-    return `BEGIN:VEVENT\r\nUID:${r.registration_id}@dndsignup.get-suss.com\r\nDTSTART;TZID=America/Chicago:${dateStr}T${startTime}\r\nDTEND;TZID=America/Chicago:${dateStr}T${endTime}\r\nSUMMARY:D&D: ${r.title || r.campaign} (${r.char_name_snapshot})\r\nDESCRIPTION:Playing ${r.char_name_snapshot} — ${r.campaign}\r\nLOCATION:${r.location || ''}\r\nSTATUS:${r.status === 'Waitlisted' ? 'TENTATIVE' : 'CONFIRMED'}\r\nEND:VEVENT`;
+    return `BEGIN:VEVENT\r\nUID:${r.registration_id}@${calendarUidDomain()}\r\nDTSTART;TZID=${SCHEDULER_TIMEZONE}:${dateStr}T${startTime}\r\nDTEND;TZID=${SCHEDULER_TIMEZONE}:${dateStr}T${endTime}\r\nSUMMARY:D&D: ${r.title || r.campaign} (${r.char_name_snapshot})\r\nDESCRIPTION:Playing ${r.char_name_snapshot} — ${r.campaign}\r\nLOCATION:${r.location || ''}\r\nSTATUS:${r.status === 'Waitlisted' ? 'TENTATIVE' : 'CONFIRMED'}\r\nEND:VEVENT`;
   }).join('\r\n');
   const cal = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//DnD Session Scheduler//EN\r\nX-WR-CALNAME:My D&D Sessions\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\nREFRESH-INTERVAL;VALUE=DURATION:PT1H\r\nX-PUBLISHED-TTL:PT1H\r\n${events}\r\nEND:VCALENDAR`;
   res.set('Content-Type', 'text/calendar; charset=utf-8');

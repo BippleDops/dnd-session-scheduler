@@ -1,0 +1,19 @@
+# Optional override: attach dnd-api and uptime-kuma to an existing n8n stack's network.
+# Only usable on hosts where the external network `n8n_n8n-network` already exists.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.n8n.yml up -d
+services:
+  dnd-api:
+    networks:
+      - dnd-internal
+      - n8n-network
+
+  uptime-kuma:
+    networks:
+      - dnd-internal
+      - n8n-network
+
+networks:
+  n8n-network:
+    external: true
+    name: n8n_n8n-network
