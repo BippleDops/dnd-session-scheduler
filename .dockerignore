@@ -1,9 +1,0 @@
-node_modules
-client/node_modules
-client/.next
-client/out
-.env
-data/
-.git
-.gitignore
-*.md

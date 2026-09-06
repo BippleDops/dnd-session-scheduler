@@ -1,14 +1,31 @@
-node_modules/
-data/*.db
-data/*.db-shm
-data/*.db-wal
-data/*.sqlite
-data/backups/
-data/uptime-kuma/
-.env
-.cursor/
+# Dependencies
+**/node_modules/
 
-client/node_modules/
-client/.next/
-client/out/
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# SQLite databases (API writes to apps/api/data/; docker-compose mounts ./data)
+**/data/*.db
+**/data/*.db-shm
+**/data/*.db-wal
+**/data/*.sqlite
+**/data/backups/
+data/uptime-kuma/
+
+# Next.js build output (static export)
+apps/web/.next/
+apps/web/out/
+*.tsbuildinfo
+
+# Test coverage
+apps/api/coverage/
+
+# Logs
 logs/
+*.log
+
+# Editor / tooling
+.cursor/
+.DS_Store
