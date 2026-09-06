@@ -33,7 +33,16 @@ afterEach(() => {
 describe('processSignup', () => {
   it('rejects with invalid CSRF token', () => {
     const { processSignup } = require('../../src/services/registration-service');
-    const result = processSignup({ csrfToken: 'invalid' });
+    const result = processSignup({ csrfToken: 'invalid' }, { sessionId: 'test-session' });
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Session expired');
+  });
+
+  it('rejects a CSRF token issued to a different browser session', () => {
+    const { generateCsrfToken } = require('../../src/middleware/csrf');
+    const token = generateCsrfToken('victim-session');
+    const { processSignup } = require('../../src/services/registration-service');
+    const result = processSignup({ csrfToken: token }, { sessionId: 'attacker-session' });
     expect(result.success).toBe(false);
     expect(result.message).toContain('Session expired');
   });
@@ -52,7 +61,7 @@ describe('processSignup', () => {
       characterClass: '',
       characterLevel: '0',
       characterRace: '',
-    });
+    }, { sessionId: 'test-session' });
 
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
@@ -74,7 +83,7 @@ describe('processSignup', () => {
       characterLevel: '5',
       characterRace: 'Human',
       sessionId: 'nonexistent',
-    });
+    }, { sessionId: 'test-session' });
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('Session not found');
@@ -95,7 +104,7 @@ describe('processSignup', () => {
       characterLevel: '5',
       characterRace: 'Human',
       sessionId: session.session_id,
-    });
+    }, { sessionId: 'test-session' });
 
     expect(result.success).toBe(true);
     expect(result.registrationId).toBeDefined();
@@ -124,7 +133,7 @@ describe('processSignup', () => {
       characterLevel: '3',
       characterRace: 'Elf',
       sessionId: session.session_id,
-    });
+    }, { sessionId: 'test' });
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('already registered');
@@ -148,7 +157,7 @@ describe('processSignup', () => {
       characterLevel: '3',
       characterRace: 'Halfling',
       sessionId: session.session_id,
-    });
+    }, { sessionId: 'test' });
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('full');
@@ -170,7 +179,7 @@ describe('processSignup', () => {
       characterLevel: '10', // too high for tier1
       characterRace: 'Elf',
       sessionId: session.session_id,
-    });
+    }, { sessionId: 'test' });
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('Tier 1');
@@ -192,7 +201,7 @@ describe('processSignup', () => {
       characterLevel: '5',
       characterRace: 'Tiefling',
       sessionId: session.session_id,
-    });
+    }, { sessionId: 'test' });
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('no longer accepting');

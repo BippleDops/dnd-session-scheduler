@@ -4,6 +4,7 @@
  */
 const express = require('express');
 const { isAdmin } = require('../middleware/auth');
+const { getLinkSigningSecret } = require('../config/secrets');
 const { generateCsrfToken, validateCancelToken } = require('../middleware/csrf');
 const { getUpcomingSessions, getSessionById, getCampaignList } = require('../services/session-service');
 const { processSignup, cancelMyRegistration, getMyRegistrationsData } = require('../services/registration-service');
@@ -135,7 +136,7 @@ router.post('/signup', (req, res) => {
   }
   // Override email/name with authenticated user data — prevents impersonation
   const formData = { ...req.body, email: req.user.email, name: req.user.name || req.body.name };
-  const result = processSignup(formData);
+  const result = processSignup(formData, { sessionId: req.sessionID || '' });
   res.json(result);
 });
 
@@ -343,7 +344,7 @@ router.get('/rsvp', (req, res) => {
   const { token, response } = req.query;
   if (!token || !['yes', 'no'].includes(response)) return res.status(400).send('Invalid RSVP link.');
   const crypto = require('crypto');
-  const secret = process.env.SESSION_SECRET || 'rsvp-secret';
+  const secret = getLinkSigningSecret();
   const db = getDb();
   // Find the registration by verifying token
   const regs = db.prepare("SELECT registration_id, player_id, session_id FROM registrations WHERE status = 'Confirmed'").all();
@@ -384,7 +385,7 @@ router.get('/unsubscribe', (req, res) => {
   const db = getDb();
   const players = db.prepare('SELECT player_id FROM players').all();
   let matchedPlayerId = null;
-  const secret = process.env.SESSION_SECRET || 'unsubscribe-secret';
+  const secret = getLinkSigningSecret();
   for (const p of players) {
     const expected = crypto.createHmac('sha256', secret).update(p.player_id + category).digest('hex').slice(0, 32);
     if (expected === token) { matchedPlayerId = p.player_id; break; }

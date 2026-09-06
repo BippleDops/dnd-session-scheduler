@@ -6,23 +6,30 @@ const crypto = require('crypto');
 
 // In-memory token store (tokens expire after 30 min)
 const tokens = new Map();
+const CSRF_TTL_MS = 30 * 60 * 1000;
 
 function generateCsrfToken(sessionId) {
   const token = crypto.randomBytes(32).toString('hex');
-  tokens.set(token, { sessionId, createdAt: Date.now() });
+  tokens.set(token, { sessionId: sessionId || '', createdAt: Date.now() });
   // Prune old tokens
-  const cutoff = Date.now() - 30 * 60 * 1000;
+  const cutoff = Date.now() - CSRF_TTL_MS;
   for (const [k, v] of tokens) {
     if (v.createdAt < cutoff) tokens.delete(k);
   }
   return token;
 }
 
-function validateCsrfToken(token) {
+/**
+ * Validates and consumes a CSRF token. The token must be redeemed by the same
+ * browser session (req.sessionID) it was issued to.
+ */
+function validateCsrfToken(token, sessionId) {
+  if (typeof token !== 'string' || !token) return false;
   const entry = tokens.get(token);
   if (!entry) return false;
   tokens.delete(token); // single-use
-  return Date.now() - entry.createdAt < 30 * 60 * 1000;
+  if (Date.now() - entry.createdAt >= CSRF_TTL_MS) return false;
+  return entry.sessionId === (sessionId || '');
 }
 
 /** Generates a one-time cancel token stored in-memory. */

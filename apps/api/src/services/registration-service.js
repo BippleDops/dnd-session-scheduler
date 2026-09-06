@@ -25,10 +25,13 @@ function isPlayerCancelEnabled() {
 
 /**
  * Main sign-up entry point.
+ * @param {object} formData — sign-up form fields (csrfToken, sessionId, character info, ...)
+ * @param {{ sessionId?: string }} [context] — request context; `sessionId` is the express-session
+ *   id (req.sessionID) the CSRF token must have been issued to.
  */
-function processSignup(formData) {
+function processSignup(formData, context = {}) {
   // 1. CSRF
-  if (!validateCsrfToken(formData.csrfToken)) {
+  if (!validateCsrfToken(formData.csrfToken, context.sessionId)) {
     return { success: false, message: 'Session expired. Please refresh the page and try again.' };
   }
 

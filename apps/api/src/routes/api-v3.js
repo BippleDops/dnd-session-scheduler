@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb, generateUuid, logAction } = require('../db');
 const { getPlayerByEmail } = require('../services/player-service');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireAuth, isAdmin } = require('../middleware/auth');
 
 // ── Loot (Admin) ──
 router.post('/admin/loot', requireAdmin, (req, res) => {
@@ -99,16 +99,23 @@ router.get('/me/achievements', (req, res) => {
   res.json(achievements);
 });
 
-// ── Player Public Profile ──
-router.get('/players/:id', (req, res) => {
+// ── Player Profile ──
+// Authenticated users see name + photo only; the player themself and admins get the full profile.
+router.get('/players/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const player = db.prepare('SELECT player_id, name, photo_url FROM players WHERE player_id = ?').get(req.params.id);
+  const player = db.prepare('SELECT player_id, name, email, photo_url FROM players WHERE player_id = ?').get(req.params.id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const publicProfile = { player_id: player.player_id, name: player.name, photo_url: player.photo_url };
+  const requesterEmail = (req.user?.email || '').toLowerCase();
+  const isSelf = !!requesterEmail && requesterEmail === (player.email || '').toLowerCase();
+  if (!isSelf && !isAdmin(req.user)) return res.json(publicProfile);
+
   const characters = db.prepare("SELECT * FROM characters WHERE player_id = ? AND status = 'Active' ORDER BY name").all(req.params.id);
   const sessions = db.prepare('SELECT COUNT(DISTINCT r.session_id) as count FROM registrations r WHERE r.player_id = ?').get(req.params.id);
   const campaigns = db.prepare(`SELECT DISTINCT s.campaign FROM registrations r JOIN sessions s ON r.session_id = s.session_id WHERE r.player_id = ?`).all(req.params.id);
   const achievements = db.prepare(`SELECT a.*, pa.earned_at FROM achievements a JOIN player_achievements pa ON a.achievement_id = pa.achievement_id WHERE pa.player_id = ?`).all(req.params.id);
-  res.json({ ...player, characters, session_count: sessions?.count || 0, campaigns: campaigns.map(c => c.campaign), achievements });
+  res.json({ ...publicProfile, characters, session_count: sessions?.count || 0, campaigns: campaigns.map(c => c.campaign), achievements });
 });
 
 // ── Player Stats ──

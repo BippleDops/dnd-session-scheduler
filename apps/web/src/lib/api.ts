@@ -352,10 +352,11 @@ export interface DiceRollResult {
   results: number[]; total: number; modifier: number;
   player_name: string; created_at: string;
 }
+/** GET /api/players/:id — requires login; characters/campaigns/achievements are only present for the player themself or admins. */
 export interface PlayerPublicProfile {
-  player_id: string; name: string; photo_url: string;
-  characters: CharacterSheet[]; campaigns: string[];
-  session_count: number; achievements: Achievement[];
+  player_id: string; name: string; photo_url: string | null;
+  characters?: CharacterSheet[]; campaigns?: string[];
+  session_count?: number; achievements?: Achievement[];
 }
 export interface AnalyticsData {
   sessionsPerMonth: { month: string; count: number }[];

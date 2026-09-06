@@ -136,8 +136,8 @@ function hasEmailBeenSent(playerId, sessionId, emailType) {
  */
 function getUnsubscribeUrl(playerId, category) {
   const crypto = require('crypto');
-  const secret = process.env.SESSION_SECRET || 'unsubscribe-secret';
-  const token = crypto.createHmac('sha256', secret).update(playerId + category).digest('hex').slice(0, 32);
+  const { getLinkSigningSecret } = require('../config/secrets');
+  const token = crypto.createHmac('sha256', getLinkSigningSecret()).update(playerId + category).digest('hex').slice(0, 32);
   return `${process.env.BASE_URL || ''}/api/unsubscribe?token=${token}&category=${category}`;
 }
 

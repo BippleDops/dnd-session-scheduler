@@ -18,6 +18,7 @@ const cron = require('node-cron');
 
 const rateLimit = require('express-rate-limit');
 const { initializeDatabase, getConfigValue } = require('./db');
+const { getSessionSecret } = require('./config/secrets');
 const { router: authRouter, initPassport } = require('./routes/auth');
 const apiPublic = require('./routes/api-public');
 const apiAdmin = require('./routes/api-admin');
@@ -43,13 +44,11 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── Sessions ──
-const sessionSecret = process.env.SESSION_SECRET;
-if (!sessionSecret || sessionSecret.length < 32) {
-  console.warn('[SECURITY] SESSION_SECRET is missing or too short. Set a random 64+ character string in .env');
-}
+// Throws in production when SESSION_SECRET is missing; stable (insecure) fallback in development.
+const sessionSecret = getSessionSecret();
 app.use(session({
   store: new SQLiteStore({ dir: path.join(__dirname, '..', 'data'), db: 'sessions.sqlite' }),
-  secret: sessionSecret || 'change-me-please-' + Date.now(),
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: {
